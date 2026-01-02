@@ -43,7 +43,7 @@ const Accueil = () => {
             return (
               <div 
                 key={type.id}
-                className="course-card h-64 animate-fade-in"
+                className="course-card group h-64 animate-fade-in"
                 onClick={() => handleTypeClick(type)}
               >
                 <img 
