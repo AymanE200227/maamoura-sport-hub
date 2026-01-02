@@ -162,8 +162,7 @@
 
   .course-card {
     @apply relative overflow-hidden rounded-xl cursor-pointer;
-    @apply transition-transform duration-300 hover:scale-[1.02];
-    @apply group;
+    @apply transition-transform duration-300 hover:scale-105;
   }
 
   .course-card-overlay {
