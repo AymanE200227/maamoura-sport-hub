@@ -1,17 +1,21 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ChevronLeft, ChevronRight, Plus, FileText, Edit, Trash2, Download, Eye, Upload, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, FileText, Edit, Trash2, Eye, Upload, X, ArrowLeft } from 'lucide-react';
 import Layout from '@/components/Layout';
 import { 
   getCourseTypes, 
   getSportCoursesByType, 
-  getFilesBySportCourse,
+  getCourseTitlesBySportCourse,
+  getFilesByCourseTitle,
+  addCourseTitle,
+  updateCourseTitle,
+  deleteCourseTitle,
   addFile,
   updateFile,
   deleteFile,
   getUserMode
 } from '@/lib/storage';
-import { CourseType, SportCourse, CourseFile } from '@/types';
+import { CourseType, SportCourse, CourseTitle, CourseFile } from '@/types';
 import { getSportImage } from '@/assets/sports';
 import { useToast } from '@/hooks/use-toast';
 import bgImage from '@/assets/bg3.jpg';
@@ -25,7 +29,16 @@ const CoursDetail = () => {
   const [courseType, setCourseType] = useState<CourseType | null>(null);
   const [sportCourses, setSportCourses] = useState<SportCourse[]>([]);
   const [selectedCourse, setSelectedCourse] = useState<SportCourse | null>(null);
+  const [courseTitles, setCourseTitles] = useState<CourseTitle[]>([]);
+  const [selectedTitle, setSelectedTitle] = useState<CourseTitle | null>(null);
   const [files, setFiles] = useState<CourseFile[]>([]);
+  
+  // Title form state
+  const [showAddTitle, setShowAddTitle] = useState(false);
+  const [editingTitle, setEditingTitle] = useState<CourseTitle | null>(null);
+  const [titleForm, setTitleForm] = useState('');
+  
+  // File form state
   const [showAddFile, setShowAddFile] = useState(false);
   const [editingFile, setEditingFile] = useState<CourseFile | null>(null);
   const [fileForm, setFileForm] = useState({
@@ -53,16 +66,25 @@ const CoursDetail = () => {
       setCourseType(type);
       const courses = getSportCoursesByType(typeId!);
       setSportCourses(courses);
-      if (courses.length > 0 && !selectedCourse) {
-        setSelectedCourse(courses[0]);
-        setFiles(getFilesBySportCourse(courses[0].id));
-      }
     }
   };
 
   const handleCourseSelect = (course: SportCourse) => {
     setSelectedCourse(course);
-    setFiles(getFilesBySportCourse(course.id));
+    setSelectedTitle(null);
+    setFiles([]);
+    const titles = getCourseTitlesBySportCourse(course.id);
+    setCourseTitles(titles);
+  };
+
+  const handleTitleSelect = (title: CourseTitle) => {
+    setSelectedTitle(title);
+    setFiles(getFilesByCourseTitle(title.id));
+  };
+
+  const handleBackToTitles = () => {
+    setSelectedTitle(null);
+    setFiles([]);
   };
 
   const scrollCarousel = (direction: 'left' | 'right') => {
@@ -75,6 +97,52 @@ const CoursDetail = () => {
     }
   };
 
+  // Title CRUD
+  const handleSaveTitle = () => {
+    if (!titleForm.trim() || !selectedCourse) {
+      toast({ title: 'Erreur', description: 'Le titre est requis', variant: 'destructive' });
+      return;
+    }
+
+    if (editingTitle) {
+      updateCourseTitle(editingTitle.id, { title: titleForm });
+      toast({ title: 'Titre modifié', description: 'Le titre a été mis à jour' });
+    } else {
+      addCourseTitle({ sportCourseId: selectedCourse.id, title: titleForm });
+      toast({ title: 'Titre ajouté', description: 'Le titre a été ajouté avec succès' });
+    }
+
+    setCourseTitles(getCourseTitlesBySportCourse(selectedCourse.id));
+    resetTitleForm();
+  };
+
+  const handleEditTitle = (title: CourseTitle) => {
+    setEditingTitle(title);
+    setTitleForm(title.title);
+    setShowAddTitle(true);
+  };
+
+  const handleDeleteTitle = (titleId: string) => {
+    if (confirm('Êtes-vous sûr de vouloir supprimer ce titre et tous ses fichiers?')) {
+      deleteCourseTitle(titleId);
+      if (selectedCourse) {
+        setCourseTitles(getCourseTitlesBySportCourse(selectedCourse.id));
+      }
+      if (selectedTitle?.id === titleId) {
+        setSelectedTitle(null);
+        setFiles([]);
+      }
+      toast({ title: 'Titre supprimé', description: 'Le titre a été supprimé' });
+    }
+  };
+
+  const resetTitleForm = () => {
+    setShowAddTitle(false);
+    setEditingTitle(null);
+    setTitleForm('');
+  };
+
+  // File CRUD
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -97,12 +165,8 @@ const CoursDetail = () => {
   };
 
   const handleSaveFile = () => {
-    if (!fileForm.title || !selectedCourse) {
-      toast({
-        title: 'Erreur',
-        description: 'Le titre est requis',
-        variant: 'destructive'
-      });
+    if (!fileForm.title || !selectedTitle) {
+      toast({ title: 'Erreur', description: 'Le titre est requis', variant: 'destructive' });
       return;
     }
 
@@ -110,22 +174,19 @@ const CoursDetail = () => {
       updateFile(editingFile.id, fileForm);
       toast({ title: 'Fichier modifié', description: 'Le fichier a été mis à jour' });
     } else {
-      addFile({
-        ...fileForm,
-        sportCourseId: selectedCourse.id
-      });
+      addFile({ ...fileForm, courseTitleId: selectedTitle.id });
       toast({ title: 'Fichier ajouté', description: 'Le fichier a été ajouté avec succès' });
     }
 
-    setFiles(getFilesBySportCourse(selectedCourse.id));
+    setFiles(getFilesByCourseTitle(selectedTitle.id));
     resetFileForm();
   };
 
   const handleDeleteFile = (fileId: string) => {
     if (confirm('Êtes-vous sûr de vouloir supprimer ce fichier?')) {
       deleteFile(fileId);
-      if (selectedCourse) {
-        setFiles(getFilesBySportCourse(selectedCourse.id));
+      if (selectedTitle) {
+        setFiles(getFilesByCourseTitle(selectedTitle.id));
       }
       toast({ title: 'Fichier supprimé', description: 'Le fichier a été supprimé' });
     }
@@ -145,11 +206,7 @@ const CoursDetail = () => {
         `);
       }
     } else {
-      toast({
-        title: 'Fichier non disponible',
-        description: 'Ce fichier de démonstration n\'a pas de contenu',
-        variant: 'destructive'
-      });
+      toast({ title: 'Fichier non disponible', description: "Ce fichier de démonstration n'a pas de contenu", variant: 'destructive' });
     }
   };
 
@@ -168,13 +225,7 @@ const CoursDetail = () => {
   const resetFileForm = () => {
     setShowAddFile(false);
     setEditingFile(null);
-    setFileForm({
-      title: '',
-      description: '',
-      type: 'pdf',
-      fileName: '',
-      fileData: ''
-    });
+    setFileForm({ title: '', description: '', type: 'pdf', fileName: '', fileData: '' });
   };
 
   const getFileIcon = (type: string) => {
@@ -202,10 +253,7 @@ const CoursDetail = () => {
           <ChevronLeft className="w-6 h-6" />
         </button>
 
-        <div 
-          ref={carouselRef}
-          className="carousel-container px-12"
-        >
+        <div ref={carouselRef} className="carousel-container px-12">
           {sportCourses.map((course) => (
             <div
               key={course.id}
@@ -215,11 +263,7 @@ const CoursDetail = () => {
               }`}
             >
               <div className="course-card h-36">
-                <img 
-                  src={getSportImage(course.image)}
-                  alt={course.title}
-                  className="w-full h-full object-cover"
-                />
+                <img src={getSportImage(course.image)} alt={course.title} className="w-full h-full object-cover" />
                 <div className="course-card-overlay">
                   <h3 className="text-lg font-semibold">{course.title}</h3>
                   <p className="text-xs text-muted-foreground line-clamp-2">{course.description}</p>
@@ -237,12 +281,87 @@ const CoursDetail = () => {
         </button>
       </div>
 
-      {/* Files Section */}
-      {selectedCourse && (
+      {/* Course Titles Section */}
+      {selectedCourse && !selectedTitle && (
         <div className="glass-card p-6 animate-fade-in">
-          <h2 className="text-2xl font-bold mb-6">Fichiers {selectedCourse.title}</h2>
+          <h2 className="text-2xl font-bold mb-6">Cours {selectedCourse.title}</h2>
 
-          {/* File List */}
+          <div className="space-y-3 mb-6">
+            {courseTitles.map((title) => (
+              <div key={title.id} className="file-item animate-slide-in group">
+                <div 
+                  className="flex-1 cursor-pointer hover:text-primary transition-colors"
+                  onClick={() => handleTitleSelect(title)}
+                >
+                  <h4 className="font-medium text-lg">{title.title}</h4>
+                  <p className="text-sm text-muted-foreground">Cliquer pour voir les fichiers</p>
+                </div>
+                {userMode === 'admin' && (
+                  <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button onClick={() => handleEditTitle(title)} className="btn-ghost p-2 border border-border">
+                      <Edit className="w-4 h-4" />
+                    </button>
+                    <button onClick={() => handleDeleteTitle(title.id)} className="btn-destructive p-2">
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                )}
+              </div>
+            ))}
+
+            {courseTitles.length === 0 && (
+              <p className="text-center text-muted-foreground py-8">Aucun cours disponible</p>
+            )}
+          </div>
+
+          {userMode === 'admin' && !showAddTitle && (
+            <button onClick={() => setShowAddTitle(true)} className="btn-success flex items-center gap-2">
+              <Plus className="w-5 h-5" />
+              Ajouter Cours
+            </button>
+          )}
+
+          {showAddTitle && (
+            <div className="glass-card p-4 mt-4 animate-scale-in">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-semibold">{editingTitle ? 'Modifier Cours' : 'Ajouter Cours'}</h3>
+                <button onClick={resetTitleForm} className="p-1 hover:bg-muted rounded">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium mb-1">Titre du cours *</label>
+                  <input
+                    type="text"
+                    value={titleForm}
+                    onChange={(e) => setTitleForm(e.target.value)}
+                    className="glass-input w-full p-2"
+                    placeholder="Ex: Initiation au Basketball"
+                  />
+                </div>
+                <div className="flex gap-3">
+                  <button onClick={handleSaveTitle} className="btn-success flex-1">
+                    {editingTitle ? 'Enregistrer' : 'Ajouter'}
+                  </button>
+                  <button onClick={resetTitleForm} className="btn-ghost border border-border">Annuler</button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Files Section */}
+      {selectedTitle && (
+        <div className="glass-card p-6 animate-fade-in">
+          <div className="flex items-center gap-4 mb-6">
+            <button onClick={handleBackToTitles} className="btn-ghost p-2 border border-border">
+              <ArrowLeft className="w-5 h-5" />
+            </button>
+            <h2 className="text-2xl font-bold">Fichiers: {selectedTitle.title}</h2>
+          </div>
+
           <div className="space-y-3 mb-6">
             {files.map((file) => (
               <div key={file.id} className="file-item animate-slide-in">
@@ -252,26 +371,17 @@ const CoursDetail = () => {
                   <p className="text-sm text-muted-foreground">{file.description || file.fileName}</p>
                 </div>
                 <div className="flex items-center gap-2">
-                  <button 
-                    onClick={() => handleOpenFile(file)}
-                    className="btn-success flex items-center gap-1 text-sm"
-                  >
+                  <button onClick={() => handleOpenFile(file)} className="btn-success flex items-center gap-1 text-sm">
                     <Eye className="w-4 h-4" />
                     Ouvrir
                   </button>
                   {userMode === 'admin' && (
                     <>
-                      <button 
-                        onClick={() => handleEditFile(file)}
-                        className="btn-ghost flex items-center gap-1 text-sm border border-border"
-                      >
+                      <button onClick={() => handleEditFile(file)} className="btn-ghost flex items-center gap-1 text-sm border border-border">
                         <Edit className="w-4 h-4" />
                         Modifier
                       </button>
-                      <button 
-                        onClick={() => handleDeleteFile(file.id)}
-                        className="btn-destructive flex items-center gap-1 text-sm"
-                      >
+                      <button onClick={() => handleDeleteFile(file.id)} className="btn-destructive flex items-center gap-1 text-sm">
                         <Trash2 className="w-4 h-4" />
                         Supprimer
                       </button>
@@ -282,30 +392,21 @@ const CoursDetail = () => {
             ))}
 
             {files.length === 0 && (
-              <p className="text-center text-muted-foreground py-8">
-                Aucun fichier disponible pour ce cours
-              </p>
+              <p className="text-center text-muted-foreground py-8">Aucun fichier disponible pour ce cours</p>
             )}
           </div>
 
-          {/* Add File Button - Admin Only */}
           {userMode === 'admin' && !showAddFile && (
-            <button 
-              onClick={() => setShowAddFile(true)}
-              className="btn-success flex items-center gap-2"
-            >
+            <button onClick={() => setShowAddFile(true)} className="btn-success flex items-center gap-2">
               <Plus className="w-5 h-5" />
               Ajouter Fichier
             </button>
           )}
 
-          {/* Add/Edit File Form */}
           {showAddFile && (
             <div className="glass-card p-4 mt-4 animate-scale-in">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="font-semibold">
-                  {editingFile ? 'Modifier Fichier' : 'Ajouter Fichier'}
-                </h3>
+                <h3 className="font-semibold">{editingFile ? 'Modifier Fichier' : 'Ajouter Fichier'}</h3>
                 <button onClick={resetFileForm} className="p-1 hover:bg-muted rounded">
                   <X className="w-5 h-5" />
                 </button>
@@ -352,12 +453,7 @@ const CoursDetail = () => {
                   <label className="flex items-center gap-2 btn-ghost border border-dashed border-border cursor-pointer justify-center py-4">
                     <Upload className="w-5 h-5" />
                     <span>{fileForm.fileName || 'Choisir un fichier'}</span>
-                    <input
-                      type="file"
-                      onChange={handleFileUpload}
-                      accept=".pdf,.doc,.docx,.ppt,.pptx"
-                      className="hidden"
-                    />
+                    <input type="file" onChange={handleFileUpload} accept=".pdf,.doc,.docx,.ppt,.pptx" className="hidden" />
                   </label>
                 </div>
 
@@ -365,9 +461,7 @@ const CoursDetail = () => {
                   <button onClick={handleSaveFile} className="btn-success flex-1">
                     {editingFile ? 'Enregistrer' : 'Ajouter'}
                   </button>
-                  <button onClick={resetFileForm} className="btn-ghost border border-border">
-                    Annuler
-                  </button>
+                  <button onClick={resetFileForm} className="btn-ghost border border-border">Annuler</button>
                 </div>
               </div>
             </div>

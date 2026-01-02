@@ -12,9 +12,15 @@ export interface SportCourse {
   image: string;
 }
 
-export interface CourseFile {
+export interface CourseTitle {
   id: string;
   sportCourseId: string;
+  title: string;
+}
+
+export interface CourseFile {
+  id: string;
+  courseTitleId: string;
   title: string;
   description?: string;
   type: 'ppt' | 'word' | 'pdf';

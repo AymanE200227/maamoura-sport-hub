@@ -1,8 +1,9 @@
-import { CourseType, SportCourse, CourseFile } from '@/types';
+import { CourseType, SportCourse, CourseTitle, CourseFile } from '@/types';
 
 const STORAGE_KEYS = {
   COURSE_TYPES: 'csm_course_types',
   SPORT_COURSES: 'csm_sport_courses',
+  COURSE_TITLES: 'csm_course_titles',
   FILES: 'csm_files',
   PASSWORD: 'csm_password',
   USER_MODE: 'csm_user_mode',
@@ -99,8 +100,60 @@ export const updateSportCourse = (id: string, updates: Partial<SportCourse>): vo
 export const deleteSportCourse = (id: string): void => {
   const courses = getSportCourses().filter(c => c.id !== id);
   saveSportCourses(courses);
+  // Also delete related course titles
+  const titles = getCourseTitles().filter(t => t.sportCourseId !== id);
+  saveCourseTitles(titles);
+};
+
+// Course Titles
+export const getCourseTitles = (): CourseTitle[] => {
+  const data = localStorage.getItem(STORAGE_KEYS.COURSE_TITLES);
+  if (!data) {
+    const defaults: CourseTitle[] = [
+      { id: '1', sportCourseId: '1', title: 'Initiation au Basketball' },
+      { id: '2', sportCourseId: '1', title: 'Basketball – Techniques de Base' },
+      { id: '3', sportCourseId: '1', title: 'Perfectionnement en Basketball' },
+      { id: '4', sportCourseId: '1', title: 'Dribbles et Contrôle du Ballon' },
+      { id: '5', sportCourseId: '1', title: 'Tirs et Précision au Basketball' },
+      { id: '6', sportCourseId: '2', title: 'Initiation au Volleyball' },
+      { id: '7', sportCourseId: '2', title: 'Techniques de Service' },
+    ];
+    localStorage.setItem(STORAGE_KEYS.COURSE_TITLES, JSON.stringify(defaults));
+    return defaults;
+  }
+  return JSON.parse(data);
+};
+
+export const saveCourseTitles = (titles: CourseTitle[]): void => {
+  localStorage.setItem(STORAGE_KEYS.COURSE_TITLES, JSON.stringify(titles));
+};
+
+export const getCourseTitlesBySportCourse = (sportCourseId: string): CourseTitle[] => {
+  return getCourseTitles().filter(t => t.sportCourseId === sportCourseId);
+};
+
+export const addCourseTitle = (title: Omit<CourseTitle, 'id'>): CourseTitle => {
+  const titles = getCourseTitles();
+  const newTitle: CourseTitle = { ...title, id: Date.now().toString() };
+  titles.push(newTitle);
+  saveCourseTitles(titles);
+  return newTitle;
+};
+
+export const updateCourseTitle = (id: string, updates: Partial<CourseTitle>): void => {
+  const titles = getCourseTitles();
+  const index = titles.findIndex(t => t.id === id);
+  if (index !== -1) {
+    titles[index] = { ...titles[index], ...updates };
+    saveCourseTitles(titles);
+  }
+};
+
+export const deleteCourseTitle = (id: string): void => {
+  const titles = getCourseTitles().filter(t => t.id !== id);
+  saveCourseTitles(titles);
   // Also delete related files
-  const files = getFiles().filter(f => f.sportCourseId !== id);
+  const files = getFiles().filter(f => f.courseTitleId !== id);
   saveFiles(files);
 };
 
@@ -109,9 +162,9 @@ export const getFiles = (): CourseFile[] => {
   const data = localStorage.getItem(STORAGE_KEYS.FILES);
   if (!data) {
     const defaults: CourseFile[] = [
-      { id: '1', sportCourseId: '1', title: 'PPT: Techniques de Base', description: 'Les bases du basketball', type: 'ppt', fileName: 'techniques_base.pptx', fileData: '' },
-      { id: '2', sportCourseId: '1', title: 'WORD: Exercices et Drills', description: 'Exercices pratiques', type: 'word', fileName: 'exercices.docx', fileData: '' },
-      { id: '3', sportCourseId: '1', title: 'PDF: Règlement Officiel', description: 'Règles officielles FIBA', type: 'pdf', fileName: 'reglement.pdf', fileData: '' },
+      { id: '1', courseTitleId: '1', title: 'PPT: Techniques de Base', description: 'Les bases du basketball', type: 'ppt', fileName: 'techniques_base.pptx', fileData: '' },
+      { id: '2', courseTitleId: '1', title: 'WORD: Exercices et Drills', description: 'Exercices pratiques', type: 'word', fileName: 'exercices.docx', fileData: '' },
+      { id: '3', courseTitleId: '2', title: 'PDF: Règlement Officiel', description: 'Règles officielles FIBA', type: 'pdf', fileName: 'reglement.pdf', fileData: '' },
     ];
     localStorage.setItem(STORAGE_KEYS.FILES, JSON.stringify(defaults));
     return defaults;
@@ -123,8 +176,8 @@ export const saveFiles = (files: CourseFile[]): void => {
   localStorage.setItem(STORAGE_KEYS.FILES, JSON.stringify(files));
 };
 
-export const getFilesBySportCourse = (sportCourseId: string): CourseFile[] => {
-  return getFiles().filter(f => f.sportCourseId === sportCourseId);
+export const getFilesByCourseTitle = (courseTitleId: string): CourseFile[] => {
+  return getFiles().filter(f => f.courseTitleId === courseTitleId);
 };
 
 export const addFile = (file: Omit<CourseFile, 'id'>): CourseFile => {
