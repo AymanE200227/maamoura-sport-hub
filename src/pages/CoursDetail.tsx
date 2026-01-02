@@ -194,16 +194,19 @@ const CoursDetail = () => {
 
   const handleOpenFile = (file: CourseFile) => {
     if (file.fileData) {
-      const newWindow = window.open('', '_blank');
-      if (newWindow) {
-        newWindow.document.write(`
-          <html>
-            <head><title>${file.title}</title></head>
-            <body style="margin:0">
-              <iframe src="${file.fileData}" style="width:100%;height:100vh;border:none"></iframe>
-            </body>
-          </html>
-        `);
+      // Create a download link for the file
+      const link = document.createElement('a');
+      link.href = file.fileData;
+      link.download = file.fileName;
+      link.target = '_blank';
+      
+      // For PDFs, try to open in new tab, otherwise download
+      if (file.type === 'pdf') {
+        window.open(file.fileData, '_blank');
+      } else {
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
       }
     } else {
       toast({ title: 'Fichier non disponible', description: "Ce fichier de démonstration n'a pas de contenu", variant: 'destructive' });
@@ -263,7 +266,7 @@ const CoursDetail = () => {
               }`}
             >
               <div className="course-card h-36">
-                <img src={getSportImage(course.image)} alt={course.title} className="w-full h-full object-cover" />
+                <img src={course.image.startsWith('data:') ? course.image : getSportImage(course.image)} alt={course.title} className="w-full h-full object-cover" />
                 <div className="course-card-overlay">
                   <h3 className="text-lg font-semibold">{course.title}</h3>
                   <p className="text-xs text-muted-foreground line-clamp-2">{course.description}</p>

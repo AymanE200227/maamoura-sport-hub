@@ -2,6 +2,7 @@ export interface CourseType {
   id: string;
   name: string;
   description?: string;
+  image?: string; // Custom uploaded image (base64)
 }
 
 export interface SportCourse {

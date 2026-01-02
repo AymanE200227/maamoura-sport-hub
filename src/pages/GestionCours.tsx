@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Edit, Trash2, X, FileText, Image as ImageIcon } from 'lucide-react';
+import { Plus, Edit, Trash2, X, Upload } from 'lucide-react';
 import Layout from '@/components/Layout';
 import { 
   getCourseTypes, 
@@ -29,7 +29,7 @@ const GestionCours = () => {
   // Type form state
   const [showTypeForm, setShowTypeForm] = useState(false);
   const [editingType, setEditingType] = useState<CourseType | null>(null);
-  const [typeForm, setTypeForm] = useState({ name: '', description: '' });
+  const [typeForm, setTypeForm] = useState({ name: '', description: '', image: '' });
   
   // Course form state
   const [showCourseForm, setShowCourseForm] = useState(false);
@@ -38,7 +38,8 @@ const GestionCours = () => {
     courseTypeId: '',
     title: '',
     description: '',
-    image: 'basketball'
+    image: 'basketball',
+    customImage: ''
   });
   
   // Delete confirmation
@@ -57,16 +58,40 @@ const GestionCours = () => {
     setSportCourses(getSportCourses());
   };
 
+  // Handle image upload for course type
+  const handleTypeImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = () => {
+        setTypeForm(prev => ({ ...prev, image: reader.result as string }));
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  // Handle image upload for sport course
+  const handleCourseImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = () => {
+        setCourseForm(prev => ({ ...prev, customImage: reader.result as string, image: 'custom' }));
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   // Course Type CRUD
   const handleAddType = () => {
     setEditingType(null);
-    setTypeForm({ name: '', description: '' });
+    setTypeForm({ name: '', description: '', image: '' });
     setShowTypeForm(true);
   };
 
   const handleEditType = (type: CourseType) => {
     setEditingType(type);
-    setTypeForm({ name: type.name, description: type.description || '' });
+    setTypeForm({ name: type.name, description: type.description || '', image: type.image || '' });
     setShowTypeForm(true);
   };
 
@@ -105,18 +130,21 @@ const GestionCours = () => {
       courseTypeId: courseTypes[0]?.id || '',
       title: '',
       description: '',
-      image: 'basketball'
+      image: 'basketball',
+      customImage: ''
     });
     setShowCourseForm(true);
   };
 
   const handleEditCourse = (course: SportCourse) => {
     setEditingCourse(course);
+    const isCustom = course.image.startsWith('data:');
     setCourseForm({
       courseTypeId: course.courseTypeId,
       title: course.title,
       description: course.description,
-      image: course.image
+      image: isCustom ? 'custom' : course.image,
+      customImage: isCustom ? course.image : ''
     });
     setShowCourseForm(true);
   };
@@ -127,11 +155,18 @@ const GestionCours = () => {
       return;
     }
 
+    const courseData = {
+      courseTypeId: courseForm.courseTypeId,
+      title: courseForm.title,
+      description: courseForm.description,
+      image: courseForm.image === 'custom' ? courseForm.customImage : courseForm.image
+    };
+
     if (editingCourse) {
-      updateSportCourse(editingCourse.id, courseForm);
+      updateSportCourse(editingCourse.id, courseData);
       toast({ title: 'Cours modifié', description: 'Le cours a été mis à jour' });
     } else {
-      addSportCourse(courseForm);
+      addSportCourse(courseData);
       toast({ title: 'Cours ajouté', description: 'Le cours a été ajouté' });
     }
 
@@ -154,6 +189,20 @@ const GestionCours = () => {
     'combat', 'endurance', 'sportif', 'militaire'
   ];
 
+  const getCourseImage = (course: SportCourse) => {
+    if (course.image.startsWith('data:')) {
+      return course.image;
+    }
+    return getSportImage(course.image);
+  };
+
+  const getTypeImage = (type: CourseType) => {
+    if (type.image) {
+      return type.image;
+    }
+    return null;
+  };
+
   return (
     <Layout backgroundImage={bgImage}>
       <div className="max-w-4xl mx-auto space-y-8">
@@ -165,9 +214,16 @@ const GestionCours = () => {
             {courseTypes.map((type) => (
               <div 
                 key={type.id} 
-                className="flex items-center justify-between p-4 bg-muted/30 rounded-lg border border-border/30"
+                className="flex items-center gap-4 p-4 bg-muted/30 rounded-lg border border-border/30"
               >
-                <span className="font-medium">{type.name}</span>
+                {getTypeImage(type) && (
+                  <img 
+                    src={getTypeImage(type)!} 
+                    alt={type.name}
+                    className="w-12 h-12 object-cover rounded"
+                  />
+                )}
+                <span className="font-medium flex-1">{type.name}</span>
                 <div className="flex items-center gap-2">
                   <button 
                     onClick={() => handleEditType(type)}
@@ -226,6 +282,25 @@ const GestionCours = () => {
                       placeholder="Description (optionnel)"
                     />
                   </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Image (optionnel)</label>
+                    <label className="flex items-center gap-2 btn-ghost border border-dashed border-border cursor-pointer justify-center py-4">
+                      <Upload className="w-5 h-5" />
+                      <span>{typeForm.image ? 'Image sélectionnée' : 'Choisir une image'}</span>
+                      <input type="file" onChange={handleTypeImageUpload} accept="image/*" className="hidden" />
+                    </label>
+                    {typeForm.image && (
+                      <div className="mt-2 relative">
+                        <img src={typeForm.image} alt="Preview" className="w-full h-24 object-cover rounded" />
+                        <button 
+                          onClick={() => setTypeForm(prev => ({ ...prev, image: '' }))}
+                          className="absolute top-1 right-1 p-1 bg-destructive rounded-full"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+                    )}
+                  </div>
                   <div className="flex gap-3">
                     <button onClick={handleSaveType} className="btn-success flex-1">
                       Enregistrer
@@ -253,7 +328,7 @@ const GestionCours = () => {
                   className="flex items-center gap-4 p-4 bg-muted/30 rounded-lg border border-border/30"
                 >
                   <img 
-                    src={getSportImage(course.image)} 
+                    src={getCourseImage(course)} 
                     alt={course.title}
                     className="w-16 h-12 object-cover rounded"
                   />
@@ -290,7 +365,7 @@ const GestionCours = () => {
           {/* Course Form Modal */}
           {showCourseForm && (
             <div className="fixed inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-50">
-              <div className="glass-card p-6 w-full max-w-md animate-scale-in">
+              <div className="glass-card p-6 w-full max-w-md animate-scale-in max-h-[90vh] overflow-y-auto">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-lg font-semibold">
                     {editingCourse ? 'Modifier Cours' : 'Ajouter Cours'}
@@ -333,13 +408,13 @@ const GestionCours = () => {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium mb-1">Image</label>
+                    <label className="block text-sm font-medium mb-1">Image prédéfinie</label>
                     <div className="grid grid-cols-4 gap-2">
                       {imageOptions.map(img => (
                         <button
                           key={img}
                           type="button"
-                          onClick={() => setCourseForm(prev => ({ ...prev, image: img }))}
+                          onClick={() => setCourseForm(prev => ({ ...prev, image: img, customImage: '' }))}
                           className={`p-1 rounded border-2 transition-all ${
                             courseForm.image === img 
                               ? 'border-primary' 
@@ -354,6 +429,25 @@ const GestionCours = () => {
                         </button>
                       ))}
                     </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Ou télécharger une image personnalisée</label>
+                    <label className="flex items-center gap-2 btn-ghost border border-dashed border-border cursor-pointer justify-center py-4">
+                      <Upload className="w-5 h-5" />
+                      <span>{courseForm.customImage ? 'Image personnalisée sélectionnée' : 'Choisir une image'}</span>
+                      <input type="file" onChange={handleCourseImageUpload} accept="image/*" className="hidden" />
+                    </label>
+                    {courseForm.customImage && (
+                      <div className="mt-2 relative">
+                        <img src={courseForm.customImage} alt="Preview" className="w-full h-24 object-cover rounded" />
+                        <button 
+                          onClick={() => setCourseForm(prev => ({ ...prev, customImage: '', image: 'basketball' }))}
+                          className="absolute top-1 right-1 p-1 bg-destructive rounded-full"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+                    )}
                   </div>
                   <div className="flex gap-3">
                     <button onClick={handleSaveCourse} className="btn-success flex-1">
