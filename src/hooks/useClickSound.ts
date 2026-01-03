@@ -1,0 +1,69 @@
+import { useCallback, useRef, useEffect } from 'react';
+
+const STORAGE_KEY = 'csm_click_sound';
+const SOUND_ENABLED_KEY = 'csm_click_sound_enabled';
+
+// Premium soft click sound as base64 (short, elegant)
+const DEFAULT_CLICK_SOUND = 'data:audio/mp3;base64,//uQxAAAAAANIAAAAAExBTUUzLjEwMFVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVTEFNRTMuMTAwVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV//uQxBsAAADSAAAAAAAAANIAAAAATEFNRTMuMTAwVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVTEFNRTMuMTAwVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVU=';
+
+export const getClickSound = (): string => {
+  return localStorage.getItem(STORAGE_KEY) || DEFAULT_CLICK_SOUND;
+};
+
+export const setClickSound = (soundData: string): void => {
+  localStorage.setItem(STORAGE_KEY, soundData);
+};
+
+export const resetClickSound = (): void => {
+  localStorage.removeItem(STORAGE_KEY);
+};
+
+export const isClickSoundEnabled = (): boolean => {
+  const value = localStorage.getItem(SOUND_ENABLED_KEY);
+  return value === null ? true : value === 'true';
+};
+
+export const setClickSoundEnabled = (enabled: boolean): void => {
+  localStorage.setItem(SOUND_ENABLED_KEY, String(enabled));
+};
+
+export const useClickSound = () => {
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  useEffect(() => {
+    // Pre-load audio
+    audioRef.current = new Audio(getClickSound());
+    audioRef.current.volume = 0.3;
+    
+    return () => {
+      if (audioRef.current) {
+        audioRef.current = null;
+      }
+    };
+  }, []);
+
+  const playClick = useCallback(() => {
+    if (!isClickSoundEnabled()) return;
+    
+    try {
+      const audio = new Audio(getClickSound());
+      audio.volume = 0.3;
+      audio.play().catch(() => {
+        // Ignore autoplay errors
+      });
+    } catch (e) {
+      // Ignore errors
+    }
+  }, []);
+
+  const updateSound = useCallback((soundData: string) => {
+    setClickSound(soundData);
+    if (audioRef.current) {
+      audioRef.current.src = soundData;
+    }
+  }, []);
+
+  return { playClick, updateSound };
+};
+
+export default useClickSound;

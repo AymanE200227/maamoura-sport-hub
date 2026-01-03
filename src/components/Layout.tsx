@@ -1,7 +1,9 @@
-import { forwardRef, ReactNode } from 'react';
+import { forwardRef, ReactNode, memo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import Navbar from './Navbar';
+import { getBackgroundImage, isBackgroundEnabled } from '@/lib/storage';
+import { useClickSound } from '@/hooks/useClickSound';
 import bgImage from '@/assets/bg2.jpg';
 
 interface LayoutProps {
@@ -9,26 +11,35 @@ interface LayoutProps {
   backgroundImage?: string;
 }
 
-const Layout = forwardRef<HTMLDivElement, LayoutProps>(({ children, backgroundImage }, ref) => {
+const Layout = memo(forwardRef<HTMLDivElement, LayoutProps>(({ children, backgroundImage }, ref) => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { playClick } = useClickSound();
   
-  // Don't show back button on accueil (home) page
-  const showBackButton = location.pathname !== '/accueil';
+  // Don't show back button on accueil (home) page or login
+  const showBackButton = location.pathname !== '/accueil' && location.pathname !== '/';
 
   const handleBack = () => {
+    playClick();
     navigate(-1);
   };
+
+  // Determine background: custom > prop > default
+  const bgEnabled = isBackgroundEnabled();
+  const customBg = getBackgroundImage();
+  const finalBg = bgEnabled ? (customBg || backgroundImage || bgImage) : undefined;
 
   return (
     <div 
       ref={ref}
       className="min-h-screen"
-      style={{
-        backgroundImage: `url(${backgroundImage || bgImage})`,
+      style={finalBg ? {
+        backgroundImage: `url(${finalBg})`,
         backgroundSize: 'cover',
         backgroundPosition: 'center',
         backgroundAttachment: 'fixed',
+      } : {
+        backgroundColor: 'hsl(var(--background))'
       }}
     >
       <div className="min-h-screen bg-background/40 backdrop-blur-sm">
@@ -50,7 +61,7 @@ const Layout = forwardRef<HTMLDivElement, LayoutProps>(({ children, backgroundIm
       </div>
     </div>
   );
-});
+}));
 
 Layout.displayName = 'Layout';
 

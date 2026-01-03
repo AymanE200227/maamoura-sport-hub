@@ -8,10 +8,36 @@ const STORAGE_KEYS = {
   ADMIN_PASSWORD: 'csm_admin_password',
   USER_PASSWORD: 'csm_user_password',
   USER_MODE: 'csm_user_mode',
+  BACKGROUND_IMAGE: 'csm_background_image',
+  BACKGROUND_ENABLED: 'csm_background_enabled',
+  CLICK_SOUND: 'csm_click_sound',
+  CLICK_SOUND_ENABLED: 'csm_click_sound_enabled',
 };
 
 const DEFAULT_ADMIN_PASSWORD = 'admin123';
 const DEFAULT_USER_PASSWORD = 'user123';
+
+// Background settings
+export const getBackgroundImage = (): string | null => {
+  return localStorage.getItem(STORAGE_KEYS.BACKGROUND_IMAGE);
+};
+
+export const setBackgroundImage = (imageData: string): void => {
+  localStorage.setItem(STORAGE_KEYS.BACKGROUND_IMAGE, imageData);
+};
+
+export const resetBackgroundImage = (): void => {
+  localStorage.removeItem(STORAGE_KEYS.BACKGROUND_IMAGE);
+};
+
+export const isBackgroundEnabled = (): boolean => {
+  const value = localStorage.getItem(STORAGE_KEYS.BACKGROUND_ENABLED);
+  return value === null ? true : value === 'true';
+};
+
+export const setBackgroundEnabled = (enabled: boolean): void => {
+  localStorage.setItem(STORAGE_KEYS.BACKGROUND_ENABLED, String(enabled));
+};
 
 // Course Types
 export const getCourseTypes = (): CourseType[] => {
@@ -248,17 +274,21 @@ export const clearUserMode = (): void => {
   localStorage.removeItem(STORAGE_KEYS.USER_MODE);
 };
 
-// Export/Import All Data
+// Export/Import All Data (includes files with their base64 data)
 export const exportAllData = (): string => {
   const data = {
     courseTypes: getCourseTypes(),
     sportCourses: getSportCourses(),
     courseTitles: getCourseTitles(),
-    files: getFiles(),
+    files: getFiles(), // Files already contain fileData as base64
     adminPassword: getAdminPassword(),
     userPassword: getUserPassword(),
+    backgroundImage: getBackgroundImage(),
+    backgroundEnabled: isBackgroundEnabled(),
+    clickSound: localStorage.getItem(STORAGE_KEYS.CLICK_SOUND),
+    clickSoundEnabled: localStorage.getItem(STORAGE_KEYS.CLICK_SOUND_ENABLED) !== 'false',
     exportedAt: new Date().toISOString(),
-    version: '1.0'
+    version: '2.0'
   };
   return JSON.stringify(data, null, 2);
 };
@@ -277,6 +307,7 @@ export const importAllData = (jsonData: string): boolean => {
       saveCourseTitles(data.courseTitles);
     }
     if (data.files) {
+      // Files contain base64 fileData, restore them fully
       saveFiles(data.files);
     }
     if (data.adminPassword) {
@@ -284,6 +315,18 @@ export const importAllData = (jsonData: string): boolean => {
     }
     if (data.userPassword) {
       setUserPassword(data.userPassword);
+    }
+    if (data.backgroundImage) {
+      setBackgroundImage(data.backgroundImage);
+    }
+    if (data.backgroundEnabled !== undefined) {
+      setBackgroundEnabled(data.backgroundEnabled);
+    }
+    if (data.clickSound) {
+      localStorage.setItem(STORAGE_KEYS.CLICK_SOUND, data.clickSound);
+    }
+    if (data.clickSoundEnabled !== undefined) {
+      localStorage.setItem(STORAGE_KEYS.CLICK_SOUND_ENABLED, String(data.clickSoundEnabled));
     }
     
     return true;

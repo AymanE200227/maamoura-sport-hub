@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Lock, Check, Eye, EyeOff, Download, Upload, Users } from 'lucide-react';
+import { Lock, Check, Eye, EyeOff, Download, Upload, Users, Image, Volume2, VolumeX, RotateCcw } from 'lucide-react';
 import Layout from '@/components/Layout';
 import { 
   getAdminPassword, 
@@ -10,8 +10,20 @@ import {
   getUserMode, 
   verifyAdminPassword,
   exportAllData,
-  importAllData
+  importAllData,
+  getBackgroundImage,
+  setBackgroundImage,
+  resetBackgroundImage,
+  isBackgroundEnabled,
+  setBackgroundEnabled
 } from '@/lib/storage';
+import { 
+  getClickSound, 
+  setClickSound, 
+  resetClickSound, 
+  isClickSoundEnabled, 
+  setClickSoundEnabled 
+} from '@/hooks/useClickSound';
 import { useToast } from '@/hooks/use-toast';
 import bgImage from '@/assets/bg.jpg';
 
@@ -20,6 +32,8 @@ const Parametres = () => {
   const { toast } = useToast();
   const userMode = getUserMode();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const bgInputRef = useRef<HTMLInputElement>(null);
+  const soundInputRef = useRef<HTMLInputElement>(null);
   
   // Admin password state
   const [currentPassword, setCurrentPassword] = useState('');
@@ -34,6 +48,14 @@ const Parametres = () => {
   const [confirmUserPassword, setConfirmUserPassword] = useState('');
   const [showNewUserPassword, setShowNewUserPassword] = useState(false);
   const [showConfirmUserPassword, setShowConfirmUserPassword] = useState(false);
+
+  // Background state
+  const [bgEnabled, setBgEnabled] = useState(isBackgroundEnabled());
+  const [customBg, setCustomBg] = useState<string | null>(getBackgroundImage());
+
+  // Sound state
+  const [soundEnabled, setSoundEnabled] = useState(isClickSoundEnabled());
+  const [customSound, setCustomSound] = useState<string | null>(null);
 
   useEffect(() => {
     if (!userMode) {
@@ -150,7 +172,7 @@ const Parametres = () => {
     
     toast({
       title: 'Export réussi',
-      description: 'Les données ont été exportées avec succès'
+      description: 'Toutes les données (y compris les fichiers) ont été exportées'
     });
   };
 
@@ -164,12 +186,10 @@ const Parametres = () => {
       if (importAllData(content)) {
         toast({
           title: 'Import réussi',
-          description: 'Les données ont été importées avec succès. Veuillez recharger la page.'
+          description: 'Toutes les données ont été importées. Rechargement...'
         });
-        // Reset file input
-        if (fileInputRef.current) {
-          fileInputRef.current.value = '';
-        }
+        // Reload to apply changes
+        setTimeout(() => window.location.reload(), 1500);
       } else {
         toast({
           title: 'Erreur',
@@ -181,8 +201,92 @@ const Parametres = () => {
     reader.readAsText(file);
   };
 
+  // Background handlers
+  const handleBgUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      toast({ title: 'Erreur', description: 'Veuillez choisir une image', variant: 'destructive' });
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      const imageData = reader.result as string;
+      setBackgroundImage(imageData);
+      setCustomBg(imageData);
+      toast({ title: 'Succès', description: 'Arrière-plan personnalisé appliqué' });
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleToggleBg = () => {
+    const newState = !bgEnabled;
+    setBgEnabled(newState);
+    setBackgroundEnabled(newState);
+    toast({ 
+      title: newState ? 'Arrière-plan activé' : 'Arrière-plan désactivé',
+      description: newState ? 'L\'arrière-plan est maintenant visible' : 'L\'arrière-plan est masqué'
+    });
+  };
+
+  const handleResetBg = () => {
+    resetBackgroundImage();
+    setCustomBg(null);
+    toast({ title: 'Succès', description: 'Arrière-plan par défaut restauré' });
+  };
+
+  // Sound handlers
+  const handleSoundUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('audio/')) {
+      toast({ title: 'Erreur', description: 'Veuillez choisir un fichier audio', variant: 'destructive' });
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      const soundData = reader.result as string;
+      setClickSound(soundData);
+      setCustomSound(soundData);
+      toast({ title: 'Succès', description: 'Son de clic personnalisé appliqué' });
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleToggleSound = () => {
+    const newState = !soundEnabled;
+    setSoundEnabled(newState);
+    setClickSoundEnabled(newState);
+    toast({ 
+      title: newState ? 'Son activé' : 'Son désactivé',
+      description: newState ? 'Les sons de clic sont activés' : 'Les sons de clic sont désactivés'
+    });
+  };
+
+  const handleResetSound = () => {
+    resetClickSound();
+    setCustomSound(null);
+    toast({ title: 'Succès', description: 'Son de clic par défaut restauré' });
+  };
+
+  const handleTestSound = () => {
+    try {
+      const audio = new Audio(getClickSound());
+      audio.volume = 0.3;
+      audio.play();
+    } catch (e) {
+      console.error('Error playing sound:', e);
+    }
+  };
+
+  const currentBgImage = bgEnabled ? (customBg || bgImage) : undefined;
+
   return (
-    <Layout backgroundImage={bgImage}>
+    <Layout backgroundImage={currentBgImage}>
       <div className="max-w-2xl mx-auto space-y-6">
         {/* Admin Password Section */}
         <div className="glass-card p-8 animate-fade-in">
@@ -361,6 +465,101 @@ const Parametres = () => {
           </div>
         </div>
 
+        {/* Background Settings Section */}
+        <div className="glass-card p-8 animate-fade-in">
+          <h2 className="text-2xl font-bold mb-6 flex items-center gap-3">
+            <Image className="w-6 h-6 text-primary" />
+            Arrière-plan
+          </h2>
+
+          <div className="space-y-4">
+            <div className="flex items-center justify-between p-4 bg-muted/30 rounded-lg">
+              <div>
+                <p className="font-medium">Afficher l'arrière-plan</p>
+                <p className="text-sm text-muted-foreground">Activer ou désactiver l'image de fond</p>
+              </div>
+              <button
+                onClick={handleToggleBg}
+                className={`w-14 h-8 rounded-full transition-colors relative ${bgEnabled ? 'bg-primary' : 'bg-muted'}`}
+              >
+                <div className={`w-6 h-6 bg-foreground rounded-full absolute top-1 transition-transform ${bgEnabled ? 'right-1' : 'left-1'}`} />
+              </button>
+            </div>
+
+            <div className="flex flex-col sm:flex-row gap-4">
+              <label className="btn-primary flex-1 py-3 flex items-center justify-center gap-2 cursor-pointer">
+                <Upload className="w-5 h-5" />
+                Changer l'arrière-plan
+                <input
+                  ref={bgInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleBgUpload}
+                  className="hidden"
+                />
+              </label>
+
+              <button onClick={handleResetBg} className="btn-ghost flex-1 py-3 flex items-center justify-center gap-2 border border-border">
+                <RotateCcw className="w-5 h-5" />
+                Réinitialiser
+              </button>
+            </div>
+
+            {customBg && (
+              <div className="p-4 bg-success/10 rounded-lg border border-success/30">
+                <p className="text-sm text-success">✓ Arrière-plan personnalisé actif</p>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Sound Settings Section */}
+        <div className="glass-card p-8 animate-fade-in">
+          <h2 className="text-2xl font-bold mb-6 flex items-center gap-3">
+            {soundEnabled ? <Volume2 className="w-6 h-6 text-primary" /> : <VolumeX className="w-6 h-6 text-muted-foreground" />}
+            Son de Clic
+          </h2>
+
+          <div className="space-y-4">
+            <div className="flex items-center justify-between p-4 bg-muted/30 rounded-lg">
+              <div>
+                <p className="font-medium">Activer les sons</p>
+                <p className="text-sm text-muted-foreground">Jouer un son lors des clics</p>
+              </div>
+              <button
+                onClick={handleToggleSound}
+                className={`w-14 h-8 rounded-full transition-colors relative ${soundEnabled ? 'bg-primary' : 'bg-muted'}`}
+              >
+                <div className={`w-6 h-6 bg-foreground rounded-full absolute top-1 transition-transform ${soundEnabled ? 'right-1' : 'left-1'}`} />
+              </button>
+            </div>
+
+            <div className="flex flex-col sm:flex-row gap-4">
+              <label className="btn-primary flex-1 py-3 flex items-center justify-center gap-2 cursor-pointer">
+                <Upload className="w-5 h-5" />
+                Changer le son
+                <input
+                  ref={soundInputRef}
+                  type="file"
+                  accept="audio/*"
+                  onChange={handleSoundUpload}
+                  className="hidden"
+                />
+              </label>
+
+              <button onClick={handleTestSound} className="btn-success flex-1 py-3 flex items-center justify-center gap-2">
+                <Volume2 className="w-5 h-5" />
+                Tester
+              </button>
+
+              <button onClick={handleResetSound} className="btn-ghost flex-1 py-3 flex items-center justify-center gap-2 border border-border">
+                <RotateCcw className="w-5 h-5" />
+                Réinitialiser
+              </button>
+            </div>
+          </div>
+        </div>
+
         {/* Export/Import Section */}
         <div className="glass-card p-8 animate-fade-in">
           <h2 className="text-2xl font-bold mb-6 flex items-center gap-3">
@@ -369,13 +568,13 @@ const Parametres = () => {
           </h2>
 
           <p className="text-muted-foreground mb-6">
-            Exportez toutes les données pour les transférer vers un autre ordinateur ou créer une sauvegarde.
+            Exportez toutes les données <strong>y compris les fichiers</strong> pour les transférer vers un autre ordinateur.
           </p>
 
           <div className="flex flex-col sm:flex-row gap-4">
             <button onClick={handleExportData} className="btn-primary flex-1 py-3 flex items-center justify-center gap-2">
               <Download className="w-5 h-5" />
-              Exporter les données
+              Exporter tout
             </button>
 
             <label className="btn-success flex-1 py-3 flex items-center justify-center gap-2 cursor-pointer">
@@ -393,7 +592,7 @@ const Parametres = () => {
 
           <div className="mt-4 p-4 bg-warning/10 rounded-lg border border-warning/30">
             <p className="text-sm text-warning">
-              <strong>Attention:</strong> L'importation remplacera toutes les données existantes.
+              <strong>Attention:</strong> L'importation remplacera toutes les données existantes et rechargera l'application.
             </p>
           </div>
         </div>

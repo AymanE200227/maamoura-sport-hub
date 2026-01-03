@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Lock, User, Settings } from 'lucide-react';
-import { verifyAdminPassword, verifyUserPassword, setUserMode } from '@/lib/storage';
+import { verifyAdminPassword, verifyUserPassword, setUserMode, isBackgroundEnabled, getBackgroundImage } from '@/lib/storage';
 import { useToast } from '@/hooks/use-toast';
+import { useClickSound } from '@/hooks/useClickSound';
 import bgImage from '@/assets/bg.jpg';
 import logoImage from '@/assets/logo.jpg';
 
@@ -11,9 +12,11 @@ const Login = () => {
   const [userPasswordInput, setUserPasswordInput] = useState('');
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { playClick } = useClickSound();
 
-  const handleAdminLogin = (e: React.FormEvent) => {
+  const handleAdminLogin = useCallback((e: React.FormEvent) => {
     e.preventDefault();
+    playClick();
     if (verifyAdminPassword(adminPasswordInput)) {
       setUserMode('admin');
       toast({
@@ -28,10 +31,11 @@ const Login = () => {
         variant: 'destructive',
       });
     }
-  };
+  }, [adminPasswordInput, navigate, toast, playClick]);
 
-  const handleUserLogin = (e: React.FormEvent) => {
+  const handleUserLogin = useCallback((e: React.FormEvent) => {
     e.preventDefault();
+    playClick();
     if (verifyUserPassword(userPasswordInput)) {
       setUserMode('user');
       toast({
@@ -46,13 +50,17 @@ const Login = () => {
         variant: 'destructive',
       });
     }
-  };
+  }, [userPasswordInput, navigate, toast, playClick]);
+
+  const bgEnabled = isBackgroundEnabled();
+  const customBg = getBackgroundImage();
+  const finalBg = bgEnabled ? (customBg || bgImage) : bgImage;
 
   return (
     <div 
       className="min-h-screen flex items-center justify-center p-4"
       style={{
-        backgroundImage: `url(${bgImage})`,
+        backgroundImage: `url(${finalBg})`,
         backgroundSize: 'cover',
         backgroundPosition: 'center',
       }}
