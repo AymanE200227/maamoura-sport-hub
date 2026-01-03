@@ -41,12 +41,14 @@ const Navbar = () => {
               Gestion des Cours
             </Link>
           )}
-          <Link 
-            to="/parametres" 
-            className={`nav-link ${isActive('/parametres') ? 'nav-link-active' : ''}`}
-          >
-            Paramètres
-          </Link>
+          {userMode === 'admin' && (
+            <Link 
+              to="/parametres" 
+              className={`nav-link ${isActive('/parametres') ? 'nav-link-active' : ''}`}
+            >
+              Paramètres
+            </Link>
+          )}
         </div>
       </div>
 

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ChevronLeft, ChevronRight, Plus, FileText, Edit, Trash2, Eye, Upload, X, ArrowLeft } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, FileText, Edit, Trash2, Eye, Upload, X, ArrowLeft, Download } from 'lucide-react';
 import Layout from '@/components/Layout';
 import { 
   getCourseTypes, 
@@ -193,23 +193,76 @@ const CoursDetail = () => {
   };
 
   const handleOpenFile = (file: CourseFile) => {
-    if (file.fileData) {
-      // Create a download link for the file
+    if (!file.fileData) {
+      toast({ 
+        title: 'Fichier non disponible', 
+        description: "Ce fichier de démonstration n'a pas de contenu", 
+        variant: 'destructive' 
+      });
+      return;
+    }
+
+    try {
+      // For PDFs, try to open in new window with proper content type
+      if (file.type === 'pdf') {
+        // Convert base64 to blob
+        const base64Data = file.fileData.split(',')[1];
+        const binaryString = atob(base64Data);
+        const bytes = new Uint8Array(binaryString.length);
+        for (let i = 0; i < binaryString.length; i++) {
+          bytes[i] = binaryString.charCodeAt(i);
+        }
+        const blob = new Blob([bytes], { type: 'application/pdf' });
+        const blobUrl = URL.createObjectURL(blob);
+        
+        const newWindow = window.open(blobUrl, '_blank');
+        if (!newWindow) {
+          // If popup blocked, fall back to download
+          handleDownloadFile(file);
+        }
+      } else {
+        // For other files, download directly
+        handleDownloadFile(file);
+      }
+    } catch (error) {
+      console.error('Error opening file:', error);
+      toast({ 
+        title: 'Erreur', 
+        description: "Impossible d'ouvrir le fichier. Essayez de le télécharger.", 
+        variant: 'destructive' 
+      });
+    }
+  };
+
+  const handleDownloadFile = (file: CourseFile) => {
+    if (!file.fileData) {
+      toast({ 
+        title: 'Fichier non disponible', 
+        description: "Ce fichier n'a pas de contenu", 
+        variant: 'destructive' 
+      });
+      return;
+    }
+
+    try {
       const link = document.createElement('a');
       link.href = file.fileData;
-      link.download = file.fileName;
-      link.target = '_blank';
+      link.download = file.fileName || `${file.title}.${file.type}`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
       
-      // For PDFs, try to open in new tab, otherwise download
-      if (file.type === 'pdf') {
-        window.open(file.fileData, '_blank');
-      } else {
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-      }
-    } else {
-      toast({ title: 'Fichier non disponible', description: "Ce fichier de démonstration n'a pas de contenu", variant: 'destructive' });
+      toast({ 
+        title: 'Téléchargement lancé', 
+        description: file.fileName 
+      });
+    } catch (error) {
+      console.error('Download error:', error);
+      toast({ 
+        title: 'Erreur', 
+        description: "Impossible de télécharger le fichier", 
+        variant: 'destructive' 
+      });
     }
   };
 
@@ -377,6 +430,10 @@ const CoursDetail = () => {
                   <button onClick={() => handleOpenFile(file)} className="btn-success flex items-center gap-1 text-sm">
                     <Eye className="w-4 h-4" />
                     Ouvrir
+                  </button>
+                  <button onClick={() => handleDownloadFile(file)} className="btn-ghost flex items-center gap-1 text-sm border border-border">
+                    <Download className="w-4 h-4" />
+                    Télécharger
                   </button>
                   {userMode === 'admin' && (
                     <>
