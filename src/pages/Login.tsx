@@ -1,20 +1,20 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Lock, User, Settings } from 'lucide-react';
-import { verifyPassword, setUserMode } from '@/lib/storage';
+import { verifyAdminPassword, verifyUserPassword, setUserMode } from '@/lib/storage';
 import { useToast } from '@/hooks/use-toast';
 import bgImage from '@/assets/bg.jpg';
 import logoImage from '@/assets/logo.jpg';
 
 const Login = () => {
-  const [adminPassword, setAdminPassword] = useState('');
-  const [userPassword, setUserPassword] = useState('');
+  const [adminPasswordInput, setAdminPasswordInput] = useState('');
+  const [userPasswordInput, setUserPasswordInput] = useState('');
   const navigate = useNavigate();
   const { toast } = useToast();
 
   const handleAdminLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    if (verifyPassword(adminPassword)) {
+    if (verifyAdminPassword(adminPasswordInput)) {
       setUserMode('admin');
       toast({
         title: 'Connexion réussie',
@@ -32,13 +32,20 @@ const Login = () => {
 
   const handleUserLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    // User mode - simpler validation or no password required for consultation
-    setUserMode('user');
-    toast({
-      title: 'Connexion réussie',
-      description: 'Bienvenue!',
-    });
-    navigate('/accueil');
+    if (verifyUserPassword(userPasswordInput)) {
+      setUserMode('user');
+      toast({
+        title: 'Connexion réussie',
+        description: 'Bienvenue!',
+      });
+      navigate('/accueil');
+    } else {
+      toast({
+        title: 'Erreur',
+        description: 'Mot de passe utilisateur incorrect',
+        variant: 'destructive',
+      });
+    }
   };
 
   return (
@@ -72,8 +79,8 @@ const Login = () => {
             <input
               type="password"
               placeholder="Mot de passe"
-              value={adminPassword}
-              onChange={(e) => setAdminPassword(e.target.value)}
+              value={adminPasswordInput}
+              onChange={(e) => setAdminPasswordInput(e.target.value)}
               className="glass-input w-full pl-12 pr-4 py-3"
             />
           </div>
@@ -99,9 +106,9 @@ const Login = () => {
             <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
             <input
               type="password"
-              placeholder="Mot de passe"
-              value={userPassword}
-              onChange={(e) => setUserPassword(e.target.value)}
+              placeholder="Mot de passe utilisateur"
+              value={userPasswordInput}
+              onChange={(e) => setUserPasswordInput(e.target.value)}
               className="glass-input w-full pl-12 pr-4 py-3"
             />
           </div>

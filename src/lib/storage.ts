@@ -5,11 +5,13 @@ const STORAGE_KEYS = {
   SPORT_COURSES: 'csm_sport_courses',
   COURSE_TITLES: 'csm_course_titles',
   FILES: 'csm_files',
-  PASSWORD: 'csm_password',
+  ADMIN_PASSWORD: 'csm_admin_password',
+  USER_PASSWORD: 'csm_user_password',
   USER_MODE: 'csm_user_mode',
 };
 
-const DEFAULT_PASSWORD = 'admin123';
+const DEFAULT_ADMIN_PASSWORD = 'admin123';
+const DEFAULT_USER_PASSWORD = 'user123';
 
 // Course Types
 export const getCourseTypes = (): CourseType[] => {
@@ -202,18 +204,36 @@ export const deleteFile = (id: string): void => {
   saveFiles(files);
 };
 
-// Password
-export const getPassword = (): string => {
-  return localStorage.getItem(STORAGE_KEYS.PASSWORD) || DEFAULT_PASSWORD;
+// Password - Admin
+export const getAdminPassword = (): string => {
+  return localStorage.getItem(STORAGE_KEYS.ADMIN_PASSWORD) || DEFAULT_ADMIN_PASSWORD;
 };
 
-export const setPassword = (password: string): void => {
-  localStorage.setItem(STORAGE_KEYS.PASSWORD, password);
+export const setAdminPassword = (password: string): void => {
+  localStorage.setItem(STORAGE_KEYS.ADMIN_PASSWORD, password);
 };
 
-export const verifyPassword = (password: string): boolean => {
-  return password === getPassword();
+export const verifyAdminPassword = (password: string): boolean => {
+  return password === getAdminPassword();
 };
+
+// Password - User
+export const getUserPassword = (): string => {
+  return localStorage.getItem(STORAGE_KEYS.USER_PASSWORD) || DEFAULT_USER_PASSWORD;
+};
+
+export const setUserPassword = (password: string): void => {
+  localStorage.setItem(STORAGE_KEYS.USER_PASSWORD, password);
+};
+
+export const verifyUserPassword = (password: string): boolean => {
+  return password === getUserPassword();
+};
+
+// Legacy support - kept for backward compatibility
+export const getPassword = (): string => getAdminPassword();
+export const setPassword = (password: string): void => setAdminPassword(password);
+export const verifyPassword = (password: string): boolean => verifyAdminPassword(password);
 
 // User Mode
 export const getUserMode = (): 'admin' | 'user' | null => {
@@ -226,4 +246,49 @@ export const setUserMode = (mode: 'admin' | 'user'): void => {
 
 export const clearUserMode = (): void => {
   localStorage.removeItem(STORAGE_KEYS.USER_MODE);
+};
+
+// Export/Import All Data
+export const exportAllData = (): string => {
+  const data = {
+    courseTypes: getCourseTypes(),
+    sportCourses: getSportCourses(),
+    courseTitles: getCourseTitles(),
+    files: getFiles(),
+    adminPassword: getAdminPassword(),
+    userPassword: getUserPassword(),
+    exportedAt: new Date().toISOString(),
+    version: '1.0'
+  };
+  return JSON.stringify(data, null, 2);
+};
+
+export const importAllData = (jsonData: string): boolean => {
+  try {
+    const data = JSON.parse(jsonData);
+    
+    if (data.courseTypes) {
+      saveCourseTypes(data.courseTypes);
+    }
+    if (data.sportCourses) {
+      saveSportCourses(data.sportCourses);
+    }
+    if (data.courseTitles) {
+      saveCourseTitles(data.courseTitles);
+    }
+    if (data.files) {
+      saveFiles(data.files);
+    }
+    if (data.adminPassword) {
+      setAdminPassword(data.adminPassword);
+    }
+    if (data.userPassword) {
+      setUserPassword(data.userPassword);
+    }
+    
+    return true;
+  } catch (error) {
+    console.error('Import failed:', error);
+    return false;
+  }
 };
