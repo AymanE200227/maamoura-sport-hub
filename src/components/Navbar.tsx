@@ -1,27 +1,34 @@
-import { Link, useLocation } from 'react-router-dom';
+import { memo, useCallback } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Search, LogOut } from 'lucide-react';
 import { clearUserMode, getUserMode } from '@/lib/storage';
-import { useNavigate } from 'react-router-dom';
+import { useClickSound } from '@/hooks/useClickSound';
 import logoImage from '@/assets/logo.jpg';
 
-const Navbar = () => {
+const Navbar = memo(() => {
   const location = useLocation();
   const navigate = useNavigate();
   const userMode = getUserMode();
+  const { playClick } = useClickSound();
 
   const isActive = (path: string) => location.pathname === path;
 
-  const handleLogout = () => {
+  const handleLogout = useCallback(() => {
+    playClick();
     clearUserMode();
     navigate('/');
-  };
+  }, [navigate, playClick]);
+
+  const handleNavClick = useCallback(() => {
+    playClick();
+  }, [playClick]);
 
   return (
     <nav className="glass-card px-6 py-4 flex items-center justify-between mb-6">
       <div className="flex items-center gap-8">
         {/* Logo */}
-        <Link to="/accueil" className="flex items-center gap-3">
-          <img src={logoImage} alt="CSM Logo" className="w-10 h-10 object-contain" />
+        <Link to="/accueil" className="flex items-center gap-3" onClick={handleNavClick}>
+          <img src={logoImage} alt="CSM Logo" className="w-10 h-10 object-contain" loading="lazy" />
           <span className="font-semibold text-foreground">CSM Logo</span>
         </Link>
 
@@ -30,6 +37,7 @@ const Navbar = () => {
           <Link 
             to="/accueil" 
             className={`nav-link ${isActive('/accueil') ? 'nav-link-active' : ''}`}
+            onClick={handleNavClick}
           >
             Accueil
           </Link>
@@ -37,6 +45,7 @@ const Navbar = () => {
             <Link 
               to="/gestion-cours" 
               className={`nav-link ${isActive('/gestion-cours') ? 'nav-link-active' : ''}`}
+              onClick={handleNavClick}
             >
               Gestion des Cours
             </Link>
@@ -45,6 +54,7 @@ const Navbar = () => {
             <Link 
               to="/parametres" 
               className={`nav-link ${isActive('/parametres') ? 'nav-link-active' : ''}`}
+              onClick={handleNavClick}
             >
               Paramètres
             </Link>
@@ -53,7 +63,10 @@ const Navbar = () => {
       </div>
 
       <div className="flex items-center gap-4">
-        <button className="p-2 hover:bg-muted/50 rounded-lg transition-colors">
+        <button 
+          className="p-2 hover:bg-muted/50 rounded-lg transition-colors"
+          onClick={handleNavClick}
+        >
           <Search className="w-5 h-5 text-muted-foreground" />
         </button>
         <button 
@@ -66,6 +79,8 @@ const Navbar = () => {
       </div>
     </nav>
   );
-};
+});
+
+Navbar.displayName = 'Navbar';
 
 export default Navbar;

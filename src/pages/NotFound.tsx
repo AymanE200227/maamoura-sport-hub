@@ -1,10 +1,17 @@
 import { useLocation, Link } from "react-router-dom";
 import { useEffect } from "react";
 import { Home } from "lucide-react";
+import { isBackgroundEnabled, getBackgroundImage } from "@/lib/storage";
+import { useClickSound } from "@/hooks/useClickSound";
 import bgImage from "@/assets/bg.jpg";
 
 const NotFound = () => {
   const location = useLocation();
+  const { playClick } = useClickSound();
+
+  const bgEnabled = isBackgroundEnabled();
+  const customBg = getBackgroundImage();
+  const finalBg = bgEnabled ? (customBg || bgImage) : bgImage;
 
   useEffect(() => {
     console.error(
@@ -17,7 +24,7 @@ const NotFound = () => {
     <div 
       className="min-h-screen flex items-center justify-center"
       style={{
-        backgroundImage: `url(${bgImage})`,
+        backgroundImage: `url(${finalBg})`,
         backgroundSize: 'cover',
         backgroundPosition: 'center',
       }}
@@ -28,6 +35,7 @@ const NotFound = () => {
         <Link 
           to="/" 
           className="btn-primary inline-flex items-center gap-2"
+          onClick={playClick}
         >
           <Home className="w-5 h-5" />
           Retour à l'accueil
