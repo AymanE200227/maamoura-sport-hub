@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Lock, Check, Eye, EyeOff, Download, Upload, Users, Image, Volume2, VolumeX, RotateCcw } from 'lucide-react';
+import { Lock, Check, Eye, EyeOff, Download, Upload, Users, Image, Volume2, VolumeX, RotateCcw, FolderArchive } from 'lucide-react';
 import Layout from '@/components/Layout';
 import { 
   getAdminPassword, 
@@ -17,6 +17,7 @@ import {
   isBackgroundEnabled,
   setBackgroundEnabled
 } from '@/lib/storage';
+import { exportToZip, importFromZip } from '@/lib/zipExport';
 import { 
   getClickSound, 
   setClickSound, 
@@ -34,6 +35,8 @@ const Parametres = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const bgInputRef = useRef<HTMLInputElement>(null);
   const soundInputRef = useRef<HTMLInputElement>(null);
+  const zipInputRef = useRef<HTMLInputElement>(null);
+  const [isExporting, setIsExporting] = useState(false);
   
   // Admin password state
   const [currentPassword, setCurrentPassword] = useState('');
@@ -158,6 +161,56 @@ const Parametres = () => {
     setConfirmUserPassword('');
   };
 
+  // ZIP Export (folder with files)
+  const handleExportZip = async () => {
+    setIsExporting(true);
+    try {
+      await exportToZip();
+      toast({
+        title: 'Export réussi',
+        description: 'Archive ZIP créée avec tous les fichiers et données'
+      });
+    } catch (error) {
+      toast({
+        title: 'Erreur',
+        description: "Erreur lors de l'export",
+        variant: 'destructive'
+      });
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  // ZIP Import
+  const handleImportZip = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      const success = await importFromZip(file);
+      if (success) {
+        toast({
+          title: 'Import réussi',
+          description: 'Toutes les données ont été importées. Rechargement...'
+        });
+        setTimeout(() => window.location.reload(), 1500);
+      } else {
+        toast({
+          title: 'Erreur',
+          description: "L'archive n'est pas valide",
+          variant: 'destructive'
+        });
+      }
+    } catch (error) {
+      toast({
+        title: 'Erreur',
+        description: "Erreur lors de l'import",
+        variant: 'destructive'
+      });
+    }
+  };
+
+  // Legacy JSON export (backup)
   const handleExportData = () => {
     const data = exportAllData();
     const blob = new Blob([data], { type: 'application/json' });
@@ -172,7 +225,7 @@ const Parametres = () => {
     
     toast({
       title: 'Export réussi',
-      description: 'Toutes les données (y compris les fichiers) ont été exportées'
+      description: 'Données exportées en JSON (sans fichiers séparés)'
     });
   };
 
@@ -563,31 +616,70 @@ const Parametres = () => {
         {/* Export/Import Section */}
         <div className="glass-card p-8 animate-fade-in">
           <h2 className="text-2xl font-bold mb-6 flex items-center gap-3">
-            <Download className="w-6 h-6 text-primary" />
+            <FolderArchive className="w-6 h-6 text-primary" />
             Exporter / Importer Données
           </h2>
 
           <p className="text-muted-foreground mb-6">
-            Exportez toutes les données <strong>y compris les fichiers</strong> pour les transférer vers un autre ordinateur.
+            Exportez toutes les données sous forme d'archive ZIP contenant un dossier <strong>fichiers</strong> et un fichier <strong>data.json</strong>.
           </p>
 
-          <div className="flex flex-col sm:flex-row gap-4">
-            <button onClick={handleExportData} className="btn-primary flex-1 py-3 flex items-center justify-center gap-2">
-              <Download className="w-5 h-5" />
-              Exporter tout
-            </button>
+          {/* ZIP Export/Import - Primary */}
+          <div className="space-y-4">
+            <div className="p-4 bg-primary/10 rounded-lg border border-primary/30">
+              <h3 className="font-semibold mb-2 flex items-center gap-2">
+                <FolderArchive className="w-4 h-4" />
+                Export/Import Complet (ZIP)
+              </h3>
+              <p className="text-sm text-muted-foreground mb-3">
+                Archive ZIP avec dossier fichiers + data.json - idéal pour transfert entre PC
+              </p>
+              <div className="flex flex-col sm:flex-row gap-3">
+                <button 
+                  onClick={handleExportZip} 
+                  disabled={isExporting}
+                  className="btn-primary flex-1 py-3 flex items-center justify-center gap-2"
+                >
+                  <Download className="w-5 h-5" />
+                  {isExporting ? 'Export en cours...' : 'Exporter ZIP'}
+                </button>
 
-            <label className="btn-success flex-1 py-3 flex items-center justify-center gap-2 cursor-pointer">
-              <Upload className="w-5 h-5" />
-              Importer les données
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept=".json"
-                onChange={handleImportData}
-                className="hidden"
-              />
-            </label>
+                <label className="btn-success flex-1 py-3 flex items-center justify-center gap-2 cursor-pointer">
+                  <Upload className="w-5 h-5" />
+                  Importer ZIP
+                  <input
+                    ref={zipInputRef}
+                    type="file"
+                    accept=".zip"
+                    onChange={handleImportZip}
+                    className="hidden"
+                  />
+                </label>
+              </div>
+            </div>
+
+            {/* JSON Export/Import - Secondary */}
+            <div className="p-4 bg-muted/30 rounded-lg border border-border/30">
+              <h3 className="font-semibold mb-2 text-sm">Export JSON (backup simple)</h3>
+              <div className="flex flex-col sm:flex-row gap-3">
+                <button onClick={handleExportData} className="btn-ghost flex-1 py-2 text-sm flex items-center justify-center gap-2 border border-border">
+                  <Download className="w-4 h-4" />
+                  JSON
+                </button>
+
+                <label className="btn-ghost flex-1 py-2 text-sm flex items-center justify-center gap-2 cursor-pointer border border-border">
+                  <Upload className="w-4 h-4" />
+                  Importer JSON
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept=".json"
+                    onChange={handleImportData}
+                    className="hidden"
+                  />
+                </label>
+              </div>
+            </div>
           </div>
 
           <div className="mt-4 p-4 bg-warning/10 rounded-lg border border-warning/30">

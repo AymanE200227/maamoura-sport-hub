@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Edit, Trash2, X, Upload } from 'lucide-react';
 import Layout from '@/components/Layout';
+import ArabicInput from '@/components/ArabicInput';
 import { 
   getCourseTypes, 
   addCourseType, 
@@ -14,7 +15,7 @@ import {
   getUserMode 
 } from '@/lib/storage';
 import { CourseType, SportCourse } from '@/types';
-import { getSportImage } from '@/assets/sports';
+import { getSportImage, allImageOptions, imageCategories } from '@/assets/sports';
 import { useToast } from '@/hooks/use-toast';
 import bgImage from '@/assets/bg4.jpg';
 
@@ -184,10 +185,7 @@ const GestionCours = () => {
     }
   };
 
-  const imageOptions = [
-    'basketball', 'volleyball', 'handball', 'nutrition',
-    'combat', 'endurance', 'sportif', 'militaire'
-  ];
+  // Use the new comprehensive image options
 
   const getCourseImage = (course: SportCourse) => {
     if (course.image.startsWith('data:')) {
@@ -265,21 +263,21 @@ const GestionCours = () => {
                 <div className="space-y-4">
                   <div>
                     <label className="block text-sm font-medium mb-1">Nom *</label>
-                    <input
-                      type="text"
+                    <ArabicInput
                       value={typeForm.name}
-                      onChange={(e) => setTypeForm(prev => ({ ...prev, name: e.target.value }))}
-                      className="glass-input w-full p-2"
+                      onChange={(value) => setTypeForm(prev => ({ ...prev, name: value }))}
+                      className="glass-input w-full p-2 pr-16"
                       placeholder="Nom du type"
                     />
                   </div>
                   <div>
                     <label className="block text-sm font-medium mb-1">Description</label>
-                    <textarea
+                    <ArabicInput
                       value={typeForm.description}
-                      onChange={(e) => setTypeForm(prev => ({ ...prev, description: e.target.value }))}
-                      className="glass-input w-full p-2 min-h-[80px]"
+                      onChange={(value) => setTypeForm(prev => ({ ...prev, description: value }))}
+                      className="glass-input w-full p-2 pr-16 min-h-[80px]"
                       placeholder="Description (optionnel)"
+                      multiline
                     />
                   </div>
                   <div>
@@ -390,44 +388,122 @@ const GestionCours = () => {
                   </div>
                   <div>
                     <label className="block text-sm font-medium mb-1">Titre *</label>
-                    <input
-                      type="text"
+                    <ArabicInput
                       value={courseForm.title}
-                      onChange={(e) => setCourseForm(prev => ({ ...prev, title: e.target.value }))}
-                      className="glass-input w-full p-2"
+                      onChange={(value) => setCourseForm(prev => ({ ...prev, title: value }))}
+                      className="glass-input w-full p-2 pr-16"
                       placeholder="Titre du cours"
                     />
                   </div>
                   <div>
                     <label className="block text-sm font-medium mb-1">Description</label>
-                    <textarea
+                    <ArabicInput
                       value={courseForm.description}
-                      onChange={(e) => setCourseForm(prev => ({ ...prev, description: e.target.value }))}
-                      className="glass-input w-full p-2 min-h-[80px]"
+                      onChange={(value) => setCourseForm(prev => ({ ...prev, description: value }))}
+                      className="glass-input w-full p-2 pr-16 min-h-[80px]"
                       placeholder="Description du cours"
+                      multiline
                     />
                   </div>
                   <div>
                     <label className="block text-sm font-medium mb-1">Image prédéfinie</label>
-                    <div className="grid grid-cols-4 gap-2">
-                      {imageOptions.map(img => (
-                        <button
-                          key={img}
-                          type="button"
-                          onClick={() => setCourseForm(prev => ({ ...prev, image: img, customImage: '' }))}
-                          className={`p-1 rounded border-2 transition-all ${
-                            courseForm.image === img 
-                              ? 'border-primary' 
-                              : 'border-transparent hover:border-border'
-                          }`}
-                        >
-                          <img 
-                            src={getSportImage(img)} 
-                            alt={img}
-                            className="w-full h-12 object-cover rounded"
-                          />
-                        </button>
-                      ))}
+                    <div className="space-y-3 max-h-48 overflow-y-auto p-2 bg-muted/20 rounded-lg">
+                      {/* Sports Balls */}
+                      <div>
+                        <p className="text-xs text-muted-foreground mb-1">Sports</p>
+                        <div className="grid grid-cols-4 gap-1">
+                          {imageCategories.sports.map(img => (
+                            <button
+                              key={img}
+                              type="button"
+                              onClick={() => setCourseForm(prev => ({ ...prev, image: img, customImage: '' }))}
+                              className={`p-0.5 rounded border-2 transition-all ${
+                                courseForm.image === img 
+                                  ? 'border-primary' 
+                                  : 'border-transparent hover:border-border'
+                              }`}
+                            >
+                              <img 
+                                src={getSportImage(img)} 
+                                alt={img}
+                                className="w-full h-10 object-cover rounded"
+                              />
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                      {/* Equipment */}
+                      <div>
+                        <p className="text-xs text-muted-foreground mb-1">Équipement</p>
+                        <div className="grid grid-cols-4 gap-1">
+                          {imageCategories.equipment.map(img => (
+                            <button
+                              key={img}
+                              type="button"
+                              onClick={() => setCourseForm(prev => ({ ...prev, image: img, customImage: '' }))}
+                              className={`p-0.5 rounded border-2 transition-all ${
+                                courseForm.image === img 
+                                  ? 'border-primary' 
+                                  : 'border-transparent hover:border-border'
+                              }`}
+                            >
+                              <img 
+                                src={getSportImage(img)} 
+                                alt={img}
+                                className="w-full h-10 object-cover rounded"
+                              />
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                      {/* Weapons */}
+                      <div>
+                        <p className="text-xs text-muted-foreground mb-1">Armement</p>
+                        <div className="grid grid-cols-4 gap-1">
+                          {imageCategories.weapons.map(img => (
+                            <button
+                              key={img}
+                              type="button"
+                              onClick={() => setCourseForm(prev => ({ ...prev, image: img, customImage: '' }))}
+                              className={`p-0.5 rounded border-2 transition-all ${
+                                courseForm.image === img 
+                                  ? 'border-primary' 
+                                  : 'border-transparent hover:border-border'
+                              }`}
+                            >
+                              <img 
+                                src={getSportImage(img)} 
+                                alt={img}
+                                className="w-full h-10 object-cover rounded"
+                              />
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                      {/* Military Courses */}
+                      <div>
+                        <p className="text-xs text-muted-foreground mb-1">Cours Militaire</p>
+                        <div className="grid grid-cols-4 gap-1">
+                          {imageCategories.military.map(img => (
+                            <button
+                              key={img}
+                              type="button"
+                              onClick={() => setCourseForm(prev => ({ ...prev, image: img, customImage: '' }))}
+                              className={`p-0.5 rounded border-2 transition-all ${
+                                courseForm.image === img 
+                                  ? 'border-primary' 
+                                  : 'border-transparent hover:border-border'
+                              }`}
+                            >
+                              <img 
+                                src={getSportImage(img)} 
+                                alt={img}
+                                className="w-full h-10 object-cover rounded"
+                              />
+                            </button>
+                          ))}
+                        </div>
+                      </div>
                     </div>
                   </div>
                   <div>
