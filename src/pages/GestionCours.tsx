@@ -15,7 +15,7 @@ import {
   getUserMode 
 } from '@/lib/storage';
 import { CourseType, SportCourse } from '@/types';
-import { getSportImage, allImageOptions, imageCategories } from '@/assets/sports';
+import { getSportImage, imageCategories, categoryLabels } from '@/assets/sports';
 import { useToast } from '@/hooks/use-toast';
 import bgImage from '@/assets/bg4.jpg';
 
@@ -406,102 +406,197 @@ const GestionCours = () => {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium mb-1">Image prédéfinie</label>
-                    <div className="space-y-3 max-h-48 overflow-y-auto p-2 bg-muted/20 rounded-lg">
-                      {/* Sports Balls */}
-                      <div>
-                        <p className="text-xs text-muted-foreground mb-1">Sports</p>
-                        <div className="grid grid-cols-4 gap-1">
-                          {imageCategories.sports.map(img => (
-                            <button
-                              key={img}
-                              type="button"
-                              onClick={() => setCourseForm(prev => ({ ...prev, image: img, customImage: '' }))}
-                              className={`p-0.5 rounded border-2 transition-all ${
-                                courseForm.image === img 
-                                  ? 'border-primary' 
-                                  : 'border-transparent hover:border-border'
-                              }`}
-                            >
-                              <img 
-                                src={getSportImage(img)} 
-                                alt={img}
-                                className="w-full h-10 object-cover rounded"
-                              />
-                            </button>
-                          ))}
+                    <label className="block text-sm font-medium mb-1">Bibliothèque d'Images</label>
+                    <div className="space-y-3 max-h-64 overflow-y-auto p-2 bg-muted/20 rounded-lg">
+                      {/* ===== SPORTS SECTION ===== */}
+                      <div className="border-b border-border/30 pb-2 mb-2">
+                        <p className="text-sm font-semibold text-primary mb-2">🏆 Section Sports</p>
+                        
+                        {/* Ball Sports */}
+                        <div className="mb-2">
+                          <p className="text-xs text-muted-foreground mb-1">{categoryLabels.ballSports}</p>
+                          <div className="grid grid-cols-4 gap-1">
+                            {imageCategories.ballSports.map(img => (
+                              <button
+                                key={img}
+                                type="button"
+                                onClick={() => setCourseForm(prev => ({ ...prev, image: img, customImage: '' }))}
+                                className={`p-0.5 rounded border-2 transition-all ${
+                                  courseForm.image === img 
+                                    ? 'border-primary ring-2 ring-primary/30' 
+                                    : 'border-transparent hover:border-border'
+                                }`}
+                                title={img.replace('_', ' ')}
+                              >
+                                <img 
+                                  src={getSportImage(img)} 
+                                  alt={img}
+                                  className="w-full h-10 object-cover rounded"
+                                />
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Combat Sports */}
+                        <div className="mb-2">
+                          <p className="text-xs text-muted-foreground mb-1">{categoryLabels.combatSports}</p>
+                          <div className="grid grid-cols-4 gap-1">
+                            {imageCategories.combatSports.map(img => (
+                              <button
+                                key={img}
+                                type="button"
+                                onClick={() => setCourseForm(prev => ({ ...prev, image: img, customImage: '' }))}
+                                className={`p-0.5 rounded border-2 transition-all ${
+                                  courseForm.image === img 
+                                    ? 'border-primary ring-2 ring-primary/30' 
+                                    : 'border-transparent hover:border-border'
+                                }`}
+                                title={img.replace('_', ' ')}
+                              >
+                                <img 
+                                  src={getSportImage(img)} 
+                                  alt={img}
+                                  className="w-full h-10 object-cover rounded"
+                                />
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Athletics & Gym */}
+                        <div className="mb-2">
+                          <p className="text-xs text-muted-foreground mb-1">{categoryLabels.athleticsGym}</p>
+                          <div className="grid grid-cols-5 gap-1">
+                            {imageCategories.athleticsGym.map(img => (
+                              <button
+                                key={img}
+                                type="button"
+                                onClick={() => setCourseForm(prev => ({ ...prev, image: img, customImage: '' }))}
+                                className={`p-0.5 rounded border-2 transition-all ${
+                                  courseForm.image === img 
+                                    ? 'border-primary ring-2 ring-primary/30' 
+                                    : 'border-transparent hover:border-border'
+                                }`}
+                                title={img.replace('_', ' ')}
+                              >
+                                <img 
+                                  src={getSportImage(img)} 
+                                  alt={img}
+                                  className="w-full h-10 object-cover rounded"
+                                />
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Aquatic */}
+                        <div className="mb-2">
+                          <p className="text-xs text-muted-foreground mb-1">{categoryLabels.aquatic}</p>
+                          <div className="grid grid-cols-4 gap-1">
+                            {imageCategories.aquatic.map(img => (
+                              <button
+                                key={img}
+                                type="button"
+                                onClick={() => setCourseForm(prev => ({ ...prev, image: img, customImage: '' }))}
+                                className={`p-0.5 rounded border-2 transition-all ${
+                                  courseForm.image === img 
+                                    ? 'border-primary ring-2 ring-primary/30' 
+                                    : 'border-transparent hover:border-border'
+                                }`}
+                                title={img.replace('_', ' ')}
+                              >
+                                <img 
+                                  src={getSportImage(img)} 
+                                  alt={img}
+                                  className="w-full h-10 object-cover rounded"
+                                />
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Facilities */}
+                        <div>
+                          <p className="text-xs text-muted-foreground mb-1">{categoryLabels.facilities}</p>
+                          <div className="grid grid-cols-3 gap-1">
+                            {imageCategories.facilities.map(img => (
+                              <button
+                                key={img}
+                                type="button"
+                                onClick={() => setCourseForm(prev => ({ ...prev, image: img, customImage: '' }))}
+                                className={`p-0.5 rounded border-2 transition-all ${
+                                  courseForm.image === img 
+                                    ? 'border-primary ring-2 ring-primary/30' 
+                                    : 'border-transparent hover:border-border'
+                                }`}
+                                title={img.replace('_', ' ')}
+                              >
+                                <img 
+                                  src={getSportImage(img)} 
+                                  alt={img}
+                                  className="w-full h-10 object-cover rounded"
+                                />
+                              </button>
+                            ))}
+                          </div>
                         </div>
                       </div>
-                      {/* Equipment */}
+
+                      {/* ===== MILITARY SECTION ===== */}
                       <div>
-                        <p className="text-xs text-muted-foreground mb-1">Équipement</p>
-                        <div className="grid grid-cols-4 gap-1">
-                          {imageCategories.equipment.map(img => (
-                            <button
-                              key={img}
-                              type="button"
-                              onClick={() => setCourseForm(prev => ({ ...prev, image: img, customImage: '' }))}
-                              className={`p-0.5 rounded border-2 transition-all ${
-                                courseForm.image === img 
-                                  ? 'border-primary' 
-                                  : 'border-transparent hover:border-border'
-                              }`}
-                            >
-                              <img 
-                                src={getSportImage(img)} 
-                                alt={img}
-                                className="w-full h-10 object-cover rounded"
-                              />
-                            </button>
-                          ))}
+                        <p className="text-sm font-semibold text-primary mb-2">🎖️ Section Militaire</p>
+                        
+                        {/* Weapons */}
+                        <div className="mb-2">
+                          <p className="text-xs text-muted-foreground mb-1">{categoryLabels.weapons}</p>
+                          <div className="grid grid-cols-4 gap-1">
+                            {imageCategories.weapons.map(img => (
+                              <button
+                                key={img}
+                                type="button"
+                                onClick={() => setCourseForm(prev => ({ ...prev, image: img, customImage: '' }))}
+                                className={`p-0.5 rounded border-2 transition-all ${
+                                  courseForm.image === img 
+                                    ? 'border-primary ring-2 ring-primary/30' 
+                                    : 'border-transparent hover:border-border'
+                                }`}
+                                title={img.replace('_', ' ')}
+                              >
+                                <img 
+                                  src={getSportImage(img)} 
+                                  alt={img}
+                                  className="w-full h-10 object-cover rounded"
+                                />
+                              </button>
+                            ))}
+                          </div>
                         </div>
-                      </div>
-                      {/* Weapons */}
-                      <div>
-                        <p className="text-xs text-muted-foreground mb-1">Armement</p>
-                        <div className="grid grid-cols-4 gap-1">
-                          {imageCategories.weapons.map(img => (
-                            <button
-                              key={img}
-                              type="button"
-                              onClick={() => setCourseForm(prev => ({ ...prev, image: img, customImage: '' }))}
-                              className={`p-0.5 rounded border-2 transition-all ${
-                                courseForm.image === img 
-                                  ? 'border-primary' 
-                                  : 'border-transparent hover:border-border'
-                              }`}
-                            >
-                              <img 
-                                src={getSportImage(img)} 
-                                alt={img}
-                                className="w-full h-10 object-cover rounded"
-                              />
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                      {/* Military Courses */}
-                      <div>
-                        <p className="text-xs text-muted-foreground mb-1">Cours Militaire</p>
-                        <div className="grid grid-cols-4 gap-1">
-                          {imageCategories.military.map(img => (
-                            <button
-                              key={img}
-                              type="button"
-                              onClick={() => setCourseForm(prev => ({ ...prev, image: img, customImage: '' }))}
-                              className={`p-0.5 rounded border-2 transition-all ${
-                                courseForm.image === img 
-                                  ? 'border-primary' 
-                                  : 'border-transparent hover:border-border'
-                              }`}
-                            >
-                              <img 
-                                src={getSportImage(img)} 
-                                alt={img}
-                                className="w-full h-10 object-cover rounded"
-                              />
-                            </button>
-                          ))}
+
+                        {/* Military Training */}
+                        <div>
+                          <p className="text-xs text-muted-foreground mb-1">{categoryLabels.militaryTraining}</p>
+                          <div className="grid grid-cols-5 gap-1">
+                            {imageCategories.militaryTraining.map(img => (
+                              <button
+                                key={img}
+                                type="button"
+                                onClick={() => setCourseForm(prev => ({ ...prev, image: img, customImage: '' }))}
+                                className={`p-0.5 rounded border-2 transition-all ${
+                                  courseForm.image === img 
+                                    ? 'border-primary ring-2 ring-primary/30' 
+                                    : 'border-transparent hover:border-border'
+                                }`}
+                                title={img.replace('_', ' ')}
+                              >
+                                <img 
+                                  src={getSportImage(img)} 
+                                  alt={img}
+                                  className="w-full h-10 object-cover rounded"
+                                />
+                              </button>
+                            ))}
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -539,23 +634,29 @@ const GestionCours = () => {
           )}
         </section>
 
-        {/* Delete Confirmation Modal */}
+        {/* Delete Confirmation Modal - Fixed positioning */}
         {deleteConfirm && (
-          <div className="fixed inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-50">
-            <div className="glass-card p-6 w-full max-w-sm animate-scale-in text-center">
-              <h3 className="text-lg font-semibold mb-4">
-                Êtes-vous sûr de vouloir supprimer "{deleteConfirm.name}"?
+          <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+            <div className="glass-card p-6 w-full max-w-sm animate-scale-in text-center shadow-2xl border border-border/50">
+              <div className="w-12 h-12 bg-destructive/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Trash2 className="w-6 h-6 text-destructive" />
+              </div>
+              <h3 className="text-lg font-semibold mb-2">
+                Confirmer la suppression
               </h3>
+              <p className="text-muted-foreground mb-6">
+                Êtes-vous sûr de vouloir supprimer "<span className="text-foreground font-medium">{deleteConfirm.name}</span>"?
+              </p>
               <div className="flex gap-3 justify-center">
                 <button 
                   onClick={() => setDeleteConfirm(null)} 
-                  className="btn-ghost border border-border px-6"
+                  className="btn-ghost border border-border px-6 py-2"
                 >
                   Annuler
                 </button>
                 <button 
                   onClick={deleteConfirm.type === 'type' ? handleDeleteType : handleDeleteCourse}
-                  className="btn-destructive px-6"
+                  className="btn-destructive px-6 py-2"
                 >
                   Supprimer
                 </button>
