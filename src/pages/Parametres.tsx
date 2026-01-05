@@ -3,7 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { 
   Lock, Check, Eye, EyeOff, Download, Upload, Users, Image, Volume2, VolumeX, 
   RotateCcw, FolderArchive, GraduationCap, Settings, Trash2, Edit, Plus, 
-  FileSpreadsheet, Layers, ToggleLeft, ToggleRight, X
+  FileSpreadsheet, Layers, ToggleLeft, ToggleRight, X, Palette, ImagePlus,
+  Monitor
 } from 'lucide-react';
 import Layout from '@/components/Layout';
 import { 
@@ -42,8 +43,20 @@ import {
 } from '@/hooks/useClickSound';
 import { useToast } from '@/hooks/use-toast';
 import { StudentAccount, Stage, AppSettings } from '@/types';
-import bgImage from '@/assets/bg.jpg';
 import * as XLSX from 'xlsx';
+
+// Import all background images
+import bg1 from '@/assets/bg.jpg';
+import bg2 from '@/assets/bg2.jpg';
+import bg3 from '@/assets/bg3.jpg';
+import bg4 from '@/assets/bg4.jpg';
+
+const wallpapers = [
+  { id: 'bg1', name: 'Stade', src: bg1 },
+  { id: 'bg2', name: 'Centre Sportif', src: bg2 },
+  { id: 'bg3', name: 'Terrain', src: bg3 },
+  { id: 'bg4', name: 'Panorama', src: bg4 },
+];
 
 const Parametres = () => {
   const navigate = useNavigate();
@@ -76,6 +89,7 @@ const Parametres = () => {
   // Background state
   const [bgEnabled, setBgEnabled] = useState(isBackgroundEnabled());
   const [customBg, setCustomBg] = useState<string | null>(getBackgroundImage());
+  const [selectedWallpaper, setSelectedWallpaper] = useState<string | null>(null);
 
   // Sound state
   const [soundEnabled, setSoundEnabled] = useState(isClickSoundEnabled());
@@ -85,6 +99,7 @@ const Parametres = () => {
   const [showAddStudent, setShowAddStudent] = useState(false);
   const [editingStudent, setEditingStudent] = useState<StudentAccount | null>(null);
   const [studentForm, setStudentForm] = useState({ matricule: '', cin: '', nom: '', prenom: '', grade: '', unite: '' });
+  const [searchStudent, setSearchStudent] = useState('');
   
   // Excel import state
   const [showExcelModal, setShowExcelModal] = useState(false);
@@ -115,6 +130,14 @@ const Parametres = () => {
     setStages(getStages());
     setAppSettings(getAppSettings());
   };
+
+  // Filtered students
+  const filteredStudents = studentAccounts.filter(s => 
+    s.matricule.toLowerCase().includes(searchStudent.toLowerCase()) ||
+    s.nom?.toLowerCase().includes(searchStudent.toLowerCase()) ||
+    s.prenom?.toLowerCase().includes(searchStudent.toLowerCase()) ||
+    s.grade?.toLowerCase().includes(searchStudent.toLowerCase())
+  );
 
   // Password handlers
   const handleChangeAdminPassword = (e: React.FormEvent) => {
@@ -340,6 +363,13 @@ const Parametres = () => {
   };
 
   // Background handlers
+  const handleSelectWallpaper = (wallpaper: typeof wallpapers[0]) => {
+    setBackgroundImage(wallpaper.src);
+    setCustomBg(wallpaper.src);
+    setSelectedWallpaper(wallpaper.id);
+    toast({ title: 'Fond d\'écran appliqué', description: wallpaper.name });
+  };
+
   const handleBgUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !file.type.startsWith('image/')) return;
@@ -348,6 +378,7 @@ const Parametres = () => {
       const imageData = reader.result as string;
       setBackgroundImage(imageData);
       setCustomBg(imageData);
+      setSelectedWallpaper(null);
       toast({ title: 'Arrière-plan personnalisé appliqué' });
     };
     reader.readAsDataURL(file);
@@ -362,6 +393,7 @@ const Parametres = () => {
   const handleResetBg = () => {
     resetBackgroundImage();
     setCustomBg(null);
+    setSelectedWallpaper(null);
     toast({ title: 'Arrière-plan par défaut restauré' });
   };
 
@@ -399,42 +431,60 @@ const Parametres = () => {
     }
   };
 
-  const currentBgImage = bgEnabled ? (customBg || bgImage) : undefined;
+  const currentBgImage = bgEnabled ? (customBg || bg1) : undefined;
 
   const sections = [
     { id: 'security' as const, label: 'Sécurité', icon: Lock },
-    { id: 'accounts' as const, label: 'Comptes Élèves', icon: GraduationCap },
+    { id: 'accounts' as const, label: 'Comptes', icon: GraduationCap },
     { id: 'stages' as const, label: 'Stages', icon: Layers },
-    { id: 'appearance' as const, label: 'Apparence', icon: Image },
+    { id: 'appearance' as const, label: 'Apparence', icon: Palette },
     { id: 'data' as const, label: 'Données', icon: FolderArchive },
   ];
 
   return (
     <Layout backgroundImage={currentBgImage}>
-      <div className="max-w-5xl mx-auto">
+      <div className="max-w-6xl mx-auto">
         {/* Premium Header */}
-        <div className="text-center mb-8 animate-fade-in">
-          <h1 className="text-3xl font-bold flex items-center justify-center gap-3 mb-2">
-            <Settings className="w-8 h-8 text-primary" />
-            Panneau d'Administration
-          </h1>
-          <p className="text-muted-foreground">Configuration complète du système</p>
+        <div className="glass-panel p-6 mb-6 animate-fade-in">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div className="flex items-center gap-4">
+              <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-primary to-accent flex items-center justify-center shadow-lg shadow-primary/30">
+                <Settings className="w-7 h-7 text-primary-foreground" />
+              </div>
+              <div>
+                <h1 className="text-2xl font-bold">Panneau d'Administration</h1>
+                <p className="text-muted-foreground">Configuration du système</p>
+              </div>
+            </div>
+            
+            {/* Quick Stats */}
+            <div className="flex gap-3">
+              <div className="text-center px-4 py-2 bg-primary/10 rounded-xl border border-primary/20">
+                <p className="text-xl font-bold text-primary">{studentAccounts.length}</p>
+                <p className="text-xs text-muted-foreground">Élèves</p>
+              </div>
+              <div className="text-center px-4 py-2 bg-success/10 rounded-xl border border-success/20">
+                <p className="text-xl font-bold text-success">{stages.filter(s => s.enabled).length}</p>
+                <p className="text-xs text-muted-foreground">Stages actifs</p>
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* Navigation Tabs */}
-        <div className="flex flex-wrap justify-center gap-2 mb-8">
+        <div className="glass-card p-2 mb-6 flex flex-wrap gap-1">
           {sections.map((section) => (
             <button
               key={section.id}
               onClick={() => setActiveSection(section.id)}
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium transition-all duration-200 ${
+              className={`flex items-center gap-2 px-5 py-3 rounded-lg font-medium transition-all duration-200 ${
                 activeSection === section.id
-                  ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/30'
-                  : 'bg-card/50 hover:bg-card text-foreground border border-border/30'
+                  ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/20'
+                  : 'hover:bg-muted/50 text-muted-foreground'
               }`}
             >
               <section.icon className="w-4 h-4" />
-              {section.label}
+              <span className="hidden sm:inline">{section.label}</span>
             </button>
           ))}
         </div>
@@ -445,12 +495,14 @@ const Parametres = () => {
           {activeSection === 'security' && (
             <div className="grid md:grid-cols-2 gap-6">
               {/* Admin Password */}
-              <div className="glass-card p-6">
-                <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
-                  <Lock className="w-5 h-5 text-warning" />
-                  Mot de Passe Admin
-                </h2>
-                <form onSubmit={handleChangeAdminPassword} className="space-y-4">
+              <div className="glass-card overflow-hidden">
+                <div className="p-4 bg-warning/10 border-b border-warning/20">
+                  <h2 className="text-lg font-bold flex items-center gap-2">
+                    <Lock className="w-5 h-5 text-warning" />
+                    Mot de Passe Admin
+                  </h2>
+                </div>
+                <form onSubmit={handleChangeAdminPassword} className="p-6 space-y-4">
                   <div className="relative">
                     <input
                       type={showCurrentPassword ? 'text' : 'password'}
@@ -491,16 +543,20 @@ const Parametres = () => {
                     <Check className="w-5 h-5" /> Enregistrer
                   </button>
                 </form>
-                <p className="text-xs text-muted-foreground mt-3">Par défaut: <code className="bg-muted px-1 rounded">admin123</code></p>
+                <div className="px-6 pb-4">
+                  <p className="text-xs text-muted-foreground">Par défaut: <code className="bg-muted px-2 py-0.5 rounded">admin123</code></p>
+                </div>
               </div>
 
               {/* User Password */}
-              <div className="glass-card p-6">
-                <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
-                  <Users className="w-5 h-5 text-primary" />
-                  Mot de Passe Utilisateur
-                </h2>
-                <form onSubmit={handleChangeUserPassword} className="space-y-4">
+              <div className="glass-card overflow-hidden">
+                <div className="p-4 bg-primary/10 border-b border-primary/20">
+                  <h2 className="text-lg font-bold flex items-center gap-2">
+                    <Users className="w-5 h-5 text-primary" />
+                    Mot de Passe Utilisateur
+                  </h2>
+                </div>
+                <form onSubmit={handleChangeUserPassword} className="p-6 space-y-4">
                   <div className="relative">
                     <input
                       type={showNewUserPassword ? 'text' : 'password'}
@@ -529,56 +585,69 @@ const Parametres = () => {
                     <Check className="w-5 h-5" /> Enregistrer
                   </button>
                 </form>
-                <p className="text-xs text-muted-foreground mt-3">Par défaut: <code className="bg-muted px-1 rounded">user123</code></p>
+                <div className="px-6 pb-4">
+                  <p className="text-xs text-muted-foreground">Par défaut: <code className="bg-muted px-2 py-0.5 rounded">user123</code></p>
+                </div>
               </div>
             </div>
           )}
 
           {/* Accounts Section */}
           {activeSection === 'accounts' && (
-            <div className="glass-card p-6">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-xl font-bold flex items-center gap-2">
+            <div className="glass-card overflow-hidden">
+              <div className="p-4 bg-accent/10 border-b border-accent/20 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                <h2 className="text-lg font-bold flex items-center gap-2">
                   <GraduationCap className="w-5 h-5 text-accent" />
                   Gestion des Comptes Élèves
+                  <span className="text-sm font-normal text-muted-foreground">({studentAccounts.length} comptes)</span>
                 </h2>
                 <div className="flex gap-2">
+                  <div className="relative">
+                    <input
+                      type="text"
+                      placeholder="Rechercher..."
+                      value={searchStudent}
+                      onChange={(e) => setSearchStudent(e.target.value)}
+                      className="glass-input pl-9 pr-4 py-2 w-48"
+                    />
+                    <Users className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  </div>
                   <label className="btn-primary flex items-center gap-2 cursor-pointer">
                     <FileSpreadsheet className="w-4 h-4" />
-                    Importer Excel
+                    <span className="hidden md:inline">Importer Excel</span>
                     <input ref={excelInputRef} type="file" accept=".xlsx,.xls,.csv" onChange={handleExcelUpload} className="hidden" />
                   </label>
                   <button onClick={() => setShowAddStudent(true)} className="btn-success flex items-center gap-2">
-                    <Plus className="w-4 h-4" /> Ajouter
+                    <Plus className="w-4 h-4" /> <span className="hidden md:inline">Ajouter</span>
                   </button>
                 </div>
               </div>
 
-              <div className="overflow-x-auto">
+              <div className="overflow-x-auto max-h-[500px] overflow-y-auto">
                 <table className="w-full">
-                  <thead>
+                  <thead className="sticky top-0 bg-card">
                     <tr className="border-b border-border/50">
-                      <th className="text-left p-3 font-medium text-muted-foreground">Matricule</th>
-                      <th className="text-left p-3 font-medium text-muted-foreground">CIN</th>
-                      <th className="text-left p-3 font-medium text-muted-foreground">Nom</th>
-                      <th className="text-left p-3 font-medium text-muted-foreground">Prénom</th>
-                      <th className="text-left p-3 font-medium text-muted-foreground">Grade</th>
-                      <th className="text-right p-3 font-medium text-muted-foreground">Actions</th>
+                      <th className="text-left p-3 font-semibold text-muted-foreground text-sm">Matricule</th>
+                      <th className="text-left p-3 font-semibold text-muted-foreground text-sm">CIN</th>
+                      <th className="text-left p-3 font-semibold text-muted-foreground text-sm">Nom</th>
+                      <th className="text-left p-3 font-semibold text-muted-foreground text-sm">Prénom</th>
+                      <th className="text-left p-3 font-semibold text-muted-foreground text-sm">Grade</th>
+                      <th className="text-right p-3 font-semibold text-muted-foreground text-sm">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {studentAccounts.map((account) => (
-                      <tr key={account.id} className="border-b border-border/30 hover:bg-muted/20">
-                        <td className="p-3 font-mono">{account.matricule}</td>
-                        <td className="p-3 font-mono">{account.cin}</td>
+                    {filteredStudents.map((account) => (
+                      <tr key={account.id} className="border-b border-border/30 hover:bg-muted/20 transition-colors">
+                        <td className="p-3 font-mono text-sm">{account.matricule}</td>
+                        <td className="p-3 font-mono text-sm">{account.cin}</td>
                         <td className="p-3">{account.nom || '-'}</td>
                         <td className="p-3">{account.prenom || '-'}</td>
                         <td className="p-3">{account.grade || '-'}</td>
                         <td className="p-3 text-right">
-                          <button onClick={() => { setEditingStudent(account); setStudentForm({ matricule: account.matricule, cin: account.cin, nom: account.nom || '', prenom: account.prenom || '', grade: account.grade || '', unite: account.unite || '' }); setShowAddStudent(true); }} className="p-2 hover:bg-muted rounded">
+                          <button onClick={() => { setEditingStudent(account); setStudentForm({ matricule: account.matricule, cin: account.cin, nom: account.nom || '', prenom: account.prenom || '', grade: account.grade || '', unite: account.unite || '' }); setShowAddStudent(true); }} className="p-2 hover:bg-muted rounded-lg">
                             <Edit className="w-4 h-4" />
                           </button>
-                          <button onClick={() => handleDeleteStudent(account.id)} className="p-2 hover:bg-destructive/20 rounded text-destructive">
+                          <button onClick={() => handleDeleteStudent(account.id)} className="p-2 hover:bg-destructive/20 rounded-lg text-destructive">
                             <Trash2 className="w-4 h-4" />
                           </button>
                         </td>
@@ -586,29 +655,55 @@ const Parametres = () => {
                     ))}
                   </tbody>
                 </table>
-                {studentAccounts.length === 0 && (
-                  <p className="text-center text-muted-foreground py-8">Aucun compte élève</p>
+                {filteredStudents.length === 0 && (
+                  <p className="text-center text-muted-foreground py-12">
+                    {searchStudent ? 'Aucun résultat' : 'Aucun compte élève'}
+                  </p>
                 )}
               </div>
 
               {/* Add/Edit Student Modal */}
               {showAddStudent && (
                 <div className="fixed inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-                  <div className="glass-card w-full max-w-md p-6">
-                    <div className="flex items-center justify-between mb-4">
+                  <div className="glass-card w-full max-w-md p-6 animate-scale-in">
+                    <div className="flex items-center justify-between mb-6">
                       <h3 className="text-lg font-semibold">{editingStudent ? 'Modifier Compte' : 'Ajouter Compte'}</h3>
-                      <button onClick={resetStudentForm} className="p-1 hover:bg-muted rounded"><X className="w-5 h-5" /></button>
+                      <button onClick={resetStudentForm} className="p-2 hover:bg-muted rounded-lg"><X className="w-5 h-5" /></button>
                     </div>
-                    <div className="space-y-3">
-                      <input value={studentForm.matricule} onChange={(e) => setStudentForm(p => ({ ...p, matricule: e.target.value }))} className="glass-input w-full p-2" placeholder="Matricule (Mle) *" />
-                      <input value={studentForm.cin} onChange={(e) => setStudentForm(p => ({ ...p, cin: e.target.value }))} className="glass-input w-full p-2" placeholder="CIN *" />
-                      <input value={studentForm.nom} onChange={(e) => setStudentForm(p => ({ ...p, nom: e.target.value }))} className="glass-input w-full p-2" placeholder="Nom" />
-                      <input value={studentForm.prenom} onChange={(e) => setStudentForm(p => ({ ...p, prenom: e.target.value }))} className="glass-input w-full p-2" placeholder="Prénom" />
-                      <input value={studentForm.grade} onChange={(e) => setStudentForm(p => ({ ...p, grade: e.target.value }))} className="glass-input w-full p-2" placeholder="Grade" />
-                      <input value={studentForm.unite} onChange={(e) => setStudentForm(p => ({ ...p, unite: e.target.value }))} className="glass-input w-full p-2" placeholder="Unité" />
-                      <div className="flex gap-3 pt-2">
-                        <button onClick={handleSaveStudent} className="btn-success flex-1">Enregistrer</button>
-                        <button onClick={resetStudentForm} className="btn-ghost border border-border">Annuler</button>
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="text-sm font-medium mb-1 block">Matricule *</label>
+                          <input value={studentForm.matricule} onChange={(e) => setStudentForm(p => ({ ...p, matricule: e.target.value }))} className="glass-input w-full p-3" placeholder="Mle" />
+                        </div>
+                        <div>
+                          <label className="text-sm font-medium mb-1 block">CIN *</label>
+                          <input value={studentForm.cin} onChange={(e) => setStudentForm(p => ({ ...p, cin: e.target.value }))} className="glass-input w-full p-3" placeholder="CIN" />
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="text-sm font-medium mb-1 block">Nom</label>
+                          <input value={studentForm.nom} onChange={(e) => setStudentForm(p => ({ ...p, nom: e.target.value }))} className="glass-input w-full p-3" placeholder="Nom" />
+                        </div>
+                        <div>
+                          <label className="text-sm font-medium mb-1 block">Prénom</label>
+                          <input value={studentForm.prenom} onChange={(e) => setStudentForm(p => ({ ...p, prenom: e.target.value }))} className="glass-input w-full p-3" placeholder="Prénom" />
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="text-sm font-medium mb-1 block">Grade</label>
+                          <input value={studentForm.grade} onChange={(e) => setStudentForm(p => ({ ...p, grade: e.target.value }))} className="glass-input w-full p-3" placeholder="Grade" />
+                        </div>
+                        <div>
+                          <label className="text-sm font-medium mb-1 block">Unité</label>
+                          <input value={studentForm.unite} onChange={(e) => setStudentForm(p => ({ ...p, unite: e.target.value }))} className="glass-input w-full p-3" placeholder="Unité" />
+                        </div>
+                      </div>
+                      <div className="flex gap-3 pt-4">
+                        <button onClick={handleSaveStudent} className="btn-success flex-1 py-3">Enregistrer</button>
+                        <button onClick={resetStudentForm} className="btn-ghost border border-border py-3 px-6">Annuler</button>
                       </div>
                     </div>
                   </div>
@@ -618,59 +713,61 @@ const Parametres = () => {
               {/* Excel Import Modal */}
               {showExcelModal && (
                 <div className="fixed inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-                  <div className="glass-card w-full max-w-lg p-6">
+                  <div className="glass-card w-full max-w-lg p-6 animate-scale-in">
                     <div className="flex items-center justify-between mb-4">
                       <h3 className="text-lg font-semibold">Mapper les Colonnes Excel</h3>
-                      <button onClick={() => setShowExcelModal(false)} className="p-1 hover:bg-muted rounded"><X className="w-5 h-5" /></button>
+                      <button onClick={() => setShowExcelModal(false)} className="p-2 hover:bg-muted rounded-lg"><X className="w-5 h-5" /></button>
                     </div>
-                    <p className="text-sm text-muted-foreground mb-4">{excelData.length} lignes détectées. Sélectionnez les colonnes correspondantes:</p>
-                    <div className="grid grid-cols-2 gap-3">
+                    <p className="text-sm text-muted-foreground mb-4 p-3 bg-primary/10 rounded-lg">
+                      {excelData.length} lignes détectées. Sélectionnez les colonnes correspondantes:
+                    </p>
+                    <div className="grid grid-cols-2 gap-4">
                       <div>
                         <label className="text-sm font-medium">Matricule (Mle) *</label>
-                        <select value={columnMapping.matricule} onChange={(e) => setColumnMapping(p => ({ ...p, matricule: e.target.value }))} className="glass-input w-full p-2 mt-1">
+                        <select value={columnMapping.matricule} onChange={(e) => setColumnMapping(p => ({ ...p, matricule: e.target.value }))} className="glass-input w-full p-3 mt-1">
                           <option value="">-- Sélectionner --</option>
                           {excelColumns.map(col => <option key={col} value={col}>{col}</option>)}
                         </select>
                       </div>
                       <div>
                         <label className="text-sm font-medium">CIN *</label>
-                        <select value={columnMapping.cin} onChange={(e) => setColumnMapping(p => ({ ...p, cin: e.target.value }))} className="glass-input w-full p-2 mt-1">
+                        <select value={columnMapping.cin} onChange={(e) => setColumnMapping(p => ({ ...p, cin: e.target.value }))} className="glass-input w-full p-3 mt-1">
                           <option value="">-- Sélectionner --</option>
                           {excelColumns.map(col => <option key={col} value={col}>{col}</option>)}
                         </select>
                       </div>
                       <div>
                         <label className="text-sm font-medium">Nom</label>
-                        <select value={columnMapping.nom} onChange={(e) => setColumnMapping(p => ({ ...p, nom: e.target.value }))} className="glass-input w-full p-2 mt-1">
+                        <select value={columnMapping.nom} onChange={(e) => setColumnMapping(p => ({ ...p, nom: e.target.value }))} className="glass-input w-full p-3 mt-1">
                           <option value="">-- Sélectionner --</option>
                           {excelColumns.map(col => <option key={col} value={col}>{col}</option>)}
                         </select>
                       </div>
                       <div>
                         <label className="text-sm font-medium">Prénom</label>
-                        <select value={columnMapping.prenom} onChange={(e) => setColumnMapping(p => ({ ...p, prenom: e.target.value }))} className="glass-input w-full p-2 mt-1">
+                        <select value={columnMapping.prenom} onChange={(e) => setColumnMapping(p => ({ ...p, prenom: e.target.value }))} className="glass-input w-full p-3 mt-1">
                           <option value="">-- Sélectionner --</option>
                           {excelColumns.map(col => <option key={col} value={col}>{col}</option>)}
                         </select>
                       </div>
                       <div>
                         <label className="text-sm font-medium">Grade</label>
-                        <select value={columnMapping.grade} onChange={(e) => setColumnMapping(p => ({ ...p, grade: e.target.value }))} className="glass-input w-full p-2 mt-1">
+                        <select value={columnMapping.grade} onChange={(e) => setColumnMapping(p => ({ ...p, grade: e.target.value }))} className="glass-input w-full p-3 mt-1">
                           <option value="">-- Sélectionner --</option>
                           {excelColumns.map(col => <option key={col} value={col}>{col}</option>)}
                         </select>
                       </div>
                       <div>
                         <label className="text-sm font-medium">Unité</label>
-                        <select value={columnMapping.unite} onChange={(e) => setColumnMapping(p => ({ ...p, unite: e.target.value }))} className="glass-input w-full p-2 mt-1">
+                        <select value={columnMapping.unite} onChange={(e) => setColumnMapping(p => ({ ...p, unite: e.target.value }))} className="glass-input w-full p-3 mt-1">
                           <option value="">-- Sélectionner --</option>
                           {excelColumns.map(col => <option key={col} value={col}>{col}</option>)}
                         </select>
                       </div>
                     </div>
                     <div className="flex gap-3 mt-6">
-                      <button onClick={handleImportExcel} className="btn-success flex-1">Importer {excelData.length} comptes</button>
-                      <button onClick={() => setShowExcelModal(false)} className="btn-ghost border border-border">Annuler</button>
+                      <button onClick={handleImportExcel} className="btn-success flex-1 py-3">Importer {excelData.length} comptes</button>
+                      <button onClick={() => setShowExcelModal(false)} className="btn-ghost border border-border py-3 px-6">Annuler</button>
                     </div>
                   </div>
                 </div>
@@ -680,9 +777,9 @@ const Parametres = () => {
 
           {/* Stages Section */}
           {activeSection === 'stages' && (
-            <div className="glass-card p-6">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-xl font-bold flex items-center gap-2">
+            <div className="glass-card overflow-hidden">
+              <div className="p-4 bg-primary/10 border-b border-primary/20 flex items-center justify-between">
+                <h2 className="text-lg font-bold flex items-center gap-2">
                   <Layers className="w-5 h-5 text-primary" />
                   Gestion des Stages
                 </h2>
@@ -691,47 +788,65 @@ const Parametres = () => {
                 </button>
               </div>
 
-              <div className="space-y-3">
-                {stages.sort((a, b) => a.order - b.order).map((stage) => (
-                  <div key={stage.id} className={`flex items-center justify-between p-4 rounded-lg border transition-all ${
-                    stage.enabled ? 'bg-muted/30 border-border/30' : 'bg-muted/10 border-border/10 opacity-60'
-                  }`}>
-                    <div className="flex items-center gap-4">
-                      <button onClick={() => handleToggleStage(stage)} className="p-2 hover:bg-muted rounded">
-                        {stage.enabled ? <ToggleRight className="w-6 h-6 text-success" /> : <ToggleLeft className="w-6 h-6 text-muted-foreground" />}
-                      </button>
-                      <div>
-                        <h4 className="font-semibold">{stage.name}</h4>
-                        <p className="text-sm text-muted-foreground">{stage.description}</p>
+              <div className="p-6">
+                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {stages.sort((a, b) => a.order - b.order).map((stage) => (
+                    <div key={stage.id} className={`p-4 rounded-xl border-2 transition-all ${
+                      stage.enabled 
+                        ? 'bg-card border-primary/30 shadow-lg shadow-primary/5' 
+                        : 'bg-muted/20 border-border/20 opacity-60'
+                    }`}>
+                      <div className="flex items-start justify-between mb-3">
+                        <div>
+                          <h4 className="font-bold text-lg">{stage.name}</h4>
+                          <p className="text-sm text-muted-foreground">{stage.description}</p>
+                        </div>
+                        <button 
+                          onClick={() => handleToggleStage(stage)} 
+                          className={`p-2 rounded-lg transition-colors ${stage.enabled ? 'bg-success/20 text-success' : 'bg-muted text-muted-foreground'}`}
+                        >
+                          {stage.enabled ? <ToggleRight className="w-6 h-6" /> : <ToggleLeft className="w-6 h-6" />}
+                        </button>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className={`text-xs px-2 py-1 rounded-full ${stage.enabled ? 'bg-success/20 text-success' : 'bg-muted text-muted-foreground'}`}>
+                          {stage.enabled ? 'Activé' : 'Désactivé'}
+                        </span>
+                        {!['fcb', 'cat1', 'cat2', 'be', 'bs', 'aide'].includes(stage.id) && (
+                          <button onClick={() => handleDeleteStage(stage.id)} className="p-2 hover:bg-destructive/20 rounded-lg text-destructive">
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        )}
                       </div>
                     </div>
-                    {!['fcb', 'cat1', 'cat2', 'be', 'bs', 'aide'].includes(stage.id) && (
-                      <button onClick={() => handleDeleteStage(stage.id)} className="p-2 hover:bg-destructive/20 rounded text-destructive">
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    )}
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
 
-              <p className="text-sm text-muted-foreground mt-4">
-                Note: FCB est désactivé par défaut. Activez-le ici pour l'afficher dans les cours.
-              </p>
+                <p className="text-sm text-muted-foreground mt-6 p-4 bg-warning/10 rounded-lg border border-warning/20">
+                  <strong>Note:</strong> FCB est désactivé par défaut. Activez-le ici pour l'afficher dans les cours.
+                </p>
+              </div>
 
               {/* Add Stage Modal */}
               {showAddStage && (
                 <div className="fixed inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-                  <div className="glass-card w-full max-w-md p-6">
-                    <div className="flex items-center justify-between mb-4">
+                  <div className="glass-card w-full max-w-md p-6 animate-scale-in">
+                    <div className="flex items-center justify-between mb-6">
                       <h3 className="text-lg font-semibold">Ajouter Stage</h3>
-                      <button onClick={() => setShowAddStage(false)} className="p-1 hover:bg-muted rounded"><X className="w-5 h-5" /></button>
+                      <button onClick={() => setShowAddStage(false)} className="p-2 hover:bg-muted rounded-lg"><X className="w-5 h-5" /></button>
                     </div>
-                    <div className="space-y-3">
-                      <input value={stageForm.name} onChange={(e) => setStageForm(p => ({ ...p, name: e.target.value }))} className="glass-input w-full p-2" placeholder="Nom du stage *" />
-                      <input value={stageForm.description} onChange={(e) => setStageForm(p => ({ ...p, description: e.target.value }))} className="glass-input w-full p-2" placeholder="Description" />
-                      <div className="flex gap-3 pt-2">
-                        <button onClick={handleAddStage} className="btn-success flex-1">Ajouter</button>
-                        <button onClick={() => setShowAddStage(false)} className="btn-ghost border border-border">Annuler</button>
+                    <div className="space-y-4">
+                      <div>
+                        <label className="text-sm font-medium mb-1 block">Nom du stage *</label>
+                        <input value={stageForm.name} onChange={(e) => setStageForm(p => ({ ...p, name: e.target.value }))} className="glass-input w-full p-3" placeholder="Ex: CAT3" />
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium mb-1 block">Description</label>
+                        <input value={stageForm.description} onChange={(e) => setStageForm(p => ({ ...p, description: e.target.value }))} className="glass-input w-full p-3" placeholder="Description du stage" />
+                      </div>
+                      <div className="flex gap-3 pt-4">
+                        <button onClick={handleAddStage} className="btn-success flex-1 py-3">Ajouter</button>
+                        <button onClick={() => setShowAddStage(false)} className="btn-ghost border border-border py-3 px-6">Annuler</button>
                       </div>
                     </div>
                   </div>
@@ -742,54 +857,83 @@ const Parametres = () => {
 
           {/* Appearance Section */}
           {activeSection === 'appearance' && (
-            <div className="grid md:grid-cols-2 gap-6">
-              {/* Background */}
-              <div className="glass-card p-6">
-                <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
-                  <Image className="w-5 h-5 text-primary" />
-                  Arrière-plan
-                </h2>
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between p-3 bg-muted/30 rounded-lg">
-                    <span>Afficher l'arrière-plan</span>
-                    <button onClick={handleToggleBg} className={`w-12 h-7 rounded-full transition-colors relative ${bgEnabled ? 'bg-primary' : 'bg-muted'}`}>
-                      <div className={`w-5 h-5 bg-foreground rounded-full absolute top-1 transition-transform ${bgEnabled ? 'right-1' : 'left-1'}`} />
+            <div className="space-y-6">
+              {/* Wallpaper Gallery */}
+              <div className="glass-card overflow-hidden">
+                <div className="p-4 bg-primary/10 border-b border-primary/20">
+                  <h2 className="text-lg font-bold flex items-center gap-2">
+                    <Monitor className="w-5 h-5 text-primary" />
+                    Fonds d'écran
+                  </h2>
+                </div>
+                <div className="p-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <span className="font-medium">Afficher l'arrière-plan</span>
+                    <button onClick={handleToggleBg} className={`w-14 h-8 rounded-full transition-colors relative ${bgEnabled ? 'bg-primary' : 'bg-muted'}`}>
+                      <div className={`w-6 h-6 bg-foreground rounded-full absolute top-1 transition-transform ${bgEnabled ? 'right-1' : 'left-1'}`} />
                     </button>
                   </div>
-                  <div className="flex gap-2">
-                    <label className="btn-primary flex-1 py-2 flex items-center justify-center gap-2 cursor-pointer">
-                      <Upload className="w-4 h-4" /> Changer
+                  
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                    {wallpapers.map((wp) => (
+                      <button
+                        key={wp.id}
+                        onClick={() => handleSelectWallpaper(wp)}
+                        className={`relative aspect-video rounded-xl overflow-hidden border-2 transition-all group ${
+                          selectedWallpaper === wp.id || customBg === wp.src
+                            ? 'border-primary ring-2 ring-primary/30 shadow-lg shadow-primary/20'
+                            : 'border-border/30 hover:border-border'
+                        }`}
+                      >
+                        <img src={wp.src} alt={wp.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent flex items-end">
+                          <span className="text-white text-sm font-medium p-2">{wp.name}</span>
+                        </div>
+                        {(selectedWallpaper === wp.id || customBg === wp.src) && (
+                          <div className="absolute top-2 right-2 w-6 h-6 bg-primary rounded-full flex items-center justify-center">
+                            <Check className="w-4 h-4 text-primary-foreground" />
+                          </div>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+
+                  <div className="flex gap-3">
+                    <label className="btn-primary flex-1 py-3 flex items-center justify-center gap-2 cursor-pointer">
+                      <ImagePlus className="w-5 h-5" /> Image personnalisée
                       <input ref={bgInputRef} type="file" accept="image/*" onChange={handleBgUpload} className="hidden" />
                     </label>
-                    <button onClick={handleResetBg} className="btn-ghost py-2 border border-border flex items-center gap-2">
+                    <button onClick={handleResetBg} className="btn-ghost py-3 px-6 border border-border flex items-center gap-2">
                       <RotateCcw className="w-4 h-4" /> Réinitialiser
                     </button>
                   </div>
                 </div>
               </div>
 
-              {/* Sound */}
-              <div className="glass-card p-6">
-                <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
-                  {soundEnabled ? <Volume2 className="w-5 h-5 text-primary" /> : <VolumeX className="w-5 h-5 text-muted-foreground" />}
-                  Son de Clic
-                </h2>
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between p-3 bg-muted/30 rounded-lg">
-                    <span>Activer les sons</span>
-                    <button onClick={handleToggleSound} className={`w-12 h-7 rounded-full transition-colors relative ${soundEnabled ? 'bg-primary' : 'bg-muted'}`}>
-                      <div className={`w-5 h-5 bg-foreground rounded-full absolute top-1 transition-transform ${soundEnabled ? 'right-1' : 'left-1'}`} />
+              {/* Sound Settings */}
+              <div className="glass-card overflow-hidden">
+                <div className="p-4 bg-accent/10 border-b border-accent/20">
+                  <h2 className="text-lg font-bold flex items-center gap-2">
+                    {soundEnabled ? <Volume2 className="w-5 h-5 text-accent" /> : <VolumeX className="w-5 h-5 text-muted-foreground" />}
+                    Son de Clic
+                  </h2>
+                </div>
+                <div className="p-6 space-y-4">
+                  <div className="flex items-center justify-between p-4 bg-muted/30 rounded-xl">
+                    <span className="font-medium">Activer les sons</span>
+                    <button onClick={handleToggleSound} className={`w-14 h-8 rounded-full transition-colors relative ${soundEnabled ? 'bg-primary' : 'bg-muted'}`}>
+                      <div className={`w-6 h-6 bg-foreground rounded-full absolute top-1 transition-transform ${soundEnabled ? 'right-1' : 'left-1'}`} />
                     </button>
                   </div>
-                  <div className="flex gap-2">
-                    <label className="btn-primary flex-1 py-2 flex items-center justify-center gap-2 cursor-pointer">
-                      <Upload className="w-4 h-4" /> Changer
+                  <div className="flex gap-3">
+                    <label className="btn-primary flex-1 py-3 flex items-center justify-center gap-2 cursor-pointer">
+                      <Upload className="w-4 h-4" /> Changer le son
                       <input ref={soundInputRef} type="file" accept="audio/*" onChange={handleSoundUpload} className="hidden" />
                     </label>
-                    <button onClick={handleTestSound} className="btn-success py-2 flex items-center gap-2">
+                    <button onClick={handleTestSound} className="btn-success py-3 px-6 flex items-center gap-2">
                       <Volume2 className="w-4 h-4" /> Tester
                     </button>
-                    <button onClick={handleResetSound} className="btn-ghost py-2 border border-border">
+                    <button onClick={handleResetSound} className="btn-ghost py-3 px-6 border border-border">
                       <RotateCcw className="w-4 h-4" />
                     </button>
                   </div>
@@ -800,35 +944,43 @@ const Parametres = () => {
 
           {/* Data Section */}
           {activeSection === 'data' && (
-            <div className="glass-card p-6">
-              <h2 className="text-xl font-bold mb-6 flex items-center gap-2">
-                <FolderArchive className="w-5 h-5 text-primary" />
-                Exporter / Importer Données
-              </h2>
+            <div className="glass-card overflow-hidden">
+              <div className="p-4 bg-primary/10 border-b border-primary/20">
+                <h2 className="text-lg font-bold flex items-center gap-2">
+                  <FolderArchive className="w-5 h-5 text-primary" />
+                  Exporter / Importer Données
+                </h2>
+              </div>
 
-              <div className="grid md:grid-cols-2 gap-6">
-                <div className="p-4 bg-primary/10 rounded-lg border border-primary/30">
-                  <h3 className="font-semibold mb-2">Export/Import Complet (ZIP)</h3>
-                  <p className="text-sm text-muted-foreground mb-4">Archive avec tous les fichiers</p>
-                  <div className="flex gap-2">
-                    <button onClick={handleExportZip} disabled={isExporting} className="btn-primary flex-1 py-2 flex items-center justify-center gap-2">
-                      <Download className="w-4 h-4" /> {isExporting ? 'Export...' : 'ZIP'}
+              <div className="p-6 grid md:grid-cols-2 gap-6">
+                <div className="p-6 bg-gradient-to-br from-primary/10 to-primary/5 rounded-2xl border border-primary/20">
+                  <div className="w-12 h-12 bg-primary/20 rounded-xl flex items-center justify-center mb-4">
+                    <FolderArchive className="w-6 h-6 text-primary" />
+                  </div>
+                  <h3 className="font-bold text-lg mb-2">Export/Import Complet (ZIP)</h3>
+                  <p className="text-sm text-muted-foreground mb-6">Archive avec tous les fichiers et données</p>
+                  <div className="flex gap-3">
+                    <button onClick={handleExportZip} disabled={isExporting} className="btn-primary flex-1 py-3 flex items-center justify-center gap-2">
+                      <Download className="w-4 h-4" /> {isExporting ? 'Export...' : 'Exporter ZIP'}
                     </button>
-                    <label className="btn-success flex-1 py-2 flex items-center justify-center gap-2 cursor-pointer">
+                    <label className="btn-success flex-1 py-3 flex items-center justify-center gap-2 cursor-pointer">
                       <Upload className="w-4 h-4" /> Importer
                       <input ref={zipInputRef} type="file" accept=".zip" onChange={handleImportZip} className="hidden" />
                     </label>
                   </div>
                 </div>
 
-                <div className="p-4 bg-muted/30 rounded-lg border border-border/30">
-                  <h3 className="font-semibold mb-2">Export JSON (backup simple)</h3>
-                  <p className="text-sm text-muted-foreground mb-4">Données sans fichiers séparés</p>
-                  <div className="flex gap-2">
-                    <button onClick={handleExportData} className="btn-ghost flex-1 py-2 flex items-center justify-center gap-2 border border-border">
+                <div className="p-6 bg-muted/30 rounded-2xl border border-border/30">
+                  <div className="w-12 h-12 bg-muted rounded-xl flex items-center justify-center mb-4">
+                    <Download className="w-6 h-6 text-muted-foreground" />
+                  </div>
+                  <h3 className="font-bold text-lg mb-2">Export JSON (backup simple)</h3>
+                  <p className="text-sm text-muted-foreground mb-6">Données sans fichiers séparés</p>
+                  <div className="flex gap-3">
+                    <button onClick={handleExportData} className="btn-ghost flex-1 py-3 flex items-center justify-center gap-2 border border-border">
                       <Download className="w-4 h-4" /> JSON
                     </button>
-                    <label className="btn-ghost flex-1 py-2 flex items-center justify-center gap-2 cursor-pointer border border-border">
+                    <label className="btn-ghost flex-1 py-3 flex items-center justify-center gap-2 cursor-pointer border border-border">
                       <Upload className="w-4 h-4" /> Importer
                       <input ref={fileInputRef} type="file" accept=".json" onChange={handleImportData} className="hidden" />
                     </label>
@@ -836,9 +988,9 @@ const Parametres = () => {
                 </div>
               </div>
 
-              <div className="mt-4 p-4 bg-warning/10 rounded-lg border border-warning/30">
-                <p className="text-sm text-warning">
-                  <strong>Attention:</strong> L'importation remplacera toutes les données existantes.
+              <div className="mx-6 mb-6 p-4 bg-warning/10 rounded-xl border border-warning/30">
+                <p className="text-sm text-warning flex items-center gap-2">
+                  <span className="font-bold">⚠️ Attention:</span> L'importation remplacera toutes les données existantes.
                 </p>
               </div>
             </div>

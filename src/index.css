@@ -107,9 +107,21 @@
 
   body {
     @apply bg-background text-foreground;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', 'Noto Sans Arabic', sans-serif;
+    font-family: 'Segoe UI', system-ui, -apple-system, BlinkMacSystemFont, 'Roboto', 'Helvetica Neue', Arial, 'Noto Sans', 'Noto Sans Arabic', sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    font-feature-settings: 'kern' 1, 'liga' 1;
+    text-rendering: optimizeLegibility;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-weight: 700;
+    letter-spacing: -0.02em;
+  }
+
+  ::selection {
+    background-color: hsl(var(--primary) / 0.3);
+    color: hsl(var(--foreground));
   }
 }
 
@@ -120,43 +132,52 @@
   }
 
   .glass-panel {
-    @apply bg-card/60 backdrop-blur-2xl border border-glass-border/50 rounded-2xl;
-    box-shadow: 0 25px 50px -12px hsla(160, 30%, 5%, 0.5);
+    @apply bg-card/70 backdrop-blur-2xl border border-glass-border/50 rounded-2xl;
+    box-shadow: 0 25px 50px -12px hsla(160, 30%, 5%, 0.5), 
+                inset 0 1px 0 0 hsla(160, 30%, 100%, 0.05);
   }
 
   .glass-input {
     @apply bg-input/50 backdrop-blur-sm border border-glass-border/30 rounded-lg;
     @apply text-foreground placeholder:text-muted-foreground;
     @apply focus:ring-2 focus:ring-ring focus:border-transparent;
+    @apply transition-all duration-200;
+  }
+
+  .glass-input:focus {
+    @apply shadow-lg shadow-primary/10;
   }
 
   .btn-primary {
     @apply bg-primary hover:bg-primary/90 text-primary-foreground;
-    @apply px-6 py-2 rounded-lg font-medium transition-all duration-200;
-    @apply hover:shadow-lg hover:shadow-primary/20;
+    @apply px-6 py-2 rounded-lg font-semibold transition-all duration-200;
+    @apply hover:shadow-lg hover:shadow-primary/30 hover:-translate-y-0.5;
+    @apply active:translate-y-0;
   }
 
   .btn-success {
     @apply bg-success hover:bg-success/90 text-success-foreground;
-    @apply px-4 py-1.5 rounded-md font-medium transition-all duration-200;
-    @apply hover:shadow-lg hover:shadow-success/20;
+    @apply px-4 py-1.5 rounded-lg font-semibold transition-all duration-200;
+    @apply hover:shadow-lg hover:shadow-success/30 hover:-translate-y-0.5;
+    @apply active:translate-y-0;
   }
 
   .btn-destructive {
     @apply bg-destructive hover:bg-destructive/90 text-destructive-foreground;
-    @apply px-4 py-1.5 rounded-md font-medium transition-all duration-200;
+    @apply px-4 py-1.5 rounded-lg font-semibold transition-all duration-200;
+    @apply hover:shadow-lg hover:shadow-destructive/30;
   }
 
   .btn-ghost {
     @apply bg-transparent hover:bg-muted/50 text-foreground;
-    @apply px-4 py-1.5 rounded-md font-medium transition-all duration-200;
+    @apply px-4 py-1.5 rounded-lg font-medium transition-all duration-200;
   }
 
   .nav-link {
     @apply text-foreground/80 hover:text-foreground transition-colors duration-200;
     @apply relative after:absolute after:bottom-0 after:left-0 after:w-0 after:h-0.5;
     @apply after:bg-primary after:transition-all after:duration-300;
-    @apply hover:after:w-full;
+    @apply hover:after:w-full font-medium;
   }
 
   .nav-link-active {
@@ -165,21 +186,22 @@
 
   .course-card {
     @apply relative overflow-hidden rounded-xl cursor-pointer;
-    @apply transition-transform duration-300 hover:scale-105;
+    @apply transition-all duration-300 hover:scale-[1.02] hover:shadow-2xl hover:shadow-black/30;
   }
 
   .course-card-overlay {
-    @apply absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent;
+    @apply absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent;
     @apply flex flex-col justify-end p-4;
   }
 
   .file-item {
-    @apply flex items-center gap-4 p-3 rounded-lg bg-muted/30;
-    @apply border border-border/30 hover:border-border/60 transition-all;
+    @apply flex items-center gap-4 p-4 rounded-xl bg-muted/30;
+    @apply border border-border/30 hover:border-primary/40 transition-all duration-200;
+    @apply hover:shadow-lg hover:shadow-primary/5;
   }
 
   .file-icon {
-    @apply w-10 h-10 rounded-lg flex items-center justify-center;
+    @apply w-12 h-12 rounded-xl flex items-center justify-center;
   }
 
   .file-icon-ppt {
@@ -206,6 +228,25 @@
   .scrollbar-hide {
     -ms-overflow-style: none;
     scrollbar-width: none;
+  }
+
+  /* Premium input styling */
+  input, select, textarea {
+    @apply outline-none;
+  }
+
+  /* Premium table styling */
+  table {
+    @apply w-full;
+  }
+
+  th {
+    @apply text-left font-semibold text-muted-foreground uppercase text-xs tracking-wider;
+  }
+
+  /* Smooth scrolling */
+  html {
+    scroll-behavior: smooth;
   }
 }
 
