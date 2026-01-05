@@ -249,9 +249,9 @@ const GestionCours = () => {
 
           {/* Type Form Modal */}
           {showTypeForm && (
-            <div className="fixed inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-50">
-              <div className="glass-card p-6 w-full max-w-md animate-scale-in">
-                <div className="flex items-center justify-between mb-4">
+            <div className="fixed inset-0 bg-background/80 backdrop-blur-sm flex items-start justify-center z-[60] p-4 overflow-y-auto">
+              <div className="glass-card w-full max-w-md animate-scale-in my-8 flex flex-col max-h-[85vh]">
+                <div className="flex items-center justify-between p-6 pb-4 border-b border-border/30 shrink-0">
                   <h3 className="text-lg font-semibold">
                     {editingType ? 'Modifier Type' : 'Ajouter Type'}
                   </h3>
@@ -260,7 +260,7 @@ const GestionCours = () => {
                   </button>
                 </div>
 
-                <div className="space-y-4">
+                <div className="flex-1 overflow-y-auto p-6 space-y-4">
                   <div>
                     <label className="block text-sm font-medium mb-1">Nom *</label>
                     <ArabicInput
@@ -285,12 +285,19 @@ const GestionCours = () => {
                     <label className="flex items-center gap-2 btn-ghost border border-dashed border-border cursor-pointer justify-center py-4">
                       <Upload className="w-5 h-5" />
                       <span>{typeForm.image ? 'Image sélectionnée' : 'Choisir une image'}</span>
-                      <input type="file" onChange={handleTypeImageUpload} accept="image/*" className="hidden" />
+                      <input 
+                        type="file" 
+                        onChange={handleTypeImageUpload} 
+                        accept="image/*" 
+                        className="hidden"
+                        key={typeForm.image ? 'has-image' : 'no-image'}
+                      />
                     </label>
                     {typeForm.image && (
                       <div className="mt-2 relative">
                         <img src={typeForm.image} alt="Preview" className="w-full h-24 object-cover rounded" />
                         <button 
+                          type="button"
                           onClick={() => setTypeForm(prev => ({ ...prev, image: '' }))}
                           className="absolute top-1 right-1 p-1 bg-destructive rounded-full"
                         >
@@ -299,14 +306,15 @@ const GestionCours = () => {
                       </div>
                     )}
                   </div>
-                  <div className="flex gap-3">
-                    <button onClick={handleSaveType} className="btn-success flex-1">
-                      Enregistrer
-                    </button>
-                    <button onClick={() => setShowTypeForm(false)} className="btn-ghost border border-border">
-                      Annuler
-                    </button>
-                  </div>
+                </div>
+
+                <div className="flex gap-3 p-6 pt-4 border-t border-border/30 shrink-0 bg-background/50">
+                  <button onClick={handleSaveType} className="btn-success flex-1">
+                    Enregistrer
+                  </button>
+                  <button onClick={() => setShowTypeForm(false)} className="btn-ghost border border-border">
+                    Annuler
+                  </button>
                 </div>
               </div>
             </div>
@@ -362,9 +370,9 @@ const GestionCours = () => {
 
           {/* Course Form Modal */}
           {showCourseForm && (
-            <div className="fixed inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-50">
-              <div className="glass-card p-6 w-full max-w-md animate-scale-in max-h-[90vh] overflow-y-auto">
-                <div className="flex items-center justify-between mb-4">
+            <div className="fixed inset-0 bg-background/80 backdrop-blur-sm flex items-start justify-center z-[60] p-4 overflow-y-auto">
+              <div className="glass-card w-full max-w-md animate-scale-in my-8 flex flex-col max-h-[85vh]">
+                <div className="flex items-center justify-between p-6 pb-4 border-b border-border/30 shrink-0">
                   <h3 className="text-lg font-semibold">
                     {editingCourse ? 'Modifier Cours' : 'Ajouter Cours'}
                   </h3>
@@ -373,7 +381,7 @@ const GestionCours = () => {
                   </button>
                 </div>
 
-                <div className="space-y-4">
+                <div className="flex-1 overflow-y-auto p-6 space-y-4">
                   <div>
                     <label className="block text-sm font-medium mb-1">Type de cours *</label>
                     <select
@@ -606,12 +614,19 @@ const GestionCours = () => {
                     <label className="flex items-center gap-2 btn-ghost border border-dashed border-border cursor-pointer justify-center py-4">
                       <Upload className="w-5 h-5" />
                       <span>{courseForm.customImage ? 'Image personnalisée sélectionnée' : 'Choisir une image'}</span>
-                      <input type="file" onChange={handleCourseImageUpload} accept="image/*" className="hidden" />
+                      <input 
+                        type="file" 
+                        onChange={handleCourseImageUpload} 
+                        accept="image/*" 
+                        className="hidden"
+                        key={courseForm.customImage ? 'has-custom' : 'no-custom'}
+                      />
                     </label>
                     {courseForm.customImage && (
                       <div className="mt-2 relative">
                         <img src={courseForm.customImage} alt="Preview" className="w-full h-24 object-cover rounded" />
                         <button 
+                          type="button"
                           onClick={() => setCourseForm(prev => ({ ...prev, customImage: '', image: 'basketball' }))}
                           className="absolute top-1 right-1 p-1 bg-destructive rounded-full"
                         >
@@ -620,14 +635,15 @@ const GestionCours = () => {
                       </div>
                     )}
                   </div>
-                  <div className="flex gap-3">
-                    <button onClick={handleSaveCourse} className="btn-success flex-1">
-                      Enregistrer
-                    </button>
-                    <button onClick={() => setShowCourseForm(false)} className="btn-ghost border border-border">
-                      Annuler
-                    </button>
-                  </div>
+                </div>
+
+                <div className="flex gap-3 p-6 pt-4 border-t border-border/30 shrink-0 bg-background/50">
+                  <button onClick={handleSaveCourse} className="btn-success flex-1">
+                    Enregistrer
+                  </button>
+                  <button onClick={() => setShowCourseForm(false)} className="btn-ghost border border-border">
+                    Annuler
+                  </button>
                 </div>
               </div>
             </div>
