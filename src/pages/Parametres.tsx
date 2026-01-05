@@ -664,8 +664,8 @@ const Parametres = () => {
 
               {/* Add/Edit Student Modal */}
               {showAddStudent && (
-                <div className="fixed inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-                  <div className="glass-card w-full max-w-md p-6 animate-scale-in">
+                <div className="fixed inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center p-4" style={{ zIndex: 9999 }}>
+                  <div className="glass-card w-full max-w-md p-6 animate-scale-in max-h-[90vh] overflow-y-auto">
                     <div className="flex items-center justify-between mb-6">
                       <h3 className="text-lg font-semibold">{editingStudent ? 'Modifier Compte' : 'Ajouter Compte'}</h3>
                       <button onClick={resetStudentForm} className="p-2 hover:bg-muted rounded-lg"><X className="w-5 h-5" /></button>
@@ -712,8 +712,8 @@ const Parametres = () => {
 
               {/* Excel Import Modal */}
               {showExcelModal && (
-                <div className="fixed inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-                  <div className="glass-card w-full max-w-lg p-6 animate-scale-in">
+                <div className="fixed inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center p-4" style={{ zIndex: 9999 }}>
+                  <div className="glass-card w-full max-w-lg p-6 animate-scale-in max-h-[90vh] overflow-y-auto">
                     <div className="flex items-center justify-between mb-4">
                       <h3 className="text-lg font-semibold">Mapper les Colonnes Excel</h3>
                       <button onClick={() => setShowExcelModal(false)} className="p-2 hover:bg-muted rounded-lg"><X className="w-5 h-5" /></button>
@@ -829,8 +829,8 @@ const Parametres = () => {
 
               {/* Add Stage Modal */}
               {showAddStage && (
-                <div className="fixed inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-                  <div className="glass-card w-full max-w-md p-6 animate-scale-in">
+                <div className="fixed inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center p-4" style={{ zIndex: 9999 }}>
+                  <div className="glass-card w-full max-w-md p-6 animate-scale-in max-h-[90vh] overflow-y-auto">
                     <div className="flex items-center justify-between mb-6">
                       <h3 className="text-lg font-semibold">Ajouter Stage</h3>
                       <button onClick={() => setShowAddStage(false)} className="p-2 hover:bg-muted rounded-lg"><X className="w-5 h-5" /></button>
