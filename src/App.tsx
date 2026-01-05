@@ -10,6 +10,7 @@ import LoadingScreen from "./components/LoadingScreen";
 const Login = lazy(() => import("./pages/Login"));
 const Accueil = lazy(() => import("./pages/Accueil"));
 const CoursDetail = lazy(() => import("./pages/CoursDetail"));
+const CoursContent = lazy(() => import("./pages/CoursContent"));
 const GestionCours = lazy(() => import("./pages/GestionCours"));
 const Parametres = lazy(() => import("./pages/Parametres"));
 const NotFound = lazy(() => import("./pages/NotFound"));
@@ -34,6 +35,7 @@ const App = () => (
             <Route path="/" element={<Login />} />
             <Route path="/accueil" element={<Accueil />} />
             <Route path="/cours/:typeId" element={<CoursDetail />} />
+            <Route path="/cours/:typeId/stage/:stageId/course/:courseId" element={<CoursContent />} />
             <Route path="/gestion-cours" element={<GestionCours />} />
             <Route path="/parametres" element={<Parametres />} />
             <Route path="*" element={<NotFound />} />

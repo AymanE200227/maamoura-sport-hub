@@ -1,10 +1,13 @@
-import { CourseType, SportCourse, CourseTitle, CourseFile } from '@/types';
+import { CourseType, SportCourse, CourseTitle, CourseFile, Stage, StudentAccount, AppSettings } from '@/types';
 
 const STORAGE_KEYS = {
   COURSE_TYPES: 'csm_course_types',
   SPORT_COURSES: 'csm_sport_courses',
   COURSE_TITLES: 'csm_course_titles',
   FILES: 'csm_files',
+  STAGES: 'csm_stages',
+  STUDENT_ACCOUNTS: 'csm_student_accounts',
+  APP_SETTINGS: 'csm_app_settings',
   ADMIN_PASSWORD: 'csm_admin_password',
   USER_PASSWORD: 'csm_user_password',
   USER_MODE: 'csm_user_mode',
@@ -16,6 +19,16 @@ const STORAGE_KEYS = {
 
 const DEFAULT_ADMIN_PASSWORD = 'admin123';
 const DEFAULT_USER_PASSWORD = 'user123';
+
+// Default stages
+const DEFAULT_STAGES: Stage[] = [
+  { id: 'fcb', name: 'FCB', description: 'Formation Commune de Base', enabled: false, order: 0 },
+  { id: 'cat1', name: 'CAT1', description: 'Catégorie 1', enabled: true, order: 1 },
+  { id: 'cat2', name: 'CAT2', description: 'Catégorie 2', enabled: true, order: 2 },
+  { id: 'be', name: 'BE', description: 'Brevet Élémentaire', enabled: true, order: 3 },
+  { id: 'bs', name: 'BS', description: 'Brevet Supérieur', enabled: true, order: 4 },
+  { id: 'aide', name: 'Aide', description: 'Formation Aide', enabled: true, order: 5 },
+];
 
 // Background settings
 export const getBackgroundImage = (): string | null => {
@@ -37,6 +50,49 @@ export const isBackgroundEnabled = (): boolean => {
 
 export const setBackgroundEnabled = (enabled: boolean): void => {
   localStorage.setItem(STORAGE_KEYS.BACKGROUND_ENABLED, String(enabled));
+};
+
+// Stages
+export const getStages = (): Stage[] => {
+  const data = localStorage.getItem(STORAGE_KEYS.STAGES);
+  if (!data) {
+    localStorage.setItem(STORAGE_KEYS.STAGES, JSON.stringify(DEFAULT_STAGES));
+    return DEFAULT_STAGES;
+  }
+  return JSON.parse(data);
+};
+
+export const saveStages = (stages: Stage[]): void => {
+  localStorage.setItem(STORAGE_KEYS.STAGES, JSON.stringify(stages));
+};
+
+export const addStage = (stage: Omit<Stage, 'id'>): Stage => {
+  const stages = getStages();
+  const newStage: Stage = { ...stage, id: Date.now().toString() };
+  stages.push(newStage);
+  saveStages(stages);
+  return newStage;
+};
+
+export const updateStage = (id: string, updates: Partial<Stage>): void => {
+  const stages = getStages();
+  const index = stages.findIndex(s => s.id === id);
+  if (index !== -1) {
+    stages[index] = { ...stages[index], ...updates };
+    saveStages(stages);
+  }
+};
+
+export const deleteStage = (id: string): void => {
+  const stages = getStages().filter(s => s.id !== id);
+  saveStages(stages);
+  // Also delete related sport courses
+  const courses = getSportCourses().filter(c => c.stageId !== id);
+  saveSportCourses(courses);
+};
+
+export const getEnabledStages = (): Stage[] => {
+  return getStages().filter(s => s.enabled).sort((a, b) => a.order - b.order);
 };
 
 // Course Types
@@ -87,12 +143,12 @@ export const getSportCourses = (): SportCourse[] => {
   const data = localStorage.getItem(STORAGE_KEYS.SPORT_COURSES);
   if (!data) {
     const defaults: SportCourse[] = [
-      { id: '1', courseTypeId: '1', title: 'Basketball', description: 'Entraînement basketball tactique et technique', image: 'basketball' },
-      { id: '2', courseTypeId: '1', title: 'Volleyball', description: 'Cours de volleyball pour tous niveaux', image: 'volleyball' },
-      { id: '3', courseTypeId: '1', title: 'Handball', description: 'Sport collectif handball compétitif', image: 'handball' },
-      { id: '4', courseTypeId: '1', title: 'Nutrition', description: 'Conseils nutritionnels pour sportifs', image: 'nutrition' },
-      { id: '5', courseTypeId: '2', title: 'Combat', description: 'Techniques de combat avancées', image: 'combat' },
-      { id: '6', courseTypeId: '2', title: 'Endurance', description: 'Entraînement endurance militaire', image: 'endurance' },
+      { id: '1', courseTypeId: '1', stageId: 'cat2', title: 'Basketball', description: 'Entraînement basketball tactique et technique', image: 'basketball' },
+      { id: '2', courseTypeId: '1', stageId: 'cat2', title: 'Volleyball', description: 'Cours de volleyball pour tous niveaux', image: 'volleyball' },
+      { id: '3', courseTypeId: '1', stageId: 'cat1', title: 'Handball', description: 'Sport collectif handball compétitif', image: 'handball' },
+      { id: '4', courseTypeId: '1', stageId: 'be', title: 'Nutrition', description: 'Conseils nutritionnels pour sportifs', image: 'nutrition' },
+      { id: '5', courseTypeId: '2', stageId: 'bs', title: 'Combat', description: 'Techniques de combat avancées', image: 'combat' },
+      { id: '6', courseTypeId: '2', stageId: 'cat1', title: 'Endurance', description: 'Entraînement endurance militaire', image: 'endurance' },
     ];
     localStorage.setItem(STORAGE_KEYS.SPORT_COURSES, JSON.stringify(defaults));
     return defaults;
@@ -106,6 +162,14 @@ export const saveSportCourses = (courses: SportCourse[]): void => {
 
 export const getSportCoursesByType = (courseTypeId: string): SportCourse[] => {
   return getSportCourses().filter(c => c.courseTypeId === courseTypeId);
+};
+
+export const getSportCoursesByStage = (stageId: string): SportCourse[] => {
+  return getSportCourses().filter(c => c.stageId === stageId);
+};
+
+export const getSportCoursesByTypeAndStage = (courseTypeId: string, stageId: string): SportCourse[] => {
+  return getSportCourses().filter(c => c.courseTypeId === courseTypeId && c.stageId === stageId);
 };
 
 export const addSportCourse = (course: Omit<SportCourse, 'id'>): SportCourse => {
@@ -230,6 +294,90 @@ export const deleteFile = (id: string): void => {
   saveFiles(files);
 };
 
+// Student Accounts
+export const getStudentAccounts = (): StudentAccount[] => {
+  const data = localStorage.getItem(STORAGE_KEYS.STUDENT_ACCOUNTS);
+  return data ? JSON.parse(data) : [];
+};
+
+export const saveStudentAccounts = (accounts: StudentAccount[]): void => {
+  localStorage.setItem(STORAGE_KEYS.STUDENT_ACCOUNTS, JSON.stringify(accounts));
+};
+
+export const addStudentAccount = (account: Omit<StudentAccount, 'id' | 'createdAt'>): StudentAccount => {
+  const accounts = getStudentAccounts();
+  const newAccount: StudentAccount = { 
+    ...account, 
+    id: Date.now().toString(),
+    createdAt: new Date().toISOString()
+  };
+  accounts.push(newAccount);
+  saveStudentAccounts(accounts);
+  return newAccount;
+};
+
+export const updateStudentAccount = (id: string, updates: Partial<StudentAccount>): void => {
+  const accounts = getStudentAccounts();
+  const index = accounts.findIndex(a => a.id === id);
+  if (index !== -1) {
+    accounts[index] = { ...accounts[index], ...updates };
+    saveStudentAccounts(accounts);
+  }
+};
+
+export const deleteStudentAccount = (id: string): void => {
+  const accounts = getStudentAccounts().filter(a => a.id !== id);
+  saveStudentAccounts(accounts);
+};
+
+export const verifyStudentCredentials = (matricule: string, cin: string): StudentAccount | null => {
+  const accounts = getStudentAccounts();
+  return accounts.find(a => a.matricule === matricule && a.cin === cin) || null;
+};
+
+export const importStudentAccountsBulk = (accounts: Omit<StudentAccount, 'id' | 'createdAt'>[]): number => {
+  const existing = getStudentAccounts();
+  const existingMatricules = new Set(existing.map(a => a.matricule));
+  
+  let added = 0;
+  for (const account of accounts) {
+    if (!existingMatricules.has(account.matricule)) {
+      existing.push({
+        ...account,
+        id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
+        createdAt: new Date().toISOString()
+      });
+      existingMatricules.add(account.matricule);
+      added++;
+    }
+  }
+  
+  saveStudentAccounts(existing);
+  return added;
+};
+
+// App Settings
+export const getAppSettings = (): AppSettings => {
+  const data = localStorage.getItem(STORAGE_KEYS.APP_SETTINGS);
+  if (!data) {
+    const defaults: AppSettings = {
+      fcbEnabled: false,
+      excelColumnMapping: {
+        matriculeColumn: 'Mle',
+        cinColumn: 'CIN',
+        additionalColumns: ['Nom', 'Prenom', 'Grade', 'Unite']
+      }
+    };
+    localStorage.setItem(STORAGE_KEYS.APP_SETTINGS, JSON.stringify(defaults));
+    return defaults;
+  }
+  return JSON.parse(data);
+};
+
+export const saveAppSettings = (settings: AppSettings): void => {
+  localStorage.setItem(STORAGE_KEYS.APP_SETTINGS, JSON.stringify(settings));
+};
+
 // Password - Admin
 export const getAdminPassword = (): string => {
   return localStorage.getItem(STORAGE_KEYS.ADMIN_PASSWORD) || DEFAULT_ADMIN_PASSWORD;
@@ -262,11 +410,11 @@ export const setPassword = (password: string): void => setAdminPassword(password
 export const verifyPassword = (password: string): boolean => verifyAdminPassword(password);
 
 // User Mode
-export const getUserMode = (): 'admin' | 'user' | null => {
-  return localStorage.getItem(STORAGE_KEYS.USER_MODE) as 'admin' | 'user' | null;
+export const getUserMode = (): 'admin' | 'user' | 'eleve' | null => {
+  return localStorage.getItem(STORAGE_KEYS.USER_MODE) as 'admin' | 'user' | 'eleve' | null;
 };
 
-export const setUserMode = (mode: 'admin' | 'user'): void => {
+export const setUserMode = (mode: 'admin' | 'user' | 'eleve'): void => {
   localStorage.setItem(STORAGE_KEYS.USER_MODE, mode);
 };
 
@@ -280,7 +428,10 @@ export const exportAllData = (): string => {
     courseTypes: getCourseTypes(),
     sportCourses: getSportCourses(),
     courseTitles: getCourseTitles(),
-    files: getFiles(), // Files already contain fileData as base64
+    files: getFiles(),
+    stages: getStages(),
+    studentAccounts: getStudentAccounts(),
+    appSettings: getAppSettings(),
     adminPassword: getAdminPassword(),
     userPassword: getUserPassword(),
     backgroundImage: getBackgroundImage(),
@@ -288,7 +439,7 @@ export const exportAllData = (): string => {
     clickSound: localStorage.getItem(STORAGE_KEYS.CLICK_SOUND),
     clickSoundEnabled: localStorage.getItem(STORAGE_KEYS.CLICK_SOUND_ENABLED) !== 'false',
     exportedAt: new Date().toISOString(),
-    version: '2.0'
+    version: '3.0'
   };
   return JSON.stringify(data, null, 2);
 };
@@ -307,8 +458,16 @@ export const importAllData = (jsonData: string): boolean => {
       saveCourseTitles(data.courseTitles);
     }
     if (data.files) {
-      // Files contain base64 fileData, restore them fully
       saveFiles(data.files);
+    }
+    if (data.stages) {
+      saveStages(data.stages);
+    }
+    if (data.studentAccounts) {
+      saveStudentAccounts(data.studentAccounts);
+    }
+    if (data.appSettings) {
+      saveAppSettings(data.appSettings);
     }
     if (data.adminPassword) {
       setAdminPassword(data.adminPassword);

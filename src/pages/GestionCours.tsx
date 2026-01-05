@@ -12,9 +12,10 @@ import {
   addSportCourse,
   updateSportCourse,
   deleteSportCourse,
+  getStages,
   getUserMode 
 } from '@/lib/storage';
-import { CourseType, SportCourse } from '@/types';
+import { CourseType, SportCourse, Stage } from '@/types';
 import { getSportImage, imageCategories, categoryLabels } from '@/assets/sports';
 import { useToast } from '@/hooks/use-toast';
 import bgImage from '@/assets/bg4.jpg';
@@ -26,6 +27,7 @@ const GestionCours = () => {
   
   const [courseTypes, setCourseTypes] = useState<CourseType[]>([]);
   const [sportCourses, setSportCourses] = useState<SportCourse[]>([]);
+  const [stages, setStages] = useState<Stage[]>([]);
   
   // Type form state
   const [showTypeForm, setShowTypeForm] = useState(false);
@@ -37,6 +39,7 @@ const GestionCours = () => {
   const [editingCourse, setEditingCourse] = useState<SportCourse | null>(null);
   const [courseForm, setCourseForm] = useState({
     courseTypeId: '',
+    stageId: '',
     title: '',
     description: '',
     image: 'basketball',
@@ -57,6 +60,7 @@ const GestionCours = () => {
   const loadData = () => {
     setCourseTypes(getCourseTypes());
     setSportCourses(getSportCourses());
+    setStages(getStages());
   };
 
   // Handle image upload for course type
@@ -129,6 +133,7 @@ const GestionCours = () => {
     setEditingCourse(null);
     setCourseForm({
       courseTypeId: courseTypes[0]?.id || '',
+      stageId: stages.find(s => s.enabled)?.id || '',
       title: '',
       description: '',
       image: 'basketball',
@@ -142,6 +147,7 @@ const GestionCours = () => {
     const isCustom = course.image.startsWith('data:');
     setCourseForm({
       courseTypeId: course.courseTypeId,
+      stageId: course.stageId,
       title: course.title,
       description: course.description,
       image: isCustom ? 'custom' : course.image,
@@ -151,13 +157,14 @@ const GestionCours = () => {
   };
 
   const handleSaveCourse = () => {
-    if (!courseForm.title.trim() || !courseForm.courseTypeId) {
-      toast({ title: 'Erreur', description: 'Le titre et le type sont requis', variant: 'destructive' });
+    if (!courseForm.title.trim() || !courseForm.courseTypeId || !courseForm.stageId) {
+      toast({ title: 'Erreur', description: 'Le titre, le type et le stage sont requis', variant: 'destructive' });
       return;
     }
 
     const courseData = {
       courseTypeId: courseForm.courseTypeId,
+      stageId: courseForm.stageId,
       title: courseForm.title,
       description: courseForm.description,
       image: courseForm.image === 'custom' ? courseForm.customImage : courseForm.image
@@ -391,6 +398,18 @@ const GestionCours = () => {
                     >
                       {courseTypes.map(type => (
                         <option key={type.id} value={type.id}>{type.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Stage *</label>
+                    <select
+                      value={courseForm.stageId}
+                      onChange={(e) => setCourseForm(prev => ({ ...prev, stageId: e.target.value }))}
+                      className="glass-input w-full p-2"
+                    >
+                      {stages.filter(s => s.enabled).map(stage => (
+                        <option key={stage.id} value={stage.id}>{stage.name} - {stage.description}</option>
                       ))}
                     </select>
                   </div>
