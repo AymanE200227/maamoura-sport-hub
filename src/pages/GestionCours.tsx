@@ -561,7 +561,7 @@ const GestionCours = () => {
 
         {/* Type Form Modal */}
         {showTypeForm && (
-          <div className="fixed inset-0 bg-background/80 backdrop-blur-sm flex items-start justify-center z-[60] p-4 overflow-y-auto">
+          <div className="fixed inset-0 bg-background/80 backdrop-blur-sm flex items-start justify-center p-4 overflow-y-auto" style={{ zIndex: 9999 }}>
             <div className="glass-card w-full max-w-md animate-scale-in my-8 flex flex-col max-h-[85vh]">
               <div className="flex items-center justify-between p-6 pb-4 border-b border-border/30 shrink-0">
                 <h3 className="text-lg font-semibold">
@@ -628,7 +628,7 @@ const GestionCours = () => {
 
         {/* Course Form Modal */}
         {showCourseForm && (
-          <div className="fixed inset-0 bg-background/80 backdrop-blur-sm flex items-start justify-center z-[60] p-4 overflow-y-auto">
+          <div className="fixed inset-0 bg-background/80 backdrop-blur-sm flex items-start justify-center p-4 overflow-y-auto" style={{ zIndex: 9999 }}>
             <div className="glass-card w-full max-w-lg animate-scale-in my-8 flex flex-col max-h-[85vh]">
               <div className="flex items-center justify-between p-6 pb-4 border-b border-border/30 shrink-0">
                 <h3 className="text-lg font-semibold">
@@ -785,7 +785,7 @@ const GestionCours = () => {
 
         {/* Delete Confirmation Modal */}
         {deleteConfirm && (
-          <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+          <div className="fixed inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center p-4" style={{ zIndex: 9999 }}>
             <div className="glass-card p-6 w-full max-w-sm animate-scale-in text-center shadow-2xl border border-border/50">
               <div className="w-14 h-14 bg-destructive/20 rounded-full flex items-center justify-center mx-auto mb-4">
                 <Trash2 className="w-7 h-7 text-destructive" />

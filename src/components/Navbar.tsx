@@ -3,7 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Search, LogOut } from 'lucide-react';
 import { clearUserMode, getUserMode } from '@/lib/storage';
 import { useClickSound } from '@/hooks/useClickSound';
-import logoImage from '@/assets/logo-new.png';
+import logoImage from '@/assets/logo-official.png';
 
 // Play logout sound
 const playLogoutSound = () => {
@@ -40,8 +40,8 @@ const Navbar = memo(() => {
       <div className="flex items-center gap-8">
         {/* Logo */}
         <Link to="/accueil" className="flex items-center gap-3 group" onClick={handleNavClick}>
-          <div className="w-12 h-12 rounded-xl overflow-hidden border-2 border-primary/30 shadow-lg group-hover:border-primary transition-colors">
-            <img src={logoImage} alt="CSM Logo" className="w-full h-full object-cover" loading="lazy" />
+          <div className="w-12 h-12 flex items-center justify-center">
+            <img src={logoImage} alt="CSM Logo" className="w-10 h-10 object-contain drop-shadow-lg" loading="lazy" />
           </div>
           <div className="hidden md:block">
             <span className="font-bold text-foreground block leading-tight">Centre Sportif</span>

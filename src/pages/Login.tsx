@@ -5,7 +5,7 @@ import { verifyAdminPassword, verifyUserPassword, verifyStudentCredentials, setU
 import { useToast } from '@/hooks/use-toast';
 import { useClickSound } from '@/hooks/useClickSound';
 import bgImage from '@/assets/bg.jpg';
-import logoImage from '@/assets/logo-new.png';
+import logoImage from '@/assets/logo-official.png';
 
 // Play auth sound
 const playAuthSound = () => {
@@ -127,9 +127,9 @@ const Login = () => {
               <img 
                 src={logoImage} 
                 alt="Centre Sportif Maamoura" 
-                className="w-24 h-24 object-contain rounded-full border-4 border-primary/30 shadow-2xl"
+                className="w-20 h-20 object-contain drop-shadow-2xl"
               />
-              <div className="absolute inset-0 rounded-full bg-gradient-to-tr from-primary/20 to-transparent" />
+              
             </div>
           </div>
           <h1 className="text-2xl font-bold text-foreground mb-2 drop-shadow-lg">

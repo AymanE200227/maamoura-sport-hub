@@ -231,7 +231,7 @@ const CoursDetail = () => {
 
       {/* Add Course Modal */}
       {showAddModal && (
-        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm flex items-start justify-center z-[60] p-4 overflow-y-auto">
+        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm flex items-start justify-center p-4 overflow-y-auto" style={{ zIndex: 9999 }}>
           <div className="glass-card w-full max-w-lg animate-scale-in my-8 flex flex-col max-h-[85vh]">
             <div className="flex items-center justify-between p-6 pb-4 border-b border-border/30 shrink-0">
               <div>
