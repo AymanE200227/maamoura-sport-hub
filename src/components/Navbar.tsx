@@ -3,7 +3,18 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Search, LogOut } from 'lucide-react';
 import { clearUserMode, getUserMode } from '@/lib/storage';
 import { useClickSound } from '@/hooks/useClickSound';
-import logoImage from '@/assets/logo.jpg';
+import logoImage from '@/assets/logo-new.png';
+
+// Play logout sound
+const playLogoutSound = () => {
+  try {
+    const audio = new Audio('/sounds/auth-success.mp3');
+    audio.volume = 0.5;
+    audio.play().catch(() => {});
+  } catch (e) {
+    console.error('Error playing logout sound:', e);
+  }
+};
 
 const Navbar = memo(() => {
   const location = useLocation();
@@ -15,6 +26,7 @@ const Navbar = memo(() => {
 
   const handleLogout = useCallback(() => {
     playClick();
+    playLogoutSound();
     clearUserMode();
     navigate('/');
   }, [navigate, playClick]);
@@ -24,12 +36,17 @@ const Navbar = memo(() => {
   }, [playClick]);
 
   return (
-    <nav className="glass-card px-6 py-4 flex items-center justify-between mb-6">
+    <nav className="glass-panel px-6 py-4 flex items-center justify-between mb-6 shadow-xl">
       <div className="flex items-center gap-8">
         {/* Logo */}
-        <Link to="/accueil" className="flex items-center gap-3" onClick={handleNavClick}>
-          <img src={logoImage} alt="CSM Logo" className="w-10 h-10 object-contain" loading="lazy" />
-          <span className="font-semibold text-foreground">CSM Logo</span>
+        <Link to="/accueil" className="flex items-center gap-3 group" onClick={handleNavClick}>
+          <div className="w-12 h-12 rounded-xl overflow-hidden border-2 border-primary/30 shadow-lg group-hover:border-primary transition-colors">
+            <img src={logoImage} alt="CSM Logo" className="w-full h-full object-cover" loading="lazy" />
+          </div>
+          <div className="hidden md:block">
+            <span className="font-bold text-foreground block leading-tight">Centre Sportif</span>
+            <span className="text-xs text-muted-foreground">FAR Maâmoura</span>
+          </div>
         </Link>
 
         {/* Navigation Links */}

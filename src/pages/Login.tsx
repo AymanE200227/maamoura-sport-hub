@@ -5,7 +5,18 @@ import { verifyAdminPassword, verifyUserPassword, verifyStudentCredentials, setU
 import { useToast } from '@/hooks/use-toast';
 import { useClickSound } from '@/hooks/useClickSound';
 import bgImage from '@/assets/bg.jpg';
-import logoImage from '@/assets/logo.jpg';
+import logoImage from '@/assets/logo-new.png';
+
+// Play auth sound
+const playAuthSound = () => {
+  try {
+    const audio = new Audio('/sounds/auth-success.mp3');
+    audio.volume = 0.5;
+    audio.play().catch(() => {});
+  } catch (e) {
+    console.error('Error playing auth sound:', e);
+  }
+};
 
 const Login = () => {
   const [activeTab, setActiveTab] = useState<'admin' | 'user' | 'eleve'>('user');
@@ -32,6 +43,7 @@ const Login = () => {
     playClick();
     if (verifyAdminPassword(adminPassword)) {
       setUserMode('admin');
+      playAuthSound();
       toast({
         title: 'Connexion réussie',
         description: 'Bienvenue, Administrateur!',
@@ -51,6 +63,7 @@ const Login = () => {
     playClick();
     if (verifyUserPassword(userPassword)) {
       setUserMode('user');
+      playAuthSound();
       toast({
         title: 'Connexion réussie',
         description: 'Bienvenue!',
@@ -72,6 +85,7 @@ const Login = () => {
     const student = verifyStudentCredentials(eleveMatricule, eleveCin);
     if (student) {
       setUserMode('eleve');
+      playAuthSound();
       toast({
         title: 'Connexion réussie',
         description: `Bienvenue, ${student.prenom || student.nom || 'Élève'}!`,

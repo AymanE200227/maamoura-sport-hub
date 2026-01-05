@@ -1,6 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Edit, Trash2, X, Upload } from 'lucide-react';
+import { 
+  Plus, Edit, Trash2, X, Upload, Search, Filter, 
+  LayoutGrid, List, ChevronDown, BookOpen, Layers,
+  GraduationCap, Image as ImageIcon
+} from 'lucide-react';
 import Layout from '@/components/Layout';
 import ArabicInput from '@/components/ArabicInput';
 import { 
@@ -28,6 +32,13 @@ const GestionCours = () => {
   const [courseTypes, setCourseTypes] = useState<CourseType[]>([]);
   const [sportCourses, setSportCourses] = useState<SportCourse[]>([]);
   const [stages, setStages] = useState<Stage[]>([]);
+  
+  // View state
+  const [activeTab, setActiveTab] = useState<'types' | 'courses'>('types');
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterStage, setFilterStage] = useState<string>('all');
+  const [filterType, setFilterType] = useState<string>('all');
   
   // Type form state
   const [showTypeForm, setShowTypeForm] = useState(false);
@@ -62,6 +73,19 @@ const GestionCours = () => {
     setSportCourses(getSportCourses());
     setStages(getStages());
   };
+
+  // Filtered data
+  const filteredTypes = courseTypes.filter(type =>
+    type.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const filteredCourses = sportCourses.filter(course => {
+    const matchesSearch = course.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                         course.description.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesStage = filterStage === 'all' || course.stageId === filterStage;
+    const matchesType = filterType === 'all' || course.courseTypeId === filterType;
+    return matchesSearch && matchesStage && matchesType;
+  });
 
   // Handle image upload for course type
   const handleTypeImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -192,8 +216,6 @@ const GestionCours = () => {
     }
   };
 
-  // Use the new comprehensive image options
-
   const getCourseImage = (course: SportCourse) => {
     if (course.image.startsWith('data:')) {
       return course.image;
@@ -208,490 +230,577 @@ const GestionCours = () => {
     return null;
   };
 
+  const getStageById = (id: string) => stages.find(s => s.id === id);
+  const getTypeById = (id: string) => courseTypes.find(t => t.id === id);
+
   return (
     <Layout backgroundImage={bgImage}>
-      <div className="max-w-4xl mx-auto space-y-8">
-        {/* Course Types Section */}
-        <section className="glass-card p-6 animate-fade-in">
-          <h2 className="text-2xl font-bold mb-6">Gestion des Types de Cours</h2>
-          
-          <div className="space-y-3 mb-4">
-            {courseTypes.map((type) => (
-              <div 
-                key={type.id} 
-                className="flex items-center gap-4 p-4 bg-muted/30 rounded-lg border border-border/30"
-              >
-                {getTypeImage(type) && (
-                  <img 
-                    src={getTypeImage(type)!} 
-                    alt={type.name}
-                    className="w-12 h-12 object-cover rounded"
-                  />
-                )}
-                <span className="font-medium flex-1">{type.name}</span>
-                <div className="flex items-center gap-2">
-                  <button 
-                    onClick={() => handleEditType(type)}
-                    className="btn-ghost flex items-center gap-1 text-sm border border-border"
-                  >
-                    <Edit className="w-4 h-4" />
-                    Modifier
-                  </button>
-                  <button 
-                    onClick={() => setDeleteConfirm({ type: 'type', id: type.id, name: type.name })}
-                    className="btn-destructive flex items-center gap-1 text-sm"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                    Supprimer
-                  </button>
+      <div className="max-w-7xl mx-auto">
+        {/* Premium Header */}
+        <div className="glass-panel p-6 mb-6 animate-fade-in">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div>
+              <h1 className="text-3xl font-bold flex items-center gap-3">
+                <div className="w-12 h-12 rounded-xl bg-primary/20 flex items-center justify-center">
+                  <BookOpen className="w-6 h-6 text-primary" />
                 </div>
+                Gestion des Cours
+              </h1>
+              <p className="text-muted-foreground mt-1">
+                Gérez vos types de cours et contenus pédagogiques
+              </p>
+            </div>
+
+            {/* Stats */}
+            <div className="flex gap-4">
+              <div className="text-center px-6 py-3 bg-primary/10 rounded-xl border border-primary/20">
+                <p className="text-2xl font-bold text-primary">{courseTypes.length}</p>
+                <p className="text-xs text-muted-foreground">Types</p>
               </div>
-            ))}
-          </div>
-
-          <button onClick={handleAddType} className="btn-success flex items-center gap-2">
-            <Plus className="w-5 h-5" />
-            Ajouter Type
-          </button>
-
-          {/* Type Form Modal */}
-          {showTypeForm && (
-            <div className="fixed inset-0 bg-background/80 backdrop-blur-sm flex items-start justify-center z-[60] p-4 overflow-y-auto">
-              <div className="glass-card w-full max-w-md animate-scale-in my-8 flex flex-col max-h-[85vh]">
-                <div className="flex items-center justify-between p-6 pb-4 border-b border-border/30 shrink-0">
-                  <h3 className="text-lg font-semibold">
-                    {editingType ? 'Modifier Type' : 'Ajouter Type'}
-                  </h3>
-                  <button onClick={() => setShowTypeForm(false)} className="p-1 hover:bg-muted rounded">
-                    <X className="w-5 h-5" />
-                  </button>
-                </div>
-
-                <div className="flex-1 overflow-y-auto p-6 space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium mb-1">Nom *</label>
-                    <ArabicInput
-                      value={typeForm.name}
-                      onChange={(value) => setTypeForm(prev => ({ ...prev, name: value }))}
-                      className="glass-input w-full p-2 pr-16"
-                      placeholder="Nom du type"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium mb-1">Description</label>
-                    <ArabicInput
-                      value={typeForm.description}
-                      onChange={(value) => setTypeForm(prev => ({ ...prev, description: value }))}
-                      className="glass-input w-full p-2 pr-16 min-h-[80px]"
-                      placeholder="Description (optionnel)"
-                      multiline
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium mb-1">Image (optionnel)</label>
-                    <label className="flex items-center gap-2 btn-ghost border border-dashed border-border cursor-pointer justify-center py-4">
-                      <Upload className="w-5 h-5" />
-                      <span>{typeForm.image ? 'Image sélectionnée' : 'Choisir une image'}</span>
-                      <input 
-                        type="file" 
-                        onChange={handleTypeImageUpload} 
-                        accept="image/*" 
-                        className="hidden"
-                        key={typeForm.image ? 'has-image' : 'no-image'}
-                      />
-                    </label>
-                    {typeForm.image && (
-                      <div className="mt-2 relative">
-                        <img src={typeForm.image} alt="Preview" className="w-full h-24 object-cover rounded" />
-                        <button 
-                          type="button"
-                          onClick={() => setTypeForm(prev => ({ ...prev, image: '' }))}
-                          className="absolute top-1 right-1 p-1 bg-destructive rounded-full"
-                        >
-                          <X className="w-4 h-4" />
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                <div className="flex gap-3 p-6 pt-4 border-t border-border/30 shrink-0 bg-background/50">
-                  <button onClick={handleSaveType} className="btn-success flex-1">
-                    Enregistrer
-                  </button>
-                  <button onClick={() => setShowTypeForm(false)} className="btn-ghost border border-border">
-                    Annuler
-                  </button>
-                </div>
+              <div className="text-center px-6 py-3 bg-accent/10 rounded-xl border border-accent/20">
+                <p className="text-2xl font-bold text-accent">{sportCourses.length}</p>
+                <p className="text-xs text-muted-foreground">Cours</p>
+              </div>
+              <div className="text-center px-6 py-3 bg-success/10 rounded-xl border border-success/20">
+                <p className="text-2xl font-bold text-success">{stages.filter(s => s.enabled).length}</p>
+                <p className="text-xs text-muted-foreground">Stages</p>
               </div>
             </div>
-          )}
-        </section>
+          </div>
+        </div>
 
-        {/* Sport Courses Section */}
-        <section className="glass-card p-6 animate-fade-in">
-          <h2 className="text-2xl font-bold mb-6">Gestion des Cours Carousel</h2>
-          
-          <div className="space-y-3 mb-4">
-            {sportCourses.map((course) => {
-              const type = courseTypes.find(t => t.id === course.courseTypeId);
-              return (
-                <div 
-                  key={course.id} 
-                  className="flex items-center gap-4 p-4 bg-muted/30 rounded-lg border border-border/30"
-                >
-                  <img 
-                    src={getCourseImage(course)} 
-                    alt={course.title}
-                    className="w-16 h-12 object-cover rounded"
-                  />
-                  <div className="flex-1">
-                    <h4 className="font-medium">{course.title}</h4>
-                    <p className="text-sm text-muted-foreground">
-                      {type?.name} • {course.description.substring(0, 50)}...
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <button 
-                      onClick={() => handleEditCourse(course)}
-                      className="p-2 hover:bg-muted rounded"
-                    >
-                      <Edit className="w-4 h-4" />
-                    </button>
-                    <button 
-                      onClick={() => setDeleteConfirm({ type: 'course', id: course.id, name: course.title })}
-                      className="p-2 hover:bg-destructive/20 rounded text-destructive"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
-              );
-            })}
+        {/* Tab Navigation */}
+        <div className="glass-card mb-6 p-2 flex flex-col md:flex-row md:items-center gap-4">
+          <div className="flex gap-1 flex-1">
+            <button
+              onClick={() => setActiveTab('types')}
+              className={`flex items-center gap-2 px-5 py-3 rounded-lg font-medium transition-all ${
+                activeTab === 'types'
+                  ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/20'
+                  : 'hover:bg-muted/50 text-muted-foreground'
+              }`}
+            >
+              <Layers className="w-4 h-4" />
+              Types de Cours
+            </button>
+            <button
+              onClick={() => setActiveTab('courses')}
+              className={`flex items-center gap-2 px-5 py-3 rounded-lg font-medium transition-all ${
+                activeTab === 'courses'
+                  ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/20'
+                  : 'hover:bg-muted/50 text-muted-foreground'
+              }`}
+            >
+              <GraduationCap className="w-4 h-4" />
+              Cours Carousel
+            </button>
           </div>
 
-          <button onClick={handleAddCourse} className="btn-success flex items-center gap-2">
-            <Plus className="w-5 h-5" />
-            Ajouter Carte Carousel
-          </button>
+          {/* Search & Filters */}
+          <div className="flex items-center gap-3">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <input
+                type="text"
+                placeholder="Rechercher..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="glass-input pl-10 pr-4 py-2 w-48"
+              />
+            </div>
 
-          {/* Course Form Modal */}
-          {showCourseForm && (
-            <div className="fixed inset-0 bg-background/80 backdrop-blur-sm flex items-start justify-center z-[60] p-4 overflow-y-auto">
-              <div className="glass-card w-full max-w-md animate-scale-in my-8 flex flex-col max-h-[85vh]">
-                <div className="flex items-center justify-between p-6 pb-4 border-b border-border/30 shrink-0">
-                  <h3 className="text-lg font-semibold">
-                    {editingCourse ? 'Modifier Cours' : 'Ajouter Cours'}
-                  </h3>
-                  <button onClick={() => setShowCourseForm(false)} className="p-1 hover:bg-muted rounded">
-                    <X className="w-5 h-5" />
+            {activeTab === 'courses' && (
+              <>
+                <select
+                  value={filterType}
+                  onChange={(e) => setFilterType(e.target.value)}
+                  className="glass-input py-2 px-3"
+                >
+                  <option value="all">Tous les types</option>
+                  {courseTypes.map(type => (
+                    <option key={type.id} value={type.id}>{type.name}</option>
+                  ))}
+                </select>
+                <select
+                  value={filterStage}
+                  onChange={(e) => setFilterStage(e.target.value)}
+                  className="glass-input py-2 px-3"
+                >
+                  <option value="all">Tous les stages</option>
+                  {stages.filter(s => s.enabled).map(stage => (
+                    <option key={stage.id} value={stage.id}>{stage.name}</option>
+                  ))}
+                </select>
+              </>
+            )}
+
+            <div className="flex border border-border/30 rounded-lg overflow-hidden">
+              <button
+                onClick={() => setViewMode('grid')}
+                className={`p-2 ${viewMode === 'grid' ? 'bg-primary text-primary-foreground' : 'hover:bg-muted'}`}
+              >
+                <LayoutGrid className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => setViewMode('list')}
+                className={`p-2 ${viewMode === 'list' ? 'bg-primary text-primary-foreground' : 'hover:bg-muted'}`}
+              >
+                <List className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Content */}
+        <div className="animate-fade-in">
+          {/* Course Types Tab */}
+          {activeTab === 'types' && (
+            <div className="space-y-4">
+              {viewMode === 'grid' ? (
+                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {filteredTypes.map((type) => (
+                    <div key={type.id} className="glass-card group overflow-hidden">
+                      {getTypeImage(type) ? (
+                        <div className="h-32 overflow-hidden">
+                          <img 
+                            src={getTypeImage(type)!} 
+                            alt={type.name}
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                          />
+                        </div>
+                      ) : (
+                        <div className="h-32 bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center">
+                          <ImageIcon className="w-12 h-12 text-muted-foreground" />
+                        </div>
+                      )}
+                      <div className="p-4">
+                        <h3 className="font-bold text-lg mb-1">{type.name}</h3>
+                        <p className="text-sm text-muted-foreground line-clamp-2 mb-4">
+                          {type.description || 'Aucune description'}
+                        </p>
+                        <div className="flex gap-2">
+                          <button 
+                            onClick={() => handleEditType(type)}
+                            className="btn-ghost text-sm flex items-center gap-1 flex-1 justify-center border border-border"
+                          >
+                            <Edit className="w-4 h-4" /> Modifier
+                          </button>
+                          <button 
+                            onClick={() => setDeleteConfirm({ type: 'type', id: type.id, name: type.name })}
+                            className="btn-destructive text-sm p-2"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+
+                  {/* Add Type Card */}
+                  <button
+                    onClick={handleAddType}
+                    className="glass-card h-full min-h-[200px] flex flex-col items-center justify-center gap-3 border-2 border-dashed border-primary/30 hover:border-primary/60 hover:bg-primary/5 transition-all group"
+                  >
+                    <div className="w-16 h-16 rounded-full bg-primary/20 flex items-center justify-center group-hover:bg-primary/30 transition-colors">
+                      <Plus className="w-8 h-8 text-primary" />
+                    </div>
+                    <span className="font-medium text-muted-foreground group-hover:text-foreground transition-colors">
+                      Ajouter un type
+                    </span>
                   </button>
                 </div>
+              ) : (
+                <div className="glass-card divide-y divide-border/30">
+                  {filteredTypes.map((type) => (
+                    <div key={type.id} className="flex items-center gap-4 p-4 hover:bg-muted/20 transition-colors">
+                      {getTypeImage(type) ? (
+                        <img src={getTypeImage(type)!} alt={type.name} className="w-16 h-12 object-cover rounded-lg" />
+                      ) : (
+                        <div className="w-16 h-12 bg-muted rounded-lg flex items-center justify-center">
+                          <ImageIcon className="w-6 h-6 text-muted-foreground" />
+                        </div>
+                      )}
+                      <div className="flex-1">
+                        <h4 className="font-semibold">{type.name}</h4>
+                        <p className="text-sm text-muted-foreground">{type.description || 'Aucune description'}</p>
+                      </div>
+                      <div className="flex gap-2">
+                        <button onClick={() => handleEditType(type)} className="p-2 hover:bg-muted rounded-lg">
+                          <Edit className="w-4 h-4" />
+                        </button>
+                        <button 
+                          onClick={() => setDeleteConfirm({ type: 'type', id: type.id, name: type.name })}
+                          className="p-2 hover:bg-destructive/20 rounded-lg text-destructive"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                  <button onClick={handleAddType} className="w-full p-4 text-primary hover:bg-primary/5 flex items-center justify-center gap-2">
+                    <Plus className="w-5 h-5" /> Ajouter un type
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
 
-                <div className="flex-1 overflow-y-auto p-6 space-y-4">
+          {/* Courses Tab */}
+          {activeTab === 'courses' && (
+            <div className="space-y-4">
+              {viewMode === 'grid' ? (
+                <div className="grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                  {filteredCourses.map((course) => {
+                    const type = getTypeById(course.courseTypeId);
+                    const stage = getStageById(course.stageId);
+                    return (
+                      <div key={course.id} className="glass-card group overflow-hidden">
+                        <div className="h-32 overflow-hidden relative">
+                          <img 
+                            src={getCourseImage(course)} 
+                            alt={course.title}
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                          />
+                          <div className="absolute top-2 right-2 flex gap-1">
+                            {type && (
+                              <span className="text-xs px-2 py-1 bg-primary/80 rounded-full backdrop-blur-sm">
+                                {type.name}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        <div className="p-4">
+                          <h3 className="font-bold mb-1 line-clamp-1">{course.title}</h3>
+                          <p className="text-xs text-muted-foreground mb-1">
+                            Stage: {stage?.name || 'Non défini'}
+                          </p>
+                          <p className="text-sm text-muted-foreground line-clamp-2 mb-3">
+                            {course.description || 'Aucune description'}
+                          </p>
+                          <div className="flex gap-2">
+                            <button 
+                              onClick={() => handleEditCourse(course)}
+                              className="btn-ghost text-sm flex items-center gap-1 flex-1 justify-center border border-border"
+                            >
+                              <Edit className="w-4 h-4" /> Modifier
+                            </button>
+                            <button 
+                              onClick={() => setDeleteConfirm({ type: 'course', id: course.id, name: course.title })}
+                              className="btn-destructive text-sm p-2"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+
+                  {/* Add Course Card */}
+                  <button
+                    onClick={handleAddCourse}
+                    className="glass-card h-full min-h-[240px] flex flex-col items-center justify-center gap-3 border-2 border-dashed border-primary/30 hover:border-primary/60 hover:bg-primary/5 transition-all group"
+                  >
+                    <div className="w-16 h-16 rounded-full bg-primary/20 flex items-center justify-center group-hover:bg-primary/30 transition-colors">
+                      <Plus className="w-8 h-8 text-primary" />
+                    </div>
+                    <span className="font-medium text-muted-foreground group-hover:text-foreground transition-colors">
+                      Ajouter un cours
+                    </span>
+                  </button>
+                </div>
+              ) : (
+                <div className="glass-card divide-y divide-border/30">
+                  {filteredCourses.map((course) => {
+                    const type = getTypeById(course.courseTypeId);
+                    const stage = getStageById(course.stageId);
+                    return (
+                      <div key={course.id} className="flex items-center gap-4 p-4 hover:bg-muted/20 transition-colors">
+                        <img src={getCourseImage(course)} alt={course.title} className="w-20 h-14 object-cover rounded-lg" />
+                        <div className="flex-1">
+                          <h4 className="font-semibold">{course.title}</h4>
+                          <p className="text-xs text-muted-foreground">
+                            {type?.name} • {stage?.name}
+                          </p>
+                        </div>
+                        <div className="flex gap-2">
+                          <button onClick={() => handleEditCourse(course)} className="p-2 hover:bg-muted rounded-lg">
+                            <Edit className="w-4 h-4" />
+                          </button>
+                          <button 
+                            onClick={() => setDeleteConfirm({ type: 'course', id: course.id, name: course.title })}
+                            className="p-2 hover:bg-destructive/20 rounded-lg text-destructive"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                  <button onClick={handleAddCourse} className="w-full p-4 text-primary hover:bg-primary/5 flex items-center justify-center gap-2">
+                    <Plus className="w-5 h-5" /> Ajouter un cours
+                  </button>
+                </div>
+              )}
+
+              {filteredCourses.length === 0 && (
+                <div className="glass-card p-12 text-center">
+                  <GraduationCap className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
+                  <h3 className="text-xl font-semibold mb-2">Aucun cours trouvé</h3>
+                  <p className="text-muted-foreground mb-4">
+                    {searchQuery ? 'Aucun résultat pour votre recherche' : 'Commencez par ajouter un cours'}
+                  </p>
+                  <button onClick={handleAddCourse} className="btn-primary flex items-center gap-2 mx-auto">
+                    <Plus className="w-5 h-5" /> Ajouter un cours
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Type Form Modal */}
+        {showTypeForm && (
+          <div className="fixed inset-0 bg-background/80 backdrop-blur-sm flex items-start justify-center z-[60] p-4 overflow-y-auto">
+            <div className="glass-card w-full max-w-md animate-scale-in my-8 flex flex-col max-h-[85vh]">
+              <div className="flex items-center justify-between p-6 pb-4 border-b border-border/30 shrink-0">
+                <h3 className="text-lg font-semibold">
+                  {editingType ? 'Modifier Type' : 'Ajouter Type'}
+                </h3>
+                <button onClick={() => setShowTypeForm(false)} className="p-2 hover:bg-muted rounded-lg">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="flex-1 overflow-y-auto p-6 space-y-4">
+                <div>
+                  <label className="block text-sm font-medium mb-2">Nom *</label>
+                  <ArabicInput
+                    value={typeForm.name}
+                    onChange={(value) => setTypeForm(prev => ({ ...prev, name: value }))}
+                    className="glass-input w-full p-3 pr-16"
+                    placeholder="Nom du type"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-2">Description</label>
+                  <ArabicInput
+                    value={typeForm.description}
+                    onChange={(value) => setTypeForm(prev => ({ ...prev, description: value }))}
+                    className="glass-input w-full p-3 pr-16 min-h-[80px]"
+                    placeholder="Description (optionnel)"
+                    multiline
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-2">Image (optionnel)</label>
+                  <label className="flex items-center gap-2 btn-ghost border border-dashed border-border cursor-pointer justify-center py-4">
+                    <Upload className="w-5 h-5" />
+                    <span>{typeForm.image ? 'Image sélectionnée' : 'Choisir une image'}</span>
+                    <input type="file" onChange={handleTypeImageUpload} accept="image/*" className="hidden" />
+                  </label>
+                  {typeForm.image && (
+                    <div className="mt-2 relative">
+                      <img src={typeForm.image} alt="Preview" className="w-full h-24 object-cover rounded-lg" />
+                      <button 
+                        type="button"
+                        onClick={() => setTypeForm(prev => ({ ...prev, image: '' }))}
+                        className="absolute top-2 right-2 p-1 bg-destructive rounded-full"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex gap-3 p-6 pt-4 border-t border-border/30 shrink-0 bg-background/50">
+                <button onClick={handleSaveType} className="btn-success flex-1 py-3 font-medium">
+                  Enregistrer
+                </button>
+                <button onClick={() => setShowTypeForm(false)} className="btn-ghost border border-border py-3 px-6">
+                  Annuler
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Course Form Modal */}
+        {showCourseForm && (
+          <div className="fixed inset-0 bg-background/80 backdrop-blur-sm flex items-start justify-center z-[60] p-4 overflow-y-auto">
+            <div className="glass-card w-full max-w-lg animate-scale-in my-8 flex flex-col max-h-[85vh]">
+              <div className="flex items-center justify-between p-6 pb-4 border-b border-border/30 shrink-0">
+                <h3 className="text-lg font-semibold">
+                  {editingCourse ? 'Modifier Cours' : 'Ajouter Cours'}
+                </h3>
+                <button onClick={() => setShowCourseForm(false)} className="p-2 hover:bg-muted rounded-lg">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="flex-1 overflow-y-auto p-6 space-y-4">
+                <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium mb-1">Type de cours *</label>
+                    <label className="block text-sm font-medium mb-2">Type de cours *</label>
                     <select
                       value={courseForm.courseTypeId}
                       onChange={(e) => setCourseForm(prev => ({ ...prev, courseTypeId: e.target.value }))}
-                      className="glass-input w-full p-2"
+                      className="glass-input w-full p-3"
                     >
+                      <option value="">Sélectionner...</option>
                       {courseTypes.map(type => (
                         <option key={type.id} value={type.id}>{type.name}</option>
                       ))}
                     </select>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium mb-1">Stage *</label>
+                    <label className="block text-sm font-medium mb-2">Stage *</label>
                     <select
                       value={courseForm.stageId}
                       onChange={(e) => setCourseForm(prev => ({ ...prev, stageId: e.target.value }))}
-                      className="glass-input w-full p-2"
+                      className="glass-input w-full p-3"
                     >
+                      <option value="">Sélectionner...</option>
                       {stages.filter(s => s.enabled).map(stage => (
-                        <option key={stage.id} value={stage.id}>{stage.name} - {stage.description}</option>
+                        <option key={stage.id} value={stage.id}>{stage.name}</option>
                       ))}
                     </select>
                   </div>
-                  <div>
-                    <label className="block text-sm font-medium mb-1">Titre *</label>
-                    <ArabicInput
-                      value={courseForm.title}
-                      onChange={(value) => setCourseForm(prev => ({ ...prev, title: value }))}
-                      className="glass-input w-full p-2 pr-16"
-                      placeholder="Titre du cours"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium mb-1">Description</label>
-                    <ArabicInput
-                      value={courseForm.description}
-                      onChange={(value) => setCourseForm(prev => ({ ...prev, description: value }))}
-                      className="glass-input w-full p-2 pr-16 min-h-[80px]"
-                      placeholder="Description du cours"
-                      multiline
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium mb-1">Bibliothèque d'Images</label>
-                    <div className="space-y-3 max-h-64 overflow-y-auto p-2 bg-muted/20 rounded-lg">
-                      {/* ===== SPORTS SECTION ===== */}
-                      <div className="border-b border-border/30 pb-2 mb-2">
-                        <p className="text-sm font-semibold text-primary mb-2">🏆 Section Sports</p>
-                        
-                        {/* Ball Sports */}
-                        <div className="mb-2">
-                          <p className="text-xs text-muted-foreground mb-1">{categoryLabels.ballSports}</p>
-                          <div className="grid grid-cols-4 gap-1">
-                            {imageCategories.ballSports.map(img => (
-                              <button
-                                key={img}
-                                type="button"
-                                onClick={() => setCourseForm(prev => ({ ...prev, image: img, customImage: '' }))}
-                                className={`p-0.5 rounded border-2 transition-all ${
-                                  courseForm.image === img 
-                                    ? 'border-primary ring-2 ring-primary/30' 
-                                    : 'border-transparent hover:border-border'
-                                }`}
-                                title={img.replace('_', ' ')}
-                              >
-                                <img 
-                                  src={getSportImage(img)} 
-                                  alt={img}
-                                  className="w-full h-10 object-cover rounded"
-                                />
-                              </button>
-                            ))}
-                          </div>
-                        </div>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium mb-2">Titre *</label>
+                  <ArabicInput
+                    value={courseForm.title}
+                    onChange={(value) => setCourseForm(prev => ({ ...prev, title: value }))}
+                    className="glass-input w-full p-3 pr-16"
+                    placeholder="Titre du cours"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium mb-2">Description</label>
+                  <ArabicInput
+                    value={courseForm.description}
+                    onChange={(value) => setCourseForm(prev => ({ ...prev, description: value }))}
+                    className="glass-input w-full p-3 pr-16 min-h-[80px]"
+                    placeholder="Description du cours"
+                    multiline
+                  />
+                </div>
 
-                        {/* Combat Sports */}
-                        <div className="mb-2">
-                          <p className="text-xs text-muted-foreground mb-1">{categoryLabels.combatSports}</p>
-                          <div className="grid grid-cols-4 gap-1">
-                            {imageCategories.combatSports.map(img => (
-                              <button
-                                key={img}
-                                type="button"
-                                onClick={() => setCourseForm(prev => ({ ...prev, image: img, customImage: '' }))}
-                                className={`p-0.5 rounded border-2 transition-all ${
-                                  courseForm.image === img 
-                                    ? 'border-primary ring-2 ring-primary/30' 
-                                    : 'border-transparent hover:border-border'
-                                }`}
-                                title={img.replace('_', ' ')}
-                              >
-                                <img 
-                                  src={getSportImage(img)} 
-                                  alt={img}
-                                  className="w-full h-10 object-cover rounded"
-                                />
-                              </button>
-                            ))}
-                          </div>
-                        </div>
+                <div>
+                  <label className="block text-sm font-medium mb-2">Image</label>
+                  <div className="space-y-3 max-h-48 overflow-y-auto p-2 bg-muted/20 rounded-lg">
+                    <p className="text-xs text-muted-foreground">{categoryLabels.ballSports}</p>
+                    <div className="grid grid-cols-6 gap-1">
+                      {imageCategories.ballSports.map(img => (
+                        <button
+                          key={img}
+                          type="button"
+                          onClick={() => setCourseForm(prev => ({ ...prev, image: img, customImage: '' }))}
+                          className={`p-0.5 rounded border-2 transition-all ${
+                            courseForm.image === img 
+                              ? 'border-primary ring-2 ring-primary/30' 
+                              : 'border-transparent hover:border-border'
+                          }`}
+                        >
+                          <img src={getSportImage(img)} alt={img} className="w-full h-8 object-cover rounded" />
+                        </button>
+                      ))}
+                    </div>
+                    
+                    <p className="text-xs text-muted-foreground mt-2">{categoryLabels.combatSports}</p>
+                    <div className="grid grid-cols-6 gap-1">
+                      {imageCategories.combatSports.map(img => (
+                        <button
+                          key={img}
+                          type="button"
+                          onClick={() => setCourseForm(prev => ({ ...prev, image: img, customImage: '' }))}
+                          className={`p-0.5 rounded border-2 transition-all ${
+                            courseForm.image === img 
+                              ? 'border-primary ring-2 ring-primary/30' 
+                              : 'border-transparent hover:border-border'
+                          }`}
+                        >
+                          <img src={getSportImage(img)} alt={img} className="w-full h-8 object-cover rounded" />
+                        </button>
+                      ))}
+                    </div>
 
-                        {/* Athletics & Gym */}
-                        <div className="mb-2">
-                          <p className="text-xs text-muted-foreground mb-1">{categoryLabels.athleticsGym}</p>
-                          <div className="grid grid-cols-5 gap-1">
-                            {imageCategories.athleticsGym.map(img => (
-                              <button
-                                key={img}
-                                type="button"
-                                onClick={() => setCourseForm(prev => ({ ...prev, image: img, customImage: '' }))}
-                                className={`p-0.5 rounded border-2 transition-all ${
-                                  courseForm.image === img 
-                                    ? 'border-primary ring-2 ring-primary/30' 
-                                    : 'border-transparent hover:border-border'
-                                }`}
-                                title={img.replace('_', ' ')}
-                              >
-                                <img 
-                                  src={getSportImage(img)} 
-                                  alt={img}
-                                  className="w-full h-10 object-cover rounded"
-                                />
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-
-                        {/* Aquatic */}
-                        <div className="mb-2">
-                          <p className="text-xs text-muted-foreground mb-1">{categoryLabels.aquatic}</p>
-                          <div className="grid grid-cols-4 gap-1">
-                            {imageCategories.aquatic.map(img => (
-                              <button
-                                key={img}
-                                type="button"
-                                onClick={() => setCourseForm(prev => ({ ...prev, image: img, customImage: '' }))}
-                                className={`p-0.5 rounded border-2 transition-all ${
-                                  courseForm.image === img 
-                                    ? 'border-primary ring-2 ring-primary/30' 
-                                    : 'border-transparent hover:border-border'
-                                }`}
-                                title={img.replace('_', ' ')}
-                              >
-                                <img 
-                                  src={getSportImage(img)} 
-                                  alt={img}
-                                  className="w-full h-10 object-cover rounded"
-                                />
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-
-                        {/* Facilities */}
-                        <div>
-                          <p className="text-xs text-muted-foreground mb-1">{categoryLabels.facilities}</p>
-                          <div className="grid grid-cols-3 gap-1">
-                            {imageCategories.facilities.map(img => (
-                              <button
-                                key={img}
-                                type="button"
-                                onClick={() => setCourseForm(prev => ({ ...prev, image: img, customImage: '' }))}
-                                className={`p-0.5 rounded border-2 transition-all ${
-                                  courseForm.image === img 
-                                    ? 'border-primary ring-2 ring-primary/30' 
-                                    : 'border-transparent hover:border-border'
-                                }`}
-                                title={img.replace('_', ' ')}
-                              >
-                                <img 
-                                  src={getSportImage(img)} 
-                                  alt={img}
-                                  className="w-full h-10 object-cover rounded"
-                                />
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* ===== MILITARY SECTION ===== */}
-                      <div>
-                        <p className="text-sm font-semibold text-primary mb-2">🎖️ Section Militaire</p>
-                        
-                        {/* Weapons */}
-                        <div className="mb-2">
-                          <p className="text-xs text-muted-foreground mb-1">{categoryLabels.weapons}</p>
-                          <div className="grid grid-cols-4 gap-1">
-                            {imageCategories.weapons.map(img => (
-                              <button
-                                key={img}
-                                type="button"
-                                onClick={() => setCourseForm(prev => ({ ...prev, image: img, customImage: '' }))}
-                                className={`p-0.5 rounded border-2 transition-all ${
-                                  courseForm.image === img 
-                                    ? 'border-primary ring-2 ring-primary/30' 
-                                    : 'border-transparent hover:border-border'
-                                }`}
-                                title={img.replace('_', ' ')}
-                              >
-                                <img 
-                                  src={getSportImage(img)} 
-                                  alt={img}
-                                  className="w-full h-10 object-cover rounded"
-                                />
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-
-                        {/* Military Training */}
-                        <div>
-                          <p className="text-xs text-muted-foreground mb-1">{categoryLabels.militaryTraining}</p>
-                          <div className="grid grid-cols-5 gap-1">
-                            {imageCategories.militaryTraining.map(img => (
-                              <button
-                                key={img}
-                                type="button"
-                                onClick={() => setCourseForm(prev => ({ ...prev, image: img, customImage: '' }))}
-                                className={`p-0.5 rounded border-2 transition-all ${
-                                  courseForm.image === img 
-                                    ? 'border-primary ring-2 ring-primary/30' 
-                                    : 'border-transparent hover:border-border'
-                                }`}
-                                title={img.replace('_', ' ')}
-                              >
-                                <img 
-                                  src={getSportImage(img)} 
-                                  alt={img}
-                                  className="w-full h-10 object-cover rounded"
-                                />
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-                      </div>
+                    <p className="text-xs text-muted-foreground mt-2">{categoryLabels.militaryTraining}</p>
+                    <div className="grid grid-cols-6 gap-1">
+                      {imageCategories.militaryTraining.map(img => (
+                        <button
+                          key={img}
+                          type="button"
+                          onClick={() => setCourseForm(prev => ({ ...prev, image: img, customImage: '' }))}
+                          className={`p-0.5 rounded border-2 transition-all ${
+                            courseForm.image === img 
+                              ? 'border-primary ring-2 ring-primary/30' 
+                              : 'border-transparent hover:border-border'
+                          }`}
+                        >
+                          <img src={getSportImage(img)} alt={img} className="w-full h-8 object-cover rounded" />
+                        </button>
+                      ))}
                     </div>
                   </div>
-                  <div>
-                    <label className="block text-sm font-medium mb-1">Ou télécharger une image personnalisée</label>
-                    <label className="flex items-center gap-2 btn-ghost border border-dashed border-border cursor-pointer justify-center py-4">
-                      <Upload className="w-5 h-5" />
-                      <span>{courseForm.customImage ? 'Image personnalisée sélectionnée' : 'Choisir une image'}</span>
-                      <input 
-                        type="file" 
-                        onChange={handleCourseImageUpload} 
-                        accept="image/*" 
-                        className="hidden"
-                        key={courseForm.customImage ? 'has-custom' : 'no-custom'}
-                      />
-                    </label>
-                    {courseForm.customImage && (
-                      <div className="mt-2 relative">
-                        <img src={courseForm.customImage} alt="Preview" className="w-full h-24 object-cover rounded" />
-                        <button 
-                          type="button"
-                          onClick={() => setCourseForm(prev => ({ ...prev, customImage: '', image: 'basketball' }))}
-                          className="absolute top-1 right-1 p-1 bg-destructive rounded-full"
-                        >
-                          <X className="w-4 h-4" />
-                        </button>
-                      </div>
-                    )}
-                  </div>
                 </div>
 
-                <div className="flex gap-3 p-6 pt-4 border-t border-border/30 shrink-0 bg-background/50">
-                  <button onClick={handleSaveCourse} className="btn-success flex-1">
-                    Enregistrer
-                  </button>
-                  <button onClick={() => setShowCourseForm(false)} className="btn-ghost border border-border">
-                    Annuler
-                  </button>
+                <div>
+                  <label className="block text-sm font-medium mb-2">Ou image personnalisée</label>
+                  <label className="flex items-center gap-2 btn-ghost border border-dashed border-border cursor-pointer justify-center py-3">
+                    <Upload className="w-5 h-5" />
+                    <span>{courseForm.customImage ? 'Image sélectionnée' : 'Choisir une image'}</span>
+                    <input type="file" onChange={handleCourseImageUpload} accept="image/*" className="hidden" />
+                  </label>
+                  {courseForm.customImage && (
+                    <div className="mt-2 relative">
+                      <img src={courseForm.customImage} alt="Preview" className="w-full h-20 object-cover rounded-lg" />
+                      <button 
+                        type="button"
+                        onClick={() => setCourseForm(prev => ({ ...prev, customImage: '', image: 'basketball' }))}
+                        className="absolute top-2 right-2 p-1 bg-destructive rounded-full"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
-            </div>
-          )}
-        </section>
 
-        {/* Delete Confirmation Modal - Fixed positioning */}
+              <div className="flex gap-3 p-6 pt-4 border-t border-border/30 shrink-0 bg-background/50">
+                <button onClick={handleSaveCourse} className="btn-success flex-1 py-3 font-medium">
+                  Enregistrer
+                </button>
+                <button onClick={() => setShowCourseForm(false)} className="btn-ghost border border-border py-3 px-6">
+                  Annuler
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Delete Confirmation Modal */}
         {deleteConfirm && (
           <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
             <div className="glass-card p-6 w-full max-w-sm animate-scale-in text-center shadow-2xl border border-border/50">
-              <div className="w-12 h-12 bg-destructive/20 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Trash2 className="w-6 h-6 text-destructive" />
+              <div className="w-14 h-14 bg-destructive/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Trash2 className="w-7 h-7 text-destructive" />
               </div>
-              <h3 className="text-lg font-semibold mb-2">
-                Confirmer la suppression
-              </h3>
+              <h3 className="text-lg font-semibold mb-2">Confirmer la suppression</h3>
               <p className="text-muted-foreground mb-6">
                 Êtes-vous sûr de vouloir supprimer "<span className="text-foreground font-medium">{deleteConfirm.name}</span>"?
               </p>
               <div className="flex gap-3 justify-center">
-                <button 
-                  onClick={() => setDeleteConfirm(null)} 
-                  className="btn-ghost border border-border px-6 py-2"
-                >
+                <button onClick={() => setDeleteConfirm(null)} className="btn-ghost border border-border px-6 py-2.5">
                   Annuler
                 </button>
                 <button 
                   onClick={deleteConfirm.type === 'type' ? handleDeleteType : handleDeleteCourse}
-                  className="btn-destructive px-6 py-2"
+                  className="btn-destructive px-6 py-2.5"
                 >
                   Supprimer
                 </button>
