@@ -10,7 +10,8 @@ import bgImage from '@/assets/bg2.jpg';
 
 const CourseCard = ({ type, onClick }: { type: CourseType; onClick: () => void }) => {
   const courses = getSportCoursesByType(type.id);
-  const imageKey = type.name.toLowerCase().includes('milit') ? 'militaire' : 'sportif';
+  const defaultImageKey = type.name.toLowerCase().includes('milit') ? 'militaire' : 'sportif';
+  const imageSrc = type.image || getSportImage(defaultImageKey);
   
   return (
     <div 
@@ -18,7 +19,7 @@ const CourseCard = ({ type, onClick }: { type: CourseType; onClick: () => void }
       onClick={onClick}
     >
       <img 
-        src={getSportImage(imageKey)}
+        src={imageSrc}
         alt={type.name}
         className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
         loading="lazy"
