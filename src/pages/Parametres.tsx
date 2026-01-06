@@ -1,10 +1,10 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
-  Lock, Check, Eye, EyeOff, Download, Upload, Users, Image, Volume2, VolumeX, 
+  Lock, Check, Eye, EyeOff, Download, Upload, Users, Volume2, VolumeX, 
   RotateCcw, FolderArchive, GraduationCap, Settings, Trash2, Edit, Plus, 
   FileSpreadsheet, Layers, ToggleLeft, ToggleRight, X, Palette, ImagePlus,
-  Monitor
+  Monitor, Image as ImageIcon
 } from 'lucide-react';
 import Layout from '@/components/Layout';
 import { 
@@ -50,12 +50,19 @@ import bg1 from '@/assets/bg.jpg';
 import bg2 from '@/assets/bg2.jpg';
 import bg3 from '@/assets/bg3.jpg';
 import bg4 from '@/assets/bg4.jpg';
+import doorBg from '@/assets/door.png';
+import basketballBg from '@/assets/basketball-game-concept.jpg';
+import terrainBg from '@/assets/bgterrain.png';
+import logoOfficial from '@/assets/logo-official.png';
 
 const wallpapers = [
   { id: 'bg1', name: 'Stade', src: bg1 },
   { id: 'bg2', name: 'Centre Sportif', src: bg2 },
   { id: 'bg3', name: 'Terrain', src: bg3 },
   { id: 'bg4', name: 'Panorama', src: bg4 },
+  { id: 'door', name: 'Porte CSM', src: doorBg },
+  { id: 'basketball', name: 'Basketball', src: basketballBg },
+  { id: 'terrain', name: 'Salle Basket', src: terrainBg },
 ];
 
 const Parametres = () => {
@@ -67,6 +74,7 @@ const Parametres = () => {
   const soundInputRef = useRef<HTMLInputElement>(null);
   const zipInputRef = useRef<HTMLInputElement>(null);
   const excelInputRef = useRef<HTMLInputElement>(null);
+  const logoInputRef = useRef<HTMLInputElement>(null);
   const [isExporting, setIsExporting] = useState(false);
   
   // Active section
@@ -125,19 +133,19 @@ const Parametres = () => {
     loadData();
   }, [userMode, navigate]);
 
-  const loadData = () => {
+  const loadData = useCallback(() => {
     setStudentAccounts(getStudentAccounts());
     setStages(getStages());
     setAppSettings(getAppSettings());
-  };
+  }, []);
 
-  // Filtered students
-  const filteredStudents = studentAccounts.filter(s => 
+  // Filtered students - memoized
+  const filteredStudents = useMemo(() => studentAccounts.filter(s => 
     s.matricule.toLowerCase().includes(searchStudent.toLowerCase()) ||
     s.nom?.toLowerCase().includes(searchStudent.toLowerCase()) ||
     s.prenom?.toLowerCase().includes(searchStudent.toLowerCase()) ||
     s.grade?.toLowerCase().includes(searchStudent.toLowerCase())
-  );
+  ), [studentAccounts, searchStudent]);
 
   // Password handlers
   const handleChangeAdminPassword = (e: React.FormEvent) => {
@@ -397,6 +405,28 @@ const Parametres = () => {
     toast({ title: 'Arrière-plan par défaut restauré' });
   };
 
+  // Logo handlers
+  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !file.type.startsWith('image/')) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const imageData = reader.result as string;
+      const updatedSettings = { ...appSettings, customLogo: imageData };
+      saveAppSettings(updatedSettings);
+      setAppSettings(updatedSettings);
+      toast({ title: 'Logo personnalisé appliqué' });
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleResetLogo = () => {
+    const updatedSettings = { ...appSettings, customLogo: undefined };
+    saveAppSettings(updatedSettings);
+    setAppSettings(updatedSettings);
+    toast({ title: 'Logo par défaut restauré' });
+  };
+
   // Sound handlers
   const handleSoundUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -432,6 +462,7 @@ const Parametres = () => {
   };
 
   const currentBgImage = bgEnabled ? (customBg || bg1) : undefined;
+  const currentLogo = appSettings.customLogo || logoOfficial;
 
   const sections = [
     { id: 'security' as const, label: 'Sécurité', icon: Lock },
@@ -448,7 +479,7 @@ const Parametres = () => {
         <div className="glass-panel p-6 mb-6 animate-fade-in">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div className="flex items-center gap-4">
-              <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-primary to-accent flex items-center justify-center shadow-lg shadow-primary/30">
+              <div className="w-14 h-14 rounded-2xl bg-gradient-gold flex items-center justify-center shadow-gold">
                 <Settings className="w-7 h-7 text-primary-foreground" />
               </div>
               <div>
@@ -459,11 +490,11 @@ const Parametres = () => {
             
             {/* Quick Stats */}
             <div className="flex gap-3">
-              <div className="text-center px-4 py-2 bg-primary/10 rounded-xl border border-primary/20">
-                <p className="text-xl font-bold text-primary">{studentAccounts.length}</p>
+              <div className="text-center px-4 py-2 stat-card-gold rounded-xl">
+                <p className="text-xl font-bold gold-text">{studentAccounts.length}</p>
                 <p className="text-xs text-muted-foreground">Élèves</p>
               </div>
-              <div className="text-center px-4 py-2 bg-success/10 rounded-xl border border-success/20">
+              <div className="text-center px-4 py-2 stat-card-gold rounded-xl">
                 <p className="text-xl font-bold text-success">{stages.filter(s => s.enabled).length}</p>
                 <p className="text-xs text-muted-foreground">Stages actifs</p>
               </div>
@@ -479,7 +510,7 @@ const Parametres = () => {
               onClick={() => setActiveSection(section.id)}
               className={`flex items-center gap-2 px-5 py-3 rounded-lg font-medium transition-all duration-200 ${
                 activeSection === section.id
-                  ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/20'
+                  ? 'bg-gradient-gold text-primary-foreground shadow-lg shadow-primary/20'
                   : 'hover:bg-muted/50 text-muted-foreground'
               }`}
             >
@@ -496,9 +527,9 @@ const Parametres = () => {
             <div className="grid md:grid-cols-2 gap-6">
               {/* Admin Password */}
               <div className="glass-card overflow-hidden">
-                <div className="p-4 bg-warning/10 border-b border-warning/20">
-                  <h2 className="text-lg font-bold flex items-center gap-2">
-                    <Lock className="w-5 h-5 text-warning" />
+                <div className="p-4 bg-gradient-gold border-b border-primary/20">
+                  <h2 className="text-lg font-bold flex items-center gap-2 text-primary-foreground">
+                    <Lock className="w-5 h-5" />
                     Mot de Passe Admin
                   </h2>
                 </div>
@@ -550,9 +581,9 @@ const Parametres = () => {
 
               {/* User Password */}
               <div className="glass-card overflow-hidden">
-                <div className="p-4 bg-primary/10 border-b border-primary/20">
+                <div className="p-4 bg-success/20 border-b border-success/20">
                   <h2 className="text-lg font-bold flex items-center gap-2">
-                    <Users className="w-5 h-5 text-primary" />
+                    <Users className="w-5 h-5 text-success" />
                     Mot de Passe Utilisateur
                   </h2>
                 </div>
@@ -595,11 +626,11 @@ const Parametres = () => {
           {/* Accounts Section */}
           {activeSection === 'accounts' && (
             <div className="glass-card overflow-hidden">
-              <div className="p-4 bg-accent/10 border-b border-accent/20 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-                <h2 className="text-lg font-bold flex items-center gap-2">
-                  <GraduationCap className="w-5 h-5 text-accent" />
+              <div className="p-4 bg-gradient-gold border-b border-primary/20 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                <h2 className="text-lg font-bold flex items-center gap-2 text-primary-foreground">
+                  <GraduationCap className="w-5 h-5" />
                   Gestion des Comptes Élèves
-                  <span className="text-sm font-normal text-muted-foreground">({studentAccounts.length} comptes)</span>
+                  <span className="text-sm font-normal opacity-80">({studentAccounts.length} comptes)</span>
                 </h2>
                 <div className="flex gap-2">
                   <div className="relative">
@@ -612,12 +643,12 @@ const Parametres = () => {
                     />
                     <Users className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                   </div>
-                  <label className="btn-primary flex items-center gap-2 cursor-pointer">
+                  <label className="btn-primary flex items-center gap-2 cursor-pointer py-2">
                     <FileSpreadsheet className="w-4 h-4" />
-                    <span className="hidden md:inline">Importer Excel</span>
+                    <span className="hidden md:inline">Excel</span>
                     <input ref={excelInputRef} type="file" accept=".xlsx,.xls,.csv" onChange={handleExcelUpload} className="hidden" />
                   </label>
-                  <button onClick={() => setShowAddStudent(true)} className="btn-success flex items-center gap-2">
+                  <button onClick={() => setShowAddStudent(true)} className="btn-success flex items-center gap-2 py-2">
                     <Plus className="w-4 h-4" /> <span className="hidden md:inline">Ajouter</span>
                   </button>
                 </div>
@@ -638,7 +669,7 @@ const Parametres = () => {
                   <tbody>
                     {filteredStudents.map((account) => (
                       <tr key={account.id} className="border-b border-border/30 hover:bg-muted/20 transition-colors">
-                        <td className="p-3 font-mono text-sm">{account.matricule}</td>
+                        <td className="p-3 font-mono text-sm gold-text">{account.matricule}</td>
                         <td className="p-3 font-mono text-sm">{account.cin}</td>
                         <td className="p-3">{account.nom || '-'}</td>
                         <td className="p-3">{account.prenom || '-'}</td>
@@ -718,7 +749,7 @@ const Parametres = () => {
                       <h3 className="text-lg font-semibold">Mapper les Colonnes Excel</h3>
                       <button onClick={() => setShowExcelModal(false)} className="p-2 hover:bg-muted rounded-lg"><X className="w-5 h-5" /></button>
                     </div>
-                    <p className="text-sm text-muted-foreground mb-4 p-3 bg-primary/10 rounded-lg">
+                    <p className="text-sm text-muted-foreground mb-4 p-3 bg-primary/10 rounded-lg border border-primary/20">
                       {excelData.length} lignes détectées. Sélectionnez les colonnes correspondantes:
                     </p>
                     <div className="grid grid-cols-2 gap-4">
@@ -778,12 +809,12 @@ const Parametres = () => {
           {/* Stages Section */}
           {activeSection === 'stages' && (
             <div className="glass-card overflow-hidden">
-              <div className="p-4 bg-primary/10 border-b border-primary/20 flex items-center justify-between">
-                <h2 className="text-lg font-bold flex items-center gap-2">
-                  <Layers className="w-5 h-5 text-primary" />
+              <div className="p-4 bg-gradient-gold border-b border-primary/20 flex items-center justify-between">
+                <h2 className="text-lg font-bold flex items-center gap-2 text-primary-foreground">
+                  <Layers className="w-5 h-5" />
                   Gestion des Stages
                 </h2>
-                <button onClick={() => setShowAddStage(true)} className="btn-success flex items-center gap-2">
+                <button onClick={() => setShowAddStage(true)} className="btn-success flex items-center gap-2 py-2">
                   <Plus className="w-4 h-4" /> Ajouter Stage
                 </button>
               </div>
@@ -798,7 +829,7 @@ const Parametres = () => {
                     }`}>
                       <div className="flex items-start justify-between mb-3">
                         <div>
-                          <h4 className="font-bold text-lg">{stage.name}</h4>
+                          <h4 className="font-bold text-lg gold-text">{stage.name}</h4>
                           <p className="text-sm text-muted-foreground">{stage.description}</p>
                         </div>
                         <button 
@@ -822,7 +853,7 @@ const Parametres = () => {
                   ))}
                 </div>
 
-                <p className="text-sm text-muted-foreground mt-6 p-4 bg-warning/10 rounded-lg border border-warning/20">
+                <p className="text-sm text-muted-foreground mt-6 p-4 bg-primary/10 rounded-lg border border-primary/20">
                   <strong>Note:</strong> FCB est désactivé par défaut. Activez-le ici pour l'afficher dans les cours.
                 </p>
               </div>
@@ -858,18 +889,51 @@ const Parametres = () => {
           {/* Appearance Section */}
           {activeSection === 'appearance' && (
             <div className="space-y-6">
+              {/* Logo Settings */}
+              <div className="glass-card overflow-hidden">
+                <div className="p-4 bg-gradient-gold border-b border-primary/20">
+                  <h2 className="text-lg font-bold flex items-center gap-2 text-primary-foreground">
+                    <ImageIcon className="w-5 h-5" />
+                    Logo de l'Application
+                  </h2>
+                </div>
+                <div className="p-6">
+                  <div className="flex items-center gap-6 mb-6">
+                    <div className="w-24 h-24 rounded-2xl bg-card border-2 border-primary/30 p-2 shadow-gold">
+                      <img src={currentLogo} alt="Logo" className="w-full h-full object-contain" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-sm text-muted-foreground mb-3">
+                        Personnalisez le logo affiché dans l'application. Format recommandé: PNG ou JPG, carré.
+                      </p>
+                      <div className="flex gap-3">
+                        <label className="btn-primary py-2 px-4 flex items-center gap-2 cursor-pointer">
+                          <Upload className="w-4 h-4" /> Changer le logo
+                          <input ref={logoInputRef} type="file" accept="image/*" onChange={handleLogoUpload} className="hidden" />
+                        </label>
+                        {appSettings.customLogo && (
+                          <button onClick={handleResetLogo} className="btn-ghost py-2 px-4 border border-border flex items-center gap-2">
+                            <RotateCcw className="w-4 h-4" /> Réinitialiser
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
               {/* Wallpaper Gallery */}
               <div className="glass-card overflow-hidden">
-                <div className="p-4 bg-primary/10 border-b border-primary/20">
+                <div className="p-4 bg-success/20 border-b border-success/20">
                   <h2 className="text-lg font-bold flex items-center gap-2">
-                    <Monitor className="w-5 h-5 text-primary" />
+                    <Monitor className="w-5 h-5 text-success" />
                     Fonds d'écran
                   </h2>
                 </div>
                 <div className="p-6">
-                  <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center justify-between mb-4 p-4 bg-muted/30 rounded-xl">
                     <span className="font-medium">Afficher l'arrière-plan</span>
-                    <button onClick={handleToggleBg} className={`w-14 h-8 rounded-full transition-colors relative ${bgEnabled ? 'bg-primary' : 'bg-muted'}`}>
+                    <button onClick={handleToggleBg} className={`w-14 h-8 rounded-full transition-colors relative ${bgEnabled ? 'bg-gradient-gold' : 'bg-muted'}`}>
                       <div className={`w-6 h-6 bg-foreground rounded-full absolute top-1 transition-transform ${bgEnabled ? 'right-1' : 'left-1'}`} />
                     </button>
                   </div>
@@ -881,16 +945,16 @@ const Parametres = () => {
                         onClick={() => handleSelectWallpaper(wp)}
                         className={`relative aspect-video rounded-xl overflow-hidden border-2 transition-all group ${
                           selectedWallpaper === wp.id || customBg === wp.src
-                            ? 'border-primary ring-2 ring-primary/30 shadow-lg shadow-primary/20'
+                            ? 'border-primary ring-2 ring-primary/30 shadow-gold'
                             : 'border-border/30 hover:border-border'
                         }`}
                       >
-                        <img src={wp.src} alt={wp.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
+                        <img src={wp.src} alt={wp.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform" loading="lazy" />
                         <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent flex items-end">
-                          <span className="text-white text-sm font-medium p-2">{wp.name}</span>
+                          <span className="text-white text-xs font-medium p-2">{wp.name}</span>
                         </div>
                         {(selectedWallpaper === wp.id || customBg === wp.src) && (
-                          <div className="absolute top-2 right-2 w-6 h-6 bg-primary rounded-full flex items-center justify-center">
+                          <div className="absolute top-2 right-2 w-6 h-6 bg-gradient-gold rounded-full flex items-center justify-center">
                             <Check className="w-4 h-4 text-primary-foreground" />
                           </div>
                         )}
@@ -912,7 +976,7 @@ const Parametres = () => {
 
               {/* Sound Settings */}
               <div className="glass-card overflow-hidden">
-                <div className="p-4 bg-accent/10 border-b border-accent/20">
+                <div className="p-4 bg-accent/20 border-b border-accent/20">
                   <h2 className="text-lg font-bold flex items-center gap-2">
                     {soundEnabled ? <Volume2 className="w-5 h-5 text-accent" /> : <VolumeX className="w-5 h-5 text-muted-foreground" />}
                     Son de Clic
@@ -921,7 +985,7 @@ const Parametres = () => {
                 <div className="p-6 space-y-4">
                   <div className="flex items-center justify-between p-4 bg-muted/30 rounded-xl">
                     <span className="font-medium">Activer les sons</span>
-                    <button onClick={handleToggleSound} className={`w-14 h-8 rounded-full transition-colors relative ${soundEnabled ? 'bg-primary' : 'bg-muted'}`}>
+                    <button onClick={handleToggleSound} className={`w-14 h-8 rounded-full transition-colors relative ${soundEnabled ? 'bg-gradient-gold' : 'bg-muted'}`}>
                       <div className={`w-6 h-6 bg-foreground rounded-full absolute top-1 transition-transform ${soundEnabled ? 'right-1' : 'left-1'}`} />
                     </button>
                   </div>
@@ -945,17 +1009,17 @@ const Parametres = () => {
           {/* Data Section */}
           {activeSection === 'data' && (
             <div className="glass-card overflow-hidden">
-              <div className="p-4 bg-primary/10 border-b border-primary/20">
-                <h2 className="text-lg font-bold flex items-center gap-2">
-                  <FolderArchive className="w-5 h-5 text-primary" />
+              <div className="p-4 bg-gradient-gold border-b border-primary/20">
+                <h2 className="text-lg font-bold flex items-center gap-2 text-primary-foreground">
+                  <FolderArchive className="w-5 h-5" />
                   Exporter / Importer Données
                 </h2>
               </div>
 
               <div className="p-6 grid md:grid-cols-2 gap-6">
-                <div className="p-6 bg-gradient-to-br from-primary/10 to-primary/5 rounded-2xl border border-primary/20">
-                  <div className="w-12 h-12 bg-primary/20 rounded-xl flex items-center justify-center mb-4">
-                    <FolderArchive className="w-6 h-6 text-primary" />
+                <div className="p-6 stat-card-gold">
+                  <div className="w-12 h-12 bg-gradient-gold rounded-xl flex items-center justify-center mb-4 shadow-gold">
+                    <FolderArchive className="w-6 h-6 text-primary-foreground" />
                   </div>
                   <h3 className="font-bold text-lg mb-2">Export/Import Complet (ZIP)</h3>
                   <p className="text-sm text-muted-foreground mb-6">Archive avec tous les fichiers et données</p>
@@ -988,8 +1052,8 @@ const Parametres = () => {
                 </div>
               </div>
 
-              <div className="mx-6 mb-6 p-4 bg-warning/10 rounded-xl border border-warning/30">
-                <p className="text-sm text-warning flex items-center gap-2">
+              <div className="mx-6 mb-6 p-4 bg-destructive/10 rounded-xl border border-destructive/30">
+                <p className="text-sm text-destructive flex items-center gap-2">
                   <span className="font-bold">⚠️ Attention:</span> L'importation remplacera toutes les données existantes.
                 </p>
               </div>

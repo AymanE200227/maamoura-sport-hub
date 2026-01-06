@@ -51,6 +51,7 @@ export interface StudentAccount {
 
 export interface AppSettings {
   fcbEnabled: boolean;
+  customLogo?: string; // Base64 custom logo
   excelColumnMapping: {
     matriculeColumn: string;
     cinColumn: string;
