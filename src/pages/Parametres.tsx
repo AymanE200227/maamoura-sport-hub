@@ -42,6 +42,7 @@ import {
   setClickSoundEnabled 
 } from '@/hooks/useClickSound';
 import { useToast } from '@/hooks/use-toast';
+import { useClickSound } from '@/hooks/useClickSound';
 import { StudentAccount, Stage, AppSettings } from '@/types';
 import * as XLSX from 'xlsx';
 
@@ -69,6 +70,7 @@ const Parametres = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const userMode = getUserMode();
+  const { playClick } = useClickSound();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const bgInputRef = useRef<HTMLInputElement>(null);
   const soundInputRef = useRef<HTMLInputElement>(null);
@@ -507,7 +509,7 @@ const Parametres = () => {
           {sections.map((section) => (
             <button
               key={section.id}
-              onClick={() => setActiveSection(section.id)}
+              onClick={() => { playClick(); setActiveSection(section.id); }}
               className={`flex items-center gap-2 px-5 py-3 rounded-lg font-medium transition-all duration-200 ${
                 activeSection === section.id
                   ? 'bg-gradient-gold text-primary-foreground shadow-lg shadow-primary/20'

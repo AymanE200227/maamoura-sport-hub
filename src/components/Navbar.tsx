@@ -4,6 +4,7 @@ import { Search, LogOut } from 'lucide-react';
 import { clearUserMode, getUserMode, getAppSettings } from '@/lib/storage';
 import { useClickSound } from '@/hooks/useClickSound';
 import logoImage from '@/assets/logo-official.png';
+import farBadge from '@/assets/far-badge.png';
 
 // Play logout sound
 const playLogoutSound = () => {
@@ -38,12 +39,12 @@ const Navbar = memo(() => {
   }, [playClick]);
 
   return (
-    <nav className="glass-panel px-6 py-4 flex items-center justify-between mb-6 shadow-xl">
-      <div className="flex items-center gap-8">
+    <nav className="glass-panel px-4 lg:px-6 py-3 flex items-center justify-between mb-6 shadow-xl">
+      <div className="flex items-center gap-4 lg:gap-8">
         {/* Logo */}
         <Link to="/accueil" className="flex items-center gap-3 group" onClick={handleNavClick}>
-          <div className="w-12 h-12 flex items-center justify-center">
-            <img src={currentLogo} alt="CSM Logo" className="w-10 h-10 object-contain drop-shadow-lg" loading="lazy" />
+          <div className="w-11 h-11 flex items-center justify-center">
+            <img src={currentLogo} alt="CSM Logo" className="w-9 h-9 object-contain drop-shadow-lg" loading="lazy" />
           </div>
           <div className="hidden md:block">
             <span className="font-bold text-foreground block leading-tight">Centre Sportif</span>
@@ -51,8 +52,21 @@ const Navbar = memo(() => {
           </div>
         </Link>
 
+        {/* FAR Badge */}
+        <div className="hidden lg:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-gradient-to-r from-primary/10 to-accent/10 border border-primary/20">
+          <img 
+            src={farBadge} 
+            alt="Forces Armées Royales" 
+            className="w-8 h-8 object-contain drop-shadow"
+          />
+          <div className="text-xs">
+            <span className="text-primary font-semibold block">القوات المسلحة الملكية</span>
+            <span className="text-muted-foreground">Forces Armées Royales</span>
+          </div>
+        </div>
+
         {/* Navigation Links */}
-        <div className="flex items-center gap-6">
+        <div className="flex items-center gap-4 lg:gap-6">
           <Link 
             to="/accueil" 
             className={`nav-link ${isActive('/accueil') ? 'nav-link-active' : ''}`}
@@ -81,7 +95,15 @@ const Navbar = memo(() => {
         </div>
       </div>
 
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-2 lg:gap-4">
+        {/* Mobile FAR Badge */}
+        <div className="flex lg:hidden items-center">
+          <img 
+            src={farBadge} 
+            alt="FAR" 
+            className="w-7 h-7 object-contain"
+          />
+        </div>
         <button 
           className="p-2 hover:bg-muted/50 rounded-lg transition-colors"
           onClick={handleNavClick}
