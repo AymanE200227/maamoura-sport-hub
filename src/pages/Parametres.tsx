@@ -695,13 +695,13 @@ const Parametres = () => {
 
               {/* Add/Edit Student Modal */}
               {showAddStudent && (
-                <div className="fixed inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center p-4" style={{ zIndex: 9999 }}>
-                  <div className="glass-card w-full max-w-md p-6 animate-scale-in max-h-[90vh] overflow-y-auto">
-                    <div className="flex items-center justify-between mb-6">
+                <div className="fixed inset-0 bg-background/80 backdrop-blur-sm flex items-start justify-center p-4 overflow-y-auto" style={{ zIndex: 9999 }}>
+                  <div className="glass-card w-full max-w-md animate-scale-in my-8 flex flex-col shadow-2xl border border-border/50">
+                    <div className="flex items-center justify-between p-6 pb-4 border-b border-border/30 shrink-0">
                       <h3 className="text-lg font-semibold">{editingStudent ? 'Modifier Compte' : 'Ajouter Compte'}</h3>
                       <button onClick={resetStudentForm} className="p-2 hover:bg-muted rounded-lg"><X className="w-5 h-5" /></button>
                     </div>
-                    <div className="space-y-4">
+                    <div className="flex-1 overflow-y-auto p-6 space-y-4 max-h-[60vh]">
                       <div className="grid grid-cols-2 gap-4">
                         <div>
                           <label className="text-sm font-medium mb-1 block">Matricule *</label>
@@ -732,10 +732,10 @@ const Parametres = () => {
                           <input value={studentForm.unite} onChange={(e) => setStudentForm(p => ({ ...p, unite: e.target.value }))} className="glass-input w-full p-3" placeholder="Unité" />
                         </div>
                       </div>
-                      <div className="flex gap-3 pt-4">
-                        <button onClick={handleSaveStudent} className="btn-success flex-1 py-3">Enregistrer</button>
-                        <button onClick={resetStudentForm} className="btn-ghost border border-border py-3 px-6">Annuler</button>
-                      </div>
+                    </div>
+                    <div className="flex gap-3 p-6 pt-4 border-t border-border/30 shrink-0 bg-background/50">
+                      <button onClick={handleSaveStudent} className="btn-success flex-1 py-3">Enregistrer</button>
+                      <button onClick={resetStudentForm} className="btn-ghost border border-border py-3 px-6">Annuler</button>
                     </div>
                   </div>
                 </div>
@@ -743,60 +743,62 @@ const Parametres = () => {
 
               {/* Excel Import Modal */}
               {showExcelModal && (
-                <div className="fixed inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center p-4" style={{ zIndex: 9999 }}>
-                  <div className="glass-card w-full max-w-lg p-6 animate-scale-in max-h-[90vh] overflow-y-auto">
-                    <div className="flex items-center justify-between mb-4">
+                <div className="fixed inset-0 bg-background/80 backdrop-blur-sm flex items-start justify-center p-4 overflow-y-auto" style={{ zIndex: 9999 }}>
+                  <div className="glass-card w-full max-w-lg animate-scale-in my-8 flex flex-col shadow-2xl border border-border/50">
+                    <div className="flex items-center justify-between p-6 pb-4 border-b border-border/30 shrink-0">
                       <h3 className="text-lg font-semibold">Mapper les Colonnes Excel</h3>
                       <button onClick={() => setShowExcelModal(false)} className="p-2 hover:bg-muted rounded-lg"><X className="w-5 h-5" /></button>
                     </div>
-                    <p className="text-sm text-muted-foreground mb-4 p-3 bg-primary/10 rounded-lg border border-primary/20">
-                      {excelData.length} lignes détectées. Sélectionnez les colonnes correspondantes:
-                    </p>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="text-sm font-medium">Matricule (Mle) *</label>
-                        <select value={columnMapping.matricule} onChange={(e) => setColumnMapping(p => ({ ...p, matricule: e.target.value }))} className="glass-input w-full p-3 mt-1">
-                          <option value="">-- Sélectionner --</option>
-                          {excelColumns.map(col => <option key={col} value={col}>{col}</option>)}
-                        </select>
-                      </div>
-                      <div>
-                        <label className="text-sm font-medium">CIN *</label>
-                        <select value={columnMapping.cin} onChange={(e) => setColumnMapping(p => ({ ...p, cin: e.target.value }))} className="glass-input w-full p-3 mt-1">
-                          <option value="">-- Sélectionner --</option>
-                          {excelColumns.map(col => <option key={col} value={col}>{col}</option>)}
-                        </select>
-                      </div>
-                      <div>
-                        <label className="text-sm font-medium">Nom</label>
-                        <select value={columnMapping.nom} onChange={(e) => setColumnMapping(p => ({ ...p, nom: e.target.value }))} className="glass-input w-full p-3 mt-1">
-                          <option value="">-- Sélectionner --</option>
-                          {excelColumns.map(col => <option key={col} value={col}>{col}</option>)}
-                        </select>
-                      </div>
-                      <div>
-                        <label className="text-sm font-medium">Prénom</label>
-                        <select value={columnMapping.prenom} onChange={(e) => setColumnMapping(p => ({ ...p, prenom: e.target.value }))} className="glass-input w-full p-3 mt-1">
-                          <option value="">-- Sélectionner --</option>
-                          {excelColumns.map(col => <option key={col} value={col}>{col}</option>)}
-                        </select>
-                      </div>
-                      <div>
-                        <label className="text-sm font-medium">Grade</label>
-                        <select value={columnMapping.grade} onChange={(e) => setColumnMapping(p => ({ ...p, grade: e.target.value }))} className="glass-input w-full p-3 mt-1">
-                          <option value="">-- Sélectionner --</option>
-                          {excelColumns.map(col => <option key={col} value={col}>{col}</option>)}
-                        </select>
-                      </div>
-                      <div>
-                        <label className="text-sm font-medium">Unité</label>
-                        <select value={columnMapping.unite} onChange={(e) => setColumnMapping(p => ({ ...p, unite: e.target.value }))} className="glass-input w-full p-3 mt-1">
-                          <option value="">-- Sélectionner --</option>
-                          {excelColumns.map(col => <option key={col} value={col}>{col}</option>)}
-                        </select>
+                    <div className="flex-1 overflow-y-auto p-6 max-h-[60vh]">
+                      <p className="text-sm text-muted-foreground mb-4 p-3 bg-primary/10 rounded-lg border border-primary/20">
+                        {excelData.length} lignes détectées. Sélectionnez les colonnes correspondantes:
+                      </p>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="text-sm font-medium">Matricule (Mle) *</label>
+                          <select value={columnMapping.matricule} onChange={(e) => setColumnMapping(p => ({ ...p, matricule: e.target.value }))} className="glass-input w-full p-3 mt-1">
+                            <option value="">-- Sélectionner --</option>
+                            {excelColumns.map(col => <option key={col} value={col}>{col}</option>)}
+                          </select>
+                        </div>
+                        <div>
+                          <label className="text-sm font-medium">CIN *</label>
+                          <select value={columnMapping.cin} onChange={(e) => setColumnMapping(p => ({ ...p, cin: e.target.value }))} className="glass-input w-full p-3 mt-1">
+                            <option value="">-- Sélectionner --</option>
+                            {excelColumns.map(col => <option key={col} value={col}>{col}</option>)}
+                          </select>
+                        </div>
+                        <div>
+                          <label className="text-sm font-medium">Nom</label>
+                          <select value={columnMapping.nom} onChange={(e) => setColumnMapping(p => ({ ...p, nom: e.target.value }))} className="glass-input w-full p-3 mt-1">
+                            <option value="">-- Sélectionner --</option>
+                            {excelColumns.map(col => <option key={col} value={col}>{col}</option>)}
+                          </select>
+                        </div>
+                        <div>
+                          <label className="text-sm font-medium">Prénom</label>
+                          <select value={columnMapping.prenom} onChange={(e) => setColumnMapping(p => ({ ...p, prenom: e.target.value }))} className="glass-input w-full p-3 mt-1">
+                            <option value="">-- Sélectionner --</option>
+                            {excelColumns.map(col => <option key={col} value={col}>{col}</option>)}
+                          </select>
+                        </div>
+                        <div>
+                          <label className="text-sm font-medium">Grade</label>
+                          <select value={columnMapping.grade} onChange={(e) => setColumnMapping(p => ({ ...p, grade: e.target.value }))} className="glass-input w-full p-3 mt-1">
+                            <option value="">-- Sélectionner --</option>
+                            {excelColumns.map(col => <option key={col} value={col}>{col}</option>)}
+                          </select>
+                        </div>
+                        <div>
+                          <label className="text-sm font-medium">Unité</label>
+                          <select value={columnMapping.unite} onChange={(e) => setColumnMapping(p => ({ ...p, unite: e.target.value }))} className="glass-input w-full p-3 mt-1">
+                            <option value="">-- Sélectionner --</option>
+                            {excelColumns.map(col => <option key={col} value={col}>{col}</option>)}
+                          </select>
+                        </div>
                       </div>
                     </div>
-                    <div className="flex gap-3 mt-6">
+                    <div className="flex gap-3 p-6 pt-4 border-t border-border/30 shrink-0 bg-background/50">
                       <button onClick={handleImportExcel} className="btn-success flex-1 py-3">Importer {excelData.length} comptes</button>
                       <button onClick={() => setShowExcelModal(false)} className="btn-ghost border border-border py-3 px-6">Annuler</button>
                     </div>
@@ -860,13 +862,13 @@ const Parametres = () => {
 
               {/* Add Stage Modal */}
               {showAddStage && (
-                <div className="fixed inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center p-4" style={{ zIndex: 9999 }}>
-                  <div className="glass-card w-full max-w-md p-6 animate-scale-in max-h-[90vh] overflow-y-auto">
-                    <div className="flex items-center justify-between mb-6">
+                <div className="fixed inset-0 bg-background/80 backdrop-blur-sm flex items-start justify-center p-4 overflow-y-auto" style={{ zIndex: 9999 }}>
+                  <div className="glass-card w-full max-w-md animate-scale-in my-8 flex flex-col shadow-2xl border border-border/50">
+                    <div className="flex items-center justify-between p-6 pb-4 border-b border-border/30 shrink-0">
                       <h3 className="text-lg font-semibold">Ajouter Stage</h3>
                       <button onClick={() => setShowAddStage(false)} className="p-2 hover:bg-muted rounded-lg"><X className="w-5 h-5" /></button>
                     </div>
-                    <div className="space-y-4">
+                    <div className="flex-1 overflow-y-auto p-6 space-y-4">
                       <div>
                         <label className="text-sm font-medium mb-1 block">Nom du stage *</label>
                         <input value={stageForm.name} onChange={(e) => setStageForm(p => ({ ...p, name: e.target.value }))} className="glass-input w-full p-3" placeholder="Ex: CAT3" />
@@ -875,10 +877,10 @@ const Parametres = () => {
                         <label className="text-sm font-medium mb-1 block">Description</label>
                         <input value={stageForm.description} onChange={(e) => setStageForm(p => ({ ...p, description: e.target.value }))} className="glass-input w-full p-3" placeholder="Description du stage" />
                       </div>
-                      <div className="flex gap-3 pt-4">
-                        <button onClick={handleAddStage} className="btn-success flex-1 py-3">Ajouter</button>
-                        <button onClick={() => setShowAddStage(false)} className="btn-ghost border border-border py-3 px-6">Annuler</button>
-                      </div>
+                    </div>
+                    <div className="flex gap-3 p-6 pt-4 border-t border-border/30 shrink-0 bg-background/50">
+                      <button onClick={handleAddStage} className="btn-success flex-1 py-3">Ajouter</button>
+                      <button onClick={() => setShowAddStage(false)} className="btn-ghost border border-border py-3 px-6">Annuler</button>
                     </div>
                   </div>
                 </div>

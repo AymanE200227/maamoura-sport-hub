@@ -785,8 +785,8 @@ const GestionCours = () => {
 
         {/* Delete Confirmation Modal */}
         {deleteConfirm && (
-          <div className="fixed inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center p-4" style={{ zIndex: 9999 }}>
-            <div className="glass-card p-6 w-full max-w-sm animate-scale-in text-center shadow-2xl border border-border/50">
+          <div className="fixed inset-0 bg-background/80 backdrop-blur-sm flex items-start justify-center p-4 overflow-y-auto" style={{ zIndex: 9999 }}>
+            <div className="glass-card p-6 w-full max-w-sm animate-scale-in text-center shadow-2xl border border-border/50 my-auto">
               <div className="w-14 h-14 bg-destructive/20 rounded-full flex items-center justify-center mx-auto mb-4">
                 <Trash2 className="w-7 h-7 text-destructive" />
               </div>
