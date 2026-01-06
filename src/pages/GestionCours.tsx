@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   Plus, Edit, Trash2, X, Upload, Search, Filter, 
@@ -22,13 +22,14 @@ import {
 import { CourseType, SportCourse, Stage } from '@/types';
 import { getSportImage, imageCategories, categoryLabels } from '@/assets/sports';
 import { useToast } from '@/hooks/use-toast';
+import { useClickSound } from '@/hooks/useClickSound';
 import bgImage from '@/assets/bg4.jpg';
 
 const GestionCours = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const userMode = getUserMode();
-  
+  const { playClick } = useClickSound();
   const [courseTypes, setCourseTypes] = useState<CourseType[]>([]);
   const [sportCourses, setSportCourses] = useState<SportCourse[]>([]);
   const [stages, setStages] = useState<Stage[]>([]);
@@ -273,7 +274,7 @@ const GestionCours = () => {
         <div className="glass-card mb-6 p-2 flex flex-col md:flex-row md:items-center gap-4">
           <div className="flex gap-1 flex-1">
             <button
-              onClick={() => setActiveTab('types')}
+              onClick={() => { playClick(); setActiveTab('types'); }}
               className={`flex items-center gap-2 px-5 py-3 rounded-lg font-medium transition-all ${
                 activeTab === 'types'
                   ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/20'
@@ -284,7 +285,7 @@ const GestionCours = () => {
               Types de Cours
             </button>
             <button
-              onClick={() => setActiveTab('courses')}
+              onClick={() => { playClick(); setActiveTab('courses'); }}
               className={`flex items-center gap-2 px-5 py-3 rounded-lg font-medium transition-all ${
                 activeTab === 'courses'
                   ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/20'
@@ -336,13 +337,13 @@ const GestionCours = () => {
 
             <div className="flex border border-border/30 rounded-lg overflow-hidden">
               <button
-                onClick={() => setViewMode('grid')}
+                onClick={() => { playClick(); setViewMode('grid'); }}
                 className={`p-2 ${viewMode === 'grid' ? 'bg-primary text-primary-foreground' : 'hover:bg-muted'}`}
               >
                 <LayoutGrid className="w-4 h-4" />
               </button>
               <button
-                onClick={() => setViewMode('list')}
+                onClick={() => { playClick(); setViewMode('list'); }}
                 className={`p-2 ${viewMode === 'list' ? 'bg-primary text-primary-foreground' : 'hover:bg-muted'}`}
               >
                 <List className="w-4 h-4" />
@@ -380,13 +381,13 @@ const GestionCours = () => {
                         </p>
                         <div className="flex gap-2">
                           <button 
-                            onClick={() => handleEditType(type)}
+                            onClick={() => { playClick(); handleEditType(type); }}
                             className="btn-ghost text-sm flex items-center gap-1 flex-1 justify-center border border-border"
                           >
                             <Edit className="w-4 h-4" /> Modifier
                           </button>
                           <button 
-                            onClick={() => setDeleteConfirm({ type: 'type', id: type.id, name: type.name })}
+                            onClick={() => { playClick(); setDeleteConfirm({ type: 'type', id: type.id, name: type.name }); }}
                             className="btn-destructive text-sm p-2"
                           >
                             <Trash2 className="w-4 h-4" />
@@ -396,9 +397,8 @@ const GestionCours = () => {
                     </div>
                   ))}
 
-                  {/* Add Type Card */}
                   <button
-                    onClick={handleAddType}
+                    onClick={() => { playClick(); handleAddType(); }}
                     className="glass-card h-full min-h-[200px] flex flex-col items-center justify-center gap-3 border-2 border-dashed border-primary/30 hover:border-primary/60 hover:bg-primary/5 transition-all group"
                   >
                     <div className="w-16 h-16 rounded-full bg-primary/20 flex items-center justify-center group-hover:bg-primary/30 transition-colors">
@@ -425,11 +425,11 @@ const GestionCours = () => {
                         <p className="text-sm text-muted-foreground">{type.description || 'Aucune description'}</p>
                       </div>
                       <div className="flex gap-2">
-                        <button onClick={() => handleEditType(type)} className="p-2 hover:bg-muted rounded-lg">
+                        <button onClick={() => { playClick(); handleEditType(type); }} className="p-2 hover:bg-muted rounded-lg">
                           <Edit className="w-4 h-4" />
                         </button>
                         <button 
-                          onClick={() => setDeleteConfirm({ type: 'type', id: type.id, name: type.name })}
+                          onClick={() => { playClick(); setDeleteConfirm({ type: 'type', id: type.id, name: type.name }); }}
                           className="p-2 hover:bg-destructive/20 rounded-lg text-destructive"
                         >
                           <Trash2 className="w-4 h-4" />
@@ -437,7 +437,7 @@ const GestionCours = () => {
                       </div>
                     </div>
                   ))}
-                  <button onClick={handleAddType} className="w-full p-4 text-primary hover:bg-primary/5 flex items-center justify-center gap-2">
+                  <button onClick={() => { playClick(); handleAddType(); }} className="w-full p-4 text-primary hover:bg-primary/5 flex items-center justify-center gap-2">
                     <Plus className="w-5 h-5" /> Ajouter un type
                   </button>
                 </div>
@@ -479,13 +479,13 @@ const GestionCours = () => {
                           </p>
                           <div className="flex gap-2">
                             <button 
-                              onClick={() => handleEditCourse(course)}
+                              onClick={() => { playClick(); handleEditCourse(course); }}
                               className="btn-ghost text-sm flex items-center gap-1 flex-1 justify-center border border-border"
                             >
                               <Edit className="w-4 h-4" /> Modifier
                             </button>
                             <button 
-                              onClick={() => setDeleteConfirm({ type: 'course', id: course.id, name: course.title })}
+                              onClick={() => { playClick(); setDeleteConfirm({ type: 'course', id: course.id, name: course.title }); }}
                               className="btn-destructive text-sm p-2"
                             >
                               <Trash2 className="w-4 h-4" />
@@ -498,7 +498,7 @@ const GestionCours = () => {
 
                   {/* Add Course Card */}
                   <button
-                    onClick={handleAddCourse}
+                    onClick={() => { playClick(); handleAddCourse(); }}
                     className="glass-card h-full min-h-[240px] flex flex-col items-center justify-center gap-3 border-2 border-dashed border-primary/30 hover:border-primary/60 hover:bg-primary/5 transition-all group"
                   >
                     <div className="w-16 h-16 rounded-full bg-primary/20 flex items-center justify-center group-hover:bg-primary/30 transition-colors">
@@ -524,11 +524,11 @@ const GestionCours = () => {
                           </p>
                         </div>
                         <div className="flex gap-2">
-                          <button onClick={() => handleEditCourse(course)} className="p-2 hover:bg-muted rounded-lg">
+                          <button onClick={() => { playClick(); handleEditCourse(course); }} className="p-2 hover:bg-muted rounded-lg">
                             <Edit className="w-4 h-4" />
                           </button>
                           <button 
-                            onClick={() => setDeleteConfirm({ type: 'course', id: course.id, name: course.title })}
+                            onClick={() => { playClick(); setDeleteConfirm({ type: 'course', id: course.id, name: course.title }); }}
                             className="p-2 hover:bg-destructive/20 rounded-lg text-destructive"
                           >
                             <Trash2 className="w-4 h-4" />
@@ -537,7 +537,7 @@ const GestionCours = () => {
                       </div>
                     );
                   })}
-                  <button onClick={handleAddCourse} className="w-full p-4 text-primary hover:bg-primary/5 flex items-center justify-center gap-2">
+                  <button onClick={() => { playClick(); handleAddCourse(); }} className="w-full p-4 text-primary hover:bg-primary/5 flex items-center justify-center gap-2">
                     <Plus className="w-5 h-5" /> Ajouter un cours
                   </button>
                 </div>
@@ -550,7 +550,7 @@ const GestionCours = () => {
                   <p className="text-muted-foreground mb-4">
                     {searchQuery ? 'Aucun résultat pour votre recherche' : 'Commencez par ajouter un cours'}
                   </p>
-                  <button onClick={handleAddCourse} className="btn-primary flex items-center gap-2 mx-auto">
+                  <button onClick={() => { playClick(); handleAddCourse(); }} className="btn-primary flex items-center gap-2 mx-auto">
                     <Plus className="w-5 h-5" /> Ajouter un cours
                   </button>
                 </div>
@@ -567,7 +567,7 @@ const GestionCours = () => {
                 <h3 className="text-lg font-semibold">
                   {editingType ? 'Modifier Type' : 'Ajouter Type'}
                 </h3>
-                <button onClick={() => setShowTypeForm(false)} className="p-2 hover:bg-muted rounded-lg">
+                <button onClick={() => { playClick(); setShowTypeForm(false); }} className="p-2 hover:bg-muted rounded-lg">
                   <X className="w-5 h-5" />
                 </button>
               </div>
@@ -615,10 +615,10 @@ const GestionCours = () => {
               </div>
 
               <div className="flex gap-3 p-6 pt-4 border-t border-border/30 shrink-0 bg-background/50">
-                <button onClick={handleSaveType} className="btn-success flex-1 py-3 font-medium">
+                <button onClick={() => { playClick(); handleSaveType(); }} className="btn-success flex-1 py-3 font-medium">
                   Enregistrer
                 </button>
-                <button onClick={() => setShowTypeForm(false)} className="btn-ghost border border-border py-3 px-6">
+                <button onClick={() => { playClick(); setShowTypeForm(false); }} className="btn-ghost border border-border py-3 px-6">
                   Annuler
                 </button>
               </div>
@@ -634,7 +634,7 @@ const GestionCours = () => {
                 <h3 className="text-lg font-semibold">
                   {editingCourse ? 'Modifier Cours' : 'Ajouter Cours'}
                 </h3>
-                <button onClick={() => setShowCourseForm(false)} className="p-2 hover:bg-muted rounded-lg">
+                <button onClick={() => { playClick(); setShowCourseForm(false); }} className="p-2 hover:bg-muted rounded-lg">
                   <X className="w-5 h-5" />
                 </button>
               </div>
@@ -772,10 +772,10 @@ const GestionCours = () => {
               </div>
 
               <div className="flex gap-3 p-6 pt-4 border-t border-border/30 shrink-0 bg-background/50">
-                <button onClick={handleSaveCourse} className="btn-success flex-1 py-3 font-medium">
+                <button onClick={() => { playClick(); handleSaveCourse(); }} className="btn-success flex-1 py-3 font-medium">
                   Enregistrer
                 </button>
-                <button onClick={() => setShowCourseForm(false)} className="btn-ghost border border-border py-3 px-6">
+                <button onClick={() => { playClick(); setShowCourseForm(false); }} className="btn-ghost border border-border py-3 px-6">
                   Annuler
                 </button>
               </div>
@@ -795,11 +795,11 @@ const GestionCours = () => {
                 Êtes-vous sûr de vouloir supprimer "<span className="text-foreground font-medium">{deleteConfirm.name}</span>"?
               </p>
               <div className="flex gap-3 justify-center">
-                <button onClick={() => setDeleteConfirm(null)} className="btn-ghost border border-border px-6 py-2.5">
+                <button onClick={() => { playClick(); setDeleteConfirm(null); }} className="btn-ghost border border-border px-6 py-2.5">
                   Annuler
                 </button>
                 <button 
-                  onClick={deleteConfirm.type === 'type' ? handleDeleteType : handleDeleteCourse}
+                  onClick={() => { playClick(); deleteConfirm.type === 'type' ? handleDeleteType() : handleDeleteCourse(); }}
                   className="btn-destructive px-6 py-2.5"
                 >
                   Supprimer

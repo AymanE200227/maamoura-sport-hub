@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   Plus, ChevronRight, BookOpen, Users, Layers, Award, 
-  GraduationCap, TrendingUp, Shield, Target
+  GraduationCap, TrendingUp, Shield, Target, Star
 } from 'lucide-react';
 import Layout from '@/components/Layout';
 import { 
@@ -15,6 +15,7 @@ import { getSportImage } from '@/assets/sports';
 import { useClickSound } from '@/hooks/useClickSound';
 import bgImage from '@/assets/bg2.jpg';
 import logoOfficial from '@/assets/logo-official.png';
+import farBadge from '@/assets/far-badge.png';
 
 // Memoized Course Card
 const CourseCard = ({ type, onClick, courseCount }: { type: CourseType; onClick: () => void; courseCount: number }) => {
@@ -135,28 +136,40 @@ const Accueil = () => {
   return (
     <Layout backgroundImage={bgImage}>
       <div className="max-w-6xl mx-auto space-y-8">
-        {/* Hero Section */}
+        {/* Hero Section with FAR Branding */}
         <div className="glass-panel p-8 animate-fade-in">
           <div className="flex flex-col lg:flex-row items-center gap-8">
-            {/* Logo */}
-            <div className="flex-shrink-0">
-              <div className="w-28 h-28 rounded-2xl bg-gradient-to-br from-card to-muted p-2 shadow-gold border border-gold">
+            {/* Logos Container */}
+            <div className="flex items-center gap-4 flex-shrink-0">
+              <div className="w-24 h-24 rounded-2xl bg-gradient-to-br from-card to-muted p-2 shadow-gold border border-gold">
                 <img 
                   src={logoSrc} 
                   alt="CSM Logo" 
                   className="w-full h-full object-contain"
                 />
               </div>
+              <div className="w-20 h-20 rounded-xl bg-gradient-to-br from-primary/10 to-accent/10 p-2 border border-primary/30 flex items-center justify-center">
+                <img 
+                  src={farBadge} 
+                  alt="FAR Badge" 
+                  className="w-full h-full object-contain drop-shadow"
+                />
+              </div>
             </div>
 
             {/* Description */}
             <div className="flex-1 text-center lg:text-left">
+              <div className="flex items-center justify-center lg:justify-start gap-2 mb-2">
+                <Star className="w-5 h-5 text-primary fill-primary" />
+                <span className="text-primary font-semibold text-sm">المملكة المغربية - القوات المسلحة الملكية</span>
+                <Star className="w-5 h-5 text-primary fill-primary" />
+              </div>
               <h1 className="text-3xl lg:text-4xl font-bold mb-3">
                 Centre Sportif <span className="gold-text">Militaire</span>
               </h1>
               <p className="text-muted-foreground text-lg leading-relaxed max-w-2xl">
-                Plateforme de gestion des cours sportifs et militaires. Accédez à vos formations, 
-                consultez les programmes d'entraînement et suivez votre progression académique.
+                Plateforme officielle de gestion des cours sportifs et militaires des Forces Armées Royales. 
+                Formation d'excellence pour les stagiaires de la caserne FAR Maâmoura.
               </p>
               <div className="flex flex-wrap gap-3 mt-4 justify-center lg:justify-start">
                 <span className="badge-gold flex items-center gap-1">
@@ -166,7 +179,7 @@ const Accueil = () => {
                   <Target className="w-3 h-3" /> Excellence Sportive
                 </span>
                 <span className="badge-gold flex items-center gap-1">
-                  <Award className="w-3 h-3" /> Certifications
+                  <Award className="w-3 h-3" /> FAR Maâmoura
                 </span>
               </div>
             </div>
