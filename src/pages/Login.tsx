@@ -1,7 +1,7 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Lock, User, Settings, GraduationCap, Shield, Users, Eye, EyeOff } from 'lucide-react';
-import { verifyAdminPassword, verifyUserPassword, verifyStudentCredentials, setUserMode, isBackgroundEnabled, getBackgroundImage } from '@/lib/storage';
+import { verifyAdminPassword, verifyUserPassword, verifyStudentCredentials, setUserMode, isBackgroundEnabled, getBackgroundImage, getAppSettings } from '@/lib/storage';
 import { useToast } from '@/hooks/use-toast';
 import { useClickSound } from '@/hooks/useClickSound';
 import bgImage from '@/assets/bg.jpg';
@@ -103,12 +103,14 @@ const Login = () => {
   const bgEnabled = isBackgroundEnabled();
   const customBg = getBackgroundImage();
   const finalBg = bgEnabled ? (customBg || bgImage) : bgImage;
+  const appSettings = useMemo(() => getAppSettings(), []);
+  const currentLogo = appSettings.customLogo || logoImage;
 
-  const tabConfig = [
+  const tabConfig = useMemo(() => [
     { id: 'user' as const, label: 'Utilisateur', icon: Users, color: 'primary' },
     { id: 'eleve' as const, label: 'Élève', icon: GraduationCap, color: 'accent' },
     { id: 'admin' as const, label: 'Admin', icon: Shield, color: 'warning' },
-  ];
+  ], []);
 
   return (
     <div 
@@ -124,18 +126,19 @@ const Login = () => {
         <div className="text-center mb-6 animate-fade-in">
           <div className="flex justify-center mb-4">
             <div className="relative">
-              <img 
-                src={logoImage} 
-                alt="Centre Sportif Maamoura" 
-                className="w-20 h-20 object-contain drop-shadow-2xl"
-              />
-              
+              <div className="w-24 h-24 rounded-2xl bg-card/50 border-2 border-primary/30 p-2 shadow-gold">
+                <img 
+                  src={currentLogo} 
+                  alt="Centre Sportif Maamoura" 
+                  className="w-full h-full object-contain"
+                />
+              </div>
             </div>
           </div>
           <h1 className="text-2xl font-bold text-foreground mb-2 drop-shadow-lg">
             Bienvenue à la Base de Données
           </h1>
-          <p className="text-lg text-foreground/80 font-medium drop-shadow">
+          <p className="text-lg gold-text font-semibold drop-shadow">
             Centre Sportif des FAR Maâmoura
           </p>
         </div>

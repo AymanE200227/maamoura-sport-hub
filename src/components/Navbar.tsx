@@ -1,7 +1,7 @@
-import { memo, useCallback } from 'react';
+import { memo, useCallback, useMemo } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Search, LogOut } from 'lucide-react';
-import { clearUserMode, getUserMode } from '@/lib/storage';
+import { clearUserMode, getUserMode, getAppSettings } from '@/lib/storage';
 import { useClickSound } from '@/hooks/useClickSound';
 import logoImage from '@/assets/logo-official.png';
 
@@ -21,6 +21,8 @@ const Navbar = memo(() => {
   const navigate = useNavigate();
   const userMode = getUserMode();
   const { playClick } = useClickSound();
+  const appSettings = useMemo(() => getAppSettings(), []);
+  const currentLogo = appSettings.customLogo || logoImage;
 
   const isActive = (path: string) => location.pathname === path;
 
@@ -41,7 +43,7 @@ const Navbar = memo(() => {
         {/* Logo */}
         <Link to="/accueil" className="flex items-center gap-3 group" onClick={handleNavClick}>
           <div className="w-12 h-12 flex items-center justify-center">
-            <img src={logoImage} alt="CSM Logo" className="w-10 h-10 object-contain drop-shadow-lg" loading="lazy" />
+            <img src={currentLogo} alt="CSM Logo" className="w-10 h-10 object-contain drop-shadow-lg" loading="lazy" />
           </div>
           <div className="hidden md:block">
             <span className="font-bold text-foreground block leading-tight">Centre Sportif</span>
