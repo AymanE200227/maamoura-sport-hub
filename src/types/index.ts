@@ -63,6 +63,7 @@ export interface DocumentModel {
   name: string; // e.g., "Compte Rendu", "Demande de Permission"
   description?: string;
   order: number;
+  enabled: boolean;
 }
 
 export interface ModelFile {
