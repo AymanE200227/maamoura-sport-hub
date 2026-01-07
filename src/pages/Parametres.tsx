@@ -8,6 +8,7 @@ import {
   Presentation, FileType, BookOpen, ChevronRight, Lightbulb, Sparkles,
   Shield, Database, HelpCircle
 } from 'lucide-react';
+import TablePagination from '@/components/TablePagination';
 import Layout from '@/components/Layout';
 import { 
   getAdminPassword, 
@@ -130,6 +131,8 @@ const Parametres = () => {
   const [editingStudent, setEditingStudent] = useState<StudentAccount | null>(null);
   const [studentForm, setStudentForm] = useState({ matricule: '', cin: '', nom: '', prenom: '', grade: '', unite: '' });
   const [searchStudent, setSearchStudent] = useState('');
+  const [studentPage, setStudentPage] = useState(1);
+  const [studentPageSize, setStudentPageSize] = useState(15);
   
   // Excel import state
   const [showExcelModal, setShowExcelModal] = useState(false);
@@ -187,6 +190,17 @@ const Parametres = () => {
     s.prenom?.toLowerCase().includes(searchStudent.toLowerCase()) ||
     s.grade?.toLowerCase().includes(searchStudent.toLowerCase())
   ), [studentAccounts, searchStudent]);
+
+  // Paginated students
+  const paginatedStudents = useMemo(() => {
+    const start = (studentPage - 1) * studentPageSize;
+    return filteredStudents.slice(start, start + studentPageSize);
+  }, [filteredStudents, studentPage, studentPageSize]);
+
+  // Reset page when search changes
+  useEffect(() => {
+    setStudentPage(1);
+  }, [searchStudent]);
 
   // Password handlers
   const handleChangeAdminPassword = (e: React.FormEvent) => {
@@ -803,12 +817,12 @@ const Parametres = () => {
                 </div>
               </div>
 
-              {/* User Password */}
+              {/* Instructeur Password */}
               <div className="glass-card overflow-hidden">
                 <div className="p-4 bg-success/20 border-b border-success/20">
                   <h2 className="text-lg font-bold flex items-center gap-2">
                     <Users className="w-5 h-5 text-success" />
-                    Mot de Passe Utilisateur
+                    Mot de Passe Instructeur
                   </h2>
                 </div>
                 <form onSubmit={handleChangeUserPassword} className="p-6 space-y-4">
@@ -878,7 +892,7 @@ const Parametres = () => {
                 </div>
               </div>
 
-              <div className="overflow-x-auto max-h-[500px] overflow-y-auto">
+              <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead className="sticky top-0 bg-card">
                     <tr className="border-b border-border/50">
@@ -891,7 +905,7 @@ const Parametres = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredStudents.map((account) => (
+                    {paginatedStudents.map((account) => (
                       <tr key={account.id} className="border-b border-border/30 hover:bg-muted/20 transition-colors">
                         <td className="p-3 font-mono text-sm gold-text">{account.matricule}</td>
                         <td className="p-3 font-mono text-sm">{account.cin}</td>
@@ -916,6 +930,15 @@ const Parametres = () => {
                   </p>
                 )}
               </div>
+              
+              {/* Pagination */}
+              <TablePagination
+                totalItems={filteredStudents.length}
+                currentPage={studentPage}
+                pageSize={studentPageSize}
+                onPageChange={setStudentPage}
+                onPageSizeChange={setStudentPageSize}
+              />
 
               {/* Add/Edit Student Modal */}
               {showAddStudent && (

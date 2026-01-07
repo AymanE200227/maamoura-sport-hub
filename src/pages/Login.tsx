@@ -107,7 +107,7 @@ const Login = () => {
   const currentLogo = appSettings.customLogo || logoImage;
 
   const tabConfig = useMemo(() => [
-    { id: 'user' as const, label: 'Utilisateur', icon: Users, color: 'primary' },
+    { id: 'user' as const, label: 'Instructeur', icon: Users, color: 'primary' },
     { id: 'eleve' as const, label: 'Élève', icon: GraduationCap, color: 'accent' },
     { id: 'admin' as const, label: 'Admin', icon: Shield, color: 'warning' },
   ], []);
@@ -187,6 +187,7 @@ const Login = () => {
                     value={adminPassword}
                     onChange={(e) => setAdminPassword(e.target.value)}
                     className="glass-input w-full pl-12 pr-12 py-3"
+                    autoComplete="current-password"
                   />
                   <button
                     type="button"
@@ -207,25 +208,26 @@ const Login = () => {
               </form>
             )}
 
-            {/* User Login */}
+            {/* Instructeur Login */}
             {activeTab === 'user' && (
               <form onSubmit={handleUserLogin} className="space-y-5 animate-fade-in">
                 <div className="text-center mb-4">
                   <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-primary/20 mb-3">
                     <Users className="w-8 h-8 text-primary" />
                   </div>
-                  <h2 className="text-lg font-semibold">Accès Utilisateur</h2>
-                  <p className="text-sm text-muted-foreground">Consultation des cours</p>
+                  <h2 className="text-lg font-semibold">Accès Instructeur</h2>
+                  <p className="text-sm text-muted-foreground">Consultation et gestion des cours</p>
                 </div>
                 
                 <div className="relative">
                   <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
                   <input
                     type={showUserPassword ? 'text' : 'password'}
-                    placeholder="Mot de passe utilisateur"
+                    placeholder="Mot de passe instructeur"
                     value={userPassword}
                     onChange={(e) => setUserPassword(e.target.value)}
                     className="glass-input w-full pl-12 pr-12 py-3"
+                    autoComplete="current-password"
                   />
                   <button
                     type="button"
@@ -241,7 +243,7 @@ const Login = () => {
                   className="btn-primary w-full py-3 uppercase tracking-wider font-semibold flex items-center justify-center gap-2"
                 >
                   <User className="w-5 h-5" />
-                  Consulter
+                  Accéder
                 </button>
               </form>
             )}
@@ -265,6 +267,7 @@ const Login = () => {
                     value={eleveMatricule}
                     onChange={(e) => setEleveMatricule(e.target.value)}
                     className="glass-input w-full pl-12 pr-4 py-3"
+                    autoComplete="username"
                   />
                 </div>
                 
@@ -276,6 +279,7 @@ const Login = () => {
                     value={eleveCin}
                     onChange={(e) => setEleveCin(e.target.value)}
                     className="glass-input w-full pl-12 pr-12 py-3"
+                    autoComplete="current-password"
                   />
                   <button
                     type="button"
