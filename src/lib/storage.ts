@@ -1,4 +1,4 @@
-import { CourseType, SportCourse, CourseTitle, CourseFile, Stage, StudentAccount, AppSettings } from '@/types';
+import { CourseType, SportCourse, CourseTitle, CourseFile, Stage, StudentAccount, AppSettings, Promo, DocumentModel, ModelFile } from '@/types';
 
 const STORAGE_KEYS = {
   COURSE_TYPES: 'csm_course_types',
@@ -15,6 +15,9 @@ const STORAGE_KEYS = {
   BACKGROUND_ENABLED: 'csm_background_enabled',
   CLICK_SOUND: 'csm_click_sound',
   CLICK_SOUND_ENABLED: 'csm_click_sound_enabled',
+  PROMOS: 'csm_promos',
+  DOCUMENT_MODELS: 'csm_document_models',
+  MODEL_FILES: 'csm_model_files',
 };
 
 const DEFAULT_ADMIN_PASSWORD = 'admin123';
@@ -354,6 +357,137 @@ export const importStudentAccountsBulk = (accounts: Omit<StudentAccount, 'id' | 
   
   saveStudentAccounts(existing);
   return added;
+};
+
+// Promos
+export const getPromos = (): Promo[] => {
+  const data = localStorage.getItem(STORAGE_KEYS.PROMOS);
+  return data ? JSON.parse(data) : [];
+};
+
+export const savePromos = (promos: Promo[]): void => {
+  localStorage.setItem(STORAGE_KEYS.PROMOS, JSON.stringify(promos));
+};
+
+export const addPromo = (promo: Omit<Promo, 'id' | 'createdAt'>): Promo => {
+  const promos = getPromos();
+  const newPromo: Promo = { ...promo, id: Date.now().toString(), createdAt: new Date().toISOString() };
+  promos.push(newPromo);
+  savePromos(promos);
+  return newPromo;
+};
+
+export const deletePromo = (id: string): void => {
+  const promos = getPromos().filter(p => p.id !== id);
+  savePromos(promos);
+  // Remove promo assignment from students
+  const accounts = getStudentAccounts();
+  accounts.forEach(a => { if (a.promoId === id) delete a.promoId; });
+  saveStudentAccounts(accounts);
+};
+
+export const promotePromo = (promoId: string): void => {
+  const promos = getPromos();
+  const promo = promos.find(p => p.id === promoId);
+  if (promo && promo.level < 2) {
+    promo.level = 2;
+    promo.name = promo.name.replace('1ère année', '2ème année').replace('1er année', '2ème année');
+    savePromos(promos);
+  }
+};
+
+export const getStudentsByPromo = (promoId: string): StudentAccount[] => {
+  return getStudentAccounts().filter(a => a.promoId === promoId);
+};
+
+export const assignStudentsToPromo = (studentIds: string[], promoId: string): void => {
+  const accounts = getStudentAccounts();
+  accounts.forEach(a => {
+    if (studentIds.includes(a.id)) {
+      a.promoId = promoId;
+    }
+  });
+  saveStudentAccounts(accounts);
+};
+
+export const deleteStudentsByPromo = (promoId: string): number => {
+  const accounts = getStudentAccounts();
+  const toDelete = accounts.filter(a => a.promoId === promoId);
+  const remaining = accounts.filter(a => a.promoId !== promoId);
+  saveStudentAccounts(remaining);
+  return toDelete.length;
+};
+
+// Document Models
+const DEFAULT_MODELS: DocumentModel[] = [
+  { id: 'compte_rendu', name: 'Compte Rendu', description: 'Modèles de comptes rendus', order: 0 },
+  { id: 'demande_permission', name: 'Demande de Permission', description: 'Modèles de demandes de permission', order: 1 },
+  { id: 'demande_mariage', name: 'Demande de Mariage', description: 'Modèles de demandes de mariage', order: 2 },
+];
+
+export const getDocumentModels = (): DocumentModel[] => {
+  const data = localStorage.getItem(STORAGE_KEYS.DOCUMENT_MODELS);
+  if (!data) {
+    localStorage.setItem(STORAGE_KEYS.DOCUMENT_MODELS, JSON.stringify(DEFAULT_MODELS));
+    return DEFAULT_MODELS;
+  }
+  return JSON.parse(data);
+};
+
+export const saveDocumentModels = (models: DocumentModel[]): void => {
+  localStorage.setItem(STORAGE_KEYS.DOCUMENT_MODELS, JSON.stringify(models));
+};
+
+export const addDocumentModel = (model: Omit<DocumentModel, 'id' | 'order'>): DocumentModel => {
+  const models = getDocumentModels();
+  const newModel: DocumentModel = { ...model, id: Date.now().toString(), order: models.length };
+  models.push(newModel);
+  saveDocumentModels(models);
+  return newModel;
+};
+
+export const deleteDocumentModel = (id: string): void => {
+  const models = getDocumentModels().filter(m => m.id !== id);
+  saveDocumentModels(models);
+  // Delete related files
+  const files = getModelFiles().filter(f => f.modelId !== id);
+  saveModelFiles(files);
+};
+
+// Model Files
+export const getModelFiles = (): ModelFile[] => {
+  const data = localStorage.getItem(STORAGE_KEYS.MODEL_FILES);
+  return data ? JSON.parse(data) : [];
+};
+
+export const saveModelFiles = (files: ModelFile[]): void => {
+  localStorage.setItem(STORAGE_KEYS.MODEL_FILES, JSON.stringify(files));
+};
+
+export const getModelFilesByModel = (modelId: string): ModelFile[] => {
+  return getModelFiles().filter(f => f.modelId === modelId);
+};
+
+export const addModelFile = (file: Omit<ModelFile, 'id'>): ModelFile => {
+  const files = getModelFiles();
+  const newFile: ModelFile = { ...file, id: Date.now().toString() };
+  files.push(newFile);
+  saveModelFiles(files);
+  return newFile;
+};
+
+export const updateModelFile = (id: string, updates: Partial<ModelFile>): void => {
+  const files = getModelFiles();
+  const index = files.findIndex(f => f.id === id);
+  if (index !== -1) {
+    files[index] = { ...files[index], ...updates };
+    saveModelFiles(files);
+  }
+};
+
+export const deleteModelFile = (id: string): void => {
+  const files = getModelFiles().filter(f => f.id !== id);
+  saveModelFiles(files);
 };
 
 // App Settings
