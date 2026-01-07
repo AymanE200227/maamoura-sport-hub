@@ -420,9 +420,9 @@ export const deleteStudentsByPromo = (promoId: string): number => {
 
 // Document Models
 const DEFAULT_MODELS: DocumentModel[] = [
-  { id: 'compte_rendu', name: 'Compte Rendu', description: 'Modèles de comptes rendus', order: 0 },
-  { id: 'demande_permission', name: 'Demande de Permission', description: 'Modèles de demandes de permission', order: 1 },
-  { id: 'demande_mariage', name: 'Demande de Mariage', description: 'Modèles de demandes de mariage', order: 2 },
+  { id: 'compte_rendu', name: 'Compte Rendu', description: 'Modèles de comptes rendus', order: 0, enabled: true },
+  { id: 'demande_permission', name: 'Demande de Permission', description: 'Modèles de demandes de permission', order: 1, enabled: true },
+  { id: 'demande_mariage', name: 'Demande de Mariage', description: 'Modèles de demandes de mariage', order: 2, enabled: true },
 ];
 
 export const getDocumentModels = (): DocumentModel[] => {
@@ -431,7 +431,9 @@ export const getDocumentModels = (): DocumentModel[] => {
     localStorage.setItem(STORAGE_KEYS.DOCUMENT_MODELS, JSON.stringify(DEFAULT_MODELS));
     return DEFAULT_MODELS;
   }
-  return JSON.parse(data);
+  // Migrate old models without enabled property
+  const models: DocumentModel[] = JSON.parse(data);
+  return models.map(m => ({ ...m, enabled: m.enabled !== undefined ? m.enabled : true }));
 };
 
 export const saveDocumentModels = (models: DocumentModel[]): void => {
@@ -440,10 +442,19 @@ export const saveDocumentModels = (models: DocumentModel[]): void => {
 
 export const addDocumentModel = (model: Omit<DocumentModel, 'id' | 'order'>): DocumentModel => {
   const models = getDocumentModels();
-  const newModel: DocumentModel = { ...model, id: Date.now().toString(), order: models.length };
+  const newModel: DocumentModel = { ...model, id: Date.now().toString(), order: models.length, enabled: model.enabled !== undefined ? model.enabled : true };
   models.push(newModel);
   saveDocumentModels(models);
   return newModel;
+};
+
+export const updateDocumentModel = (id: string, updates: Partial<DocumentModel>): void => {
+  const models = getDocumentModels();
+  const index = models.findIndex(m => m.id === id);
+  if (index !== -1) {
+    models[index] = { ...models[index], ...updates };
+    saveDocumentModels(models);
+  }
 };
 
 export const deleteDocumentModel = (id: string): void => {

@@ -39,17 +39,19 @@ const Navbar = memo(() => {
 
   return (
     <nav className="glass-panel px-4 lg:px-6 py-3 flex items-center justify-between mb-6 shadow-xl relative overflow-hidden">
-      {/* Moroccan FAR Diagonal Stripes - positioned in corner */}
-      <div 
-        className="absolute -top-4 -left-4 w-20 h-20 pointer-events-none"
-        style={{
-          background: 'linear-gradient(135deg, transparent 30%, #c1272d 30%, #c1272d 50%, #165b33 50%, #165b33 70%, transparent 70%)',
-        }}
-      />
+      {/* Moroccan FAR Diagonal Stripes - thin lines on right side */}
+      <div className="absolute top-0 right-0 h-full w-16 pointer-events-none overflow-hidden">
+        <div 
+          className="absolute inset-0"
+          style={{
+            background: 'linear-gradient(135deg, transparent 0%, transparent 40%, #c1272d 40%, #c1272d 48%, transparent 48%, transparent 52%, #165b33 52%, #165b33 60%, transparent 60%, transparent 100%)',
+          }}
+        />
+      </div>
       
       <div className="flex items-center gap-3 lg:gap-6 relative z-10">
         {/* Logo */}
-        <Link to="/accueil" className="flex items-center gap-3 group ml-8" onClick={handleNavClick}>
+        <Link to="/accueil" className="flex items-center gap-3 group" onClick={handleNavClick}>
           <div className="w-11 h-11 flex items-center justify-center">
             <img src={currentLogo} alt="CSM Logo" className="w-9 h-9 object-contain drop-shadow-lg" loading="lazy" />
           </div>

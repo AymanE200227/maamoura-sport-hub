@@ -41,6 +41,7 @@ import {
   deleteStudentsByPromo,
   getDocumentModels,
   addDocumentModel,
+  updateDocumentModel,
   deleteDocumentModel,
   getModelFilesByModel,
   addModelFile,
@@ -402,11 +403,18 @@ const Parametres = () => {
       toast({ title: 'Erreur', description: 'Le nom est requis', variant: 'destructive' });
       return;
     }
-    addDocumentModel({ name: modelForm.name, description: modelForm.description });
+    addDocumentModel({ name: modelForm.name, description: modelForm.description, enabled: true });
     toast({ title: 'Modèle ajouté' });
     loadData();
     setShowAddModel(false);
     setModelForm({ name: '', description: '' });
+  };
+
+  const handleToggleDocumentModel = (model: DocumentModel) => {
+    playClick();
+    updateDocumentModel(model.id, { enabled: !model.enabled });
+    toast({ title: model.enabled ? 'Modèle désactivé' : 'Modèle activé' });
+    loadData();
   };
 
   const handleDeleteDocumentModel = (id: string) => {
@@ -427,9 +435,19 @@ const Parametres = () => {
     const file = e.target.files?.[0];
     if (!file) return;
     
+    // Check file size (max 10MB)
+    const maxSize = 10 * 1024 * 1024;
+    if (file.size > maxSize) {
+      toast({ title: 'Erreur', description: 'Fichier trop volumineux (max 10 Mo)', variant: 'destructive' });
+      if (modelFileInputRef.current) modelFileInputRef.current.value = '';
+      return;
+    }
+    
     let fileType: 'ppt' | 'word' | 'pdf' = 'pdf';
-    if (file.name.endsWith('.ppt') || file.name.endsWith('.pptx')) fileType = 'ppt';
-    else if (file.name.endsWith('.doc') || file.name.endsWith('.docx')) fileType = 'word';
+    const fileName = file.name.toLowerCase();
+    if (fileName.endsWith('.ppt') || fileName.endsWith('.pptx')) fileType = 'ppt';
+    else if (fileName.endsWith('.doc') || fileName.endsWith('.docx')) fileType = 'word';
+    else if (fileName.endsWith('.pdf')) fileType = 'pdf';
     
     const reader = new FileReader();
     reader.onload = () => {
@@ -439,28 +457,45 @@ const Parametres = () => {
         fileData: reader.result as string,
         type: fileType
       }));
+      toast({ title: 'Fichier sélectionné', description: file.name });
+    };
+    reader.onerror = () => {
+      toast({ title: 'Erreur', description: 'Impossible de lire le fichier', variant: 'destructive' });
     };
     reader.readAsDataURL(file);
   };
 
   const handleSaveModelFile = () => {
     playClick();
-    if (!selectedModel || !modelFileForm.title || !modelFileForm.fileData) {
-      toast({ title: 'Erreur', description: 'Titre et fichier requis', variant: 'destructive' });
+    if (!selectedModel) {
+      toast({ title: 'Erreur', description: 'Aucun modèle sélectionné', variant: 'destructive' });
       return;
     }
-    addModelFile({
-      modelId: selectedModel.id,
-      title: modelFileForm.title,
-      description: modelFileForm.description,
-      type: modelFileForm.type,
-      fileName: modelFileForm.fileName,
-      fileData: modelFileForm.fileData
-    });
-    toast({ title: 'Fichier ajouté' });
-    setModelFiles(getModelFilesByModel(selectedModel.id));
-    setShowAddModelFile(false);
-    setModelFileForm({ title: '', description: '', type: 'pdf', fileName: '', fileData: '' });
+    if (!modelFileForm.title) {
+      toast({ title: 'Erreur', description: 'Le titre est requis', variant: 'destructive' });
+      return;
+    }
+    if (!modelFileForm.fileData) {
+      toast({ title: 'Erreur', description: 'Veuillez sélectionner un fichier', variant: 'destructive' });
+      return;
+    }
+    try {
+      addModelFile({
+        modelId: selectedModel.id,
+        title: modelFileForm.title,
+        description: modelFileForm.description,
+        type: modelFileForm.type,
+        fileName: modelFileForm.fileName,
+        fileData: modelFileForm.fileData
+      });
+      toast({ title: 'Fichier ajouté avec succès' });
+      setModelFiles(getModelFilesByModel(selectedModel.id));
+      setShowAddModelFile(false);
+      setModelFileForm({ title: '', description: '', type: 'pdf', fileName: '', fileData: '' });
+      if (modelFileInputRef.current) modelFileInputRef.current.value = '';
+    } catch (error) {
+      toast({ title: 'Erreur', description: 'Échec de l\'enregistrement (stockage plein?)', variant: 'destructive' });
+    }
   };
 
   const handleDeleteModelFile = (id: string) => {
@@ -1138,21 +1173,36 @@ const Parametres = () => {
                 
                 <div className="p-4 space-y-2 max-h-[500px] overflow-y-auto">
                   {documentModels.sort((a, b) => a.order - b.order).map((model) => (
-                    <button
+                    <div
                       key={model.id}
-                      onClick={() => handleSelectModel(model)}
-                      className={`w-full text-left p-3 rounded-xl transition-all flex items-center gap-3 ${
+                      className={`w-full p-3 rounded-xl transition-all flex items-center gap-3 ${
                         selectedModel?.id === model.id 
                           ? 'bg-primary/20 border border-primary/40' 
                           : 'hover:bg-muted/30 border border-transparent'
-                      }`}
+                      } ${!model.enabled ? 'opacity-50' : ''}`}
                     >
-                      <FileText className="w-5 h-5 text-primary shrink-0" />
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium truncate">{model.name}</p>
-                        {model.description && <p className="text-xs text-muted-foreground truncate">{model.description}</p>}
-                      </div>
-                    </button>
+                      <button 
+                        onClick={() => handleSelectModel(model)}
+                        className="flex-1 flex items-center gap-3 text-left"
+                      >
+                        <FileText className={`w-5 h-5 shrink-0 ${model.enabled ? 'text-primary' : 'text-muted-foreground'}`} />
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium truncate">{model.name}</p>
+                          {model.description && <p className="text-xs text-muted-foreground truncate">{model.description}</p>}
+                        </div>
+                      </button>
+                      <button 
+                        onClick={(e) => { e.stopPropagation(); handleToggleDocumentModel(model); }}
+                        className="p-1.5 hover:bg-muted/50 rounded-lg shrink-0"
+                        title={model.enabled ? 'Désactiver' : 'Activer'}
+                      >
+                        {model.enabled ? (
+                          <ToggleRight className="w-5 h-5 text-success" />
+                        ) : (
+                          <ToggleLeft className="w-5 h-5 text-muted-foreground" />
+                        )}
+                      </button>
+                    </div>
                   ))}
                 </div>
               </div>
@@ -1265,17 +1315,31 @@ const Parametres = () => {
                         <input value={modelFileForm.description} onChange={(e) => setModelFileForm(p => ({ ...p, description: e.target.value }))} className="glass-input w-full p-3" placeholder="Description" />
                       </div>
                       <div>
-                        <label className="text-sm font-medium mb-1 block">Fichier *</label>
-                        <label className="btn-primary w-full py-3 flex items-center justify-center gap-2 cursor-pointer">
-                          <Upload className="w-4 h-4" /> 
-                          {modelFileForm.fileName || 'Sélectionner fichier'}
-                          <input ref={modelFileInputRef} type="file" accept=".pdf,.doc,.docx,.ppt,.pptx" onChange={handleModelFileUpload} className="hidden" />
+                        <label className="text-sm font-medium mb-1 block">Fichier * (max 10 Mo)</label>
+                        <label className={`w-full py-3 flex items-center justify-center gap-2 cursor-pointer rounded-xl transition-all ${
+                          modelFileForm.fileData 
+                            ? 'bg-success/20 border-2 border-success/50 text-success' 
+                            : 'btn-primary'
+                        }`}>
+                          {modelFileForm.fileData ? <Check className="w-4 h-4" /> : <Upload className="w-4 h-4" />}
+                          <span className="truncate max-w-[200px]">{modelFileForm.fileName || 'Sélectionner fichier'}</span>
+                          <input ref={modelFileInputRef} type="file" accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt,.rtf,.odt,.odp,.ods" onChange={handleModelFileUpload} className="hidden" />
                         </label>
                       </div>
                     </div>
                     <div className="flex gap-3 p-6 pt-4 border-t border-border/30 shrink-0 bg-background/50">
-                      <button onClick={handleSaveModelFile} className="btn-success flex-1 py-3">Enregistrer</button>
-                      <button onClick={() => setShowAddModelFile(false)} className="btn-ghost border border-border py-3 px-6">Annuler</button>
+                      <button 
+                        onClick={handleSaveModelFile} 
+                        disabled={!modelFileForm.title || !modelFileForm.fileData}
+                        className={`flex-1 py-3 rounded-xl font-medium transition-all flex items-center justify-center gap-2 ${
+                          modelFileForm.title && modelFileForm.fileData
+                            ? 'btn-success'
+                            : 'bg-muted text-muted-foreground cursor-not-allowed'
+                        }`}
+                      >
+                        <Check className="w-4 h-4" /> Enregistrer
+                      </button>
+                      <button onClick={() => { setShowAddModelFile(false); setModelFileForm({ title: '', description: '', type: 'pdf', fileName: '', fileData: '' }); }} className="btn-ghost border border-border py-3 px-6">Annuler</button>
                     </div>
                   </div>
                 </div>
