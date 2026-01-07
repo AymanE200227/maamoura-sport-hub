@@ -2,15 +2,17 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   GraduationCap, BookOpen, FileText, Download, ChevronRight,
-  Calendar, User, Award, Layers, File, Shield
+  Calendar, User, Award, Layers, File, Shield, Loader2
 } from 'lucide-react';
 import Layout from '@/components/Layout';
 import { 
   getUserMode, getStudentAccounts, getPromos, getCourseTypes,
-  getSportCourses, getDocumentModels, getModelFilesByModel, getStages
+  getSportCourses, getDocumentModels, getModelFilesByModel, getStages,
+  getModelFileDataAsync
 } from '@/lib/storage';
 import { StudentAccount, Promo, DocumentModel, ModelFile, CourseType } from '@/types';
 import { useClickSound } from '@/hooks/useClickSound';
+import { useToast } from '@/hooks/use-toast';
 import bgImage from '@/assets/bg2.jpg';
 import logoOfficial from '@/assets/logo-official.png';
 
@@ -18,8 +20,10 @@ const StudentDashboard = () => {
   const navigate = useNavigate();
   const userMode = getUserMode();
   const { playClick } = useClickSound();
+  const { toast } = useToast();
   const [selectedModelId, setSelectedModelId] = useState<string | null>(null);
   const [modelFiles, setModelFiles] = useState<ModelFile[]>([]);
+  const [isDownloading, setIsDownloading] = useState<string | null>(null);
 
   // Get current student data (in real app would use session)
   const currentStudent = useMemo(() => {
@@ -34,7 +38,7 @@ const StudentDashboard = () => {
   }, [currentStudent]);
 
   const courseTypes = useMemo(() => getCourseTypes(), []);
-  const documentModels = useMemo(() => getDocumentModels(), []);
+  const documentModels = useMemo(() => getDocumentModels().filter(m => m.enabled !== false), []);
   const stages = useMemo(() => getStages().filter(s => s.enabled), []);
   const courses = useMemo(() => getSportCourses(), []);
 
@@ -51,15 +55,29 @@ const StudentDashboard = () => {
     setModelFiles(getModelFilesByModel(model.id));
   }, [playClick]);
 
-  const handleDownloadFile = useCallback((file: ModelFile) => {
+  const handleDownloadFile = useCallback(async (file: ModelFile) => {
     playClick();
-    const link = document.createElement('a');
-    link.href = file.fileData;
-    link.download = file.fileName;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  }, [playClick]);
+    setIsDownloading(file.id);
+    try {
+      const fileData = await getModelFileDataAsync(file.id);
+      if (!fileData) {
+        toast({ title: 'Fichier non disponible', variant: 'destructive' });
+        return;
+      }
+      const link = document.createElement('a');
+      link.href = fileData;
+      link.download = file.fileName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      toast({ title: 'Téléchargement lancé' });
+    } catch (error) {
+      console.error('Error downloading file:', error);
+      toast({ title: 'Erreur de téléchargement', variant: 'destructive' });
+    } finally {
+      setIsDownloading(null);
+    }
+  }, [playClick, toast]);
 
   const handleCourseClick = useCallback((typeId: string) => {
     playClick();
@@ -232,8 +250,8 @@ const StudentDashboard = () => {
               {modelFiles.map((file) => (
                 <div
                   key={file.id}
-                  className="file-item group"
-                  onClick={() => handleDownloadFile(file)}
+                  className={`file-item group ${isDownloading === file.id ? 'opacity-70' : ''}`}
+                  onClick={() => !isDownloading && handleDownloadFile(file)}
                 >
                   <div className={`file-icon ${getFileIcon(file.type)}`}>
                     <File className="w-6 h-6" />
@@ -242,7 +260,11 @@ const StudentDashboard = () => {
                     <p className="font-medium truncate">{file.title}</p>
                     <p className="text-xs text-muted-foreground truncate">{file.fileName}</p>
                   </div>
-                  <Download className="w-5 h-5 text-muted-foreground group-hover:text-primary transition-colors" />
+                  {isDownloading === file.id ? (
+                    <Loader2 className="w-5 h-5 text-primary animate-spin" />
+                  ) : (
+                    <Download className="w-5 h-5 text-muted-foreground group-hover:text-primary transition-colors" />
+                  )}
                 </div>
               ))}
             </div>
