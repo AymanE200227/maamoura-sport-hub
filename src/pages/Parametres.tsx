@@ -139,7 +139,7 @@ const Parametres = () => {
   // Promos state
   const [promos, setPromos] = useState<Promo[]>([]);
   const [showAddPromo, setShowAddPromo] = useState(false);
-  const [promoForm, setPromoForm] = useState({ name: '', year: new Date().getFullYear(), level: 1 });
+  const [promoForm, setPromoForm] = useState({ year: new Date().getFullYear(), level: 1 });
   const [showAssignPromo, setShowAssignPromo] = useState(false);
   const [selectedPromoForAssign, setSelectedPromoForAssign] = useState<string>('');
   const [selectedStudentsForPromo, setSelectedStudentsForPromo] = useState<string[]>([]);
@@ -349,15 +349,15 @@ const Parametres = () => {
   // Promo handlers
   const handleAddPromo = () => {
     playClick();
-    if (!promoForm.name) {
-      toast({ title: 'Erreur', description: 'Le nom est requis', variant: 'destructive' });
-      return;
-    }
-    addPromo({ name: promoForm.name, year: promoForm.year, level: promoForm.level });
-    toast({ title: 'Promotion ajoutée' });
+    // Auto-generate name from year and level
+    const levelText = promoForm.level === 1 ? '1ère année' : '2ème année';
+    const autoName = `Promotion ${levelText} ${promoForm.year}`;
+    
+    addPromo({ name: autoName, year: promoForm.year, level: promoForm.level });
+    toast({ title: 'Promotion ajoutée', description: autoName });
     loadData();
     setShowAddPromo(false);
-    setPromoForm({ name: '', year: new Date().getFullYear(), level: 1 });
+    setPromoForm({ year: new Date().getFullYear(), level: 1 });
   };
 
   const handleDeletePromo = (id: string) => {
@@ -1046,10 +1046,9 @@ const Parametres = () => {
                       <button onClick={() => setShowAddPromo(false)} className="p-2 hover:bg-muted rounded-lg"><X className="w-5 h-5" /></button>
                     </div>
                     <div className="flex-1 overflow-y-auto p-6 space-y-4">
-                      <div>
-                        <label className="text-sm font-medium mb-1 block">Nom de la promotion *</label>
-                        <input value={promoForm.name} onChange={(e) => setPromoForm(p => ({ ...p, name: e.target.value }))} className="glass-input w-full p-3" placeholder="Ex: Promotion 1ère année 2025" />
-                      </div>
+                      <p className="text-sm text-muted-foreground p-3 bg-primary/10 rounded-lg border border-primary/20">
+                        Le nom sera généré automatiquement: <strong className="gold-text">Promotion {promoForm.level === 1 ? '1ère année' : '2ème année'} {promoForm.year}</strong>
+                      </p>
                       <div className="grid grid-cols-2 gap-4">
                         <div>
                           <label className="text-sm font-medium mb-1 block">Année</label>

@@ -9,6 +9,7 @@ import LoadingScreen from "./components/LoadingScreen";
 // Lazy load pages for better performance
 const Login = lazy(() => import("./pages/Login"));
 const Accueil = lazy(() => import("./pages/Accueil"));
+const StudentDashboard = lazy(() => import("./pages/StudentDashboard"));
 const CoursDetail = lazy(() => import("./pages/CoursDetail"));
 const CoursContent = lazy(() => import("./pages/CoursContent"));
 const GestionCours = lazy(() => import("./pages/GestionCours"));
@@ -34,6 +35,7 @@ const App = () => (
           <Routes>
             <Route path="/" element={<Login />} />
             <Route path="/accueil" element={<Accueil />} />
+            <Route path="/dashboard" element={<StudentDashboard />} />
             <Route path="/cours/:typeId" element={<CoursDetail />} />
             <Route path="/cours/:typeId/stage/:stageId/course/:courseId" element={<CoursContent />} />
             <Route path="/gestion-cours" element={<GestionCours />} />
