@@ -5,7 +5,8 @@ import {
   RotateCcw, FolderArchive, GraduationCap, Settings, Trash2, Edit, Plus, 
   FileSpreadsheet, Layers, ToggleLeft, ToggleRight, X, Palette, ImagePlus,
   Monitor, Image as ImageIcon, FileText, ArrowUpCircle, UserCheck, File,
-  Presentation, FileType
+  Presentation, FileType, BookOpen, ChevronRight, Lightbulb, Sparkles,
+  Shield, Database, HelpCircle
 } from 'lucide-react';
 import Layout from '@/components/Layout';
 import { 
@@ -95,8 +96,11 @@ const Parametres = () => {
   const modelFileInputRef = useRef<HTMLInputElement>(null);
   const [isExporting, setIsExporting] = useState(false);
   
-  // Active section
-  const [activeSection, setActiveSection] = useState<'security' | 'accounts' | 'promos' | 'models' | 'stages' | 'appearance' | 'data'>('security');
+  // Active section - default to guide for first-time users
+  const [activeSection, setActiveSection] = useState<'security' | 'accounts' | 'promos' | 'models' | 'stages' | 'appearance' | 'data' | 'guide'>('guide');
+  
+  // Search state for assign modal
+  const [assignSearchTerm, setAssignSearchTerm] = useState('');
   
   // Admin password state
   const [currentPassword, setCurrentPassword] = useState('');
@@ -682,6 +686,7 @@ const Parametres = () => {
   const currentLogo = appSettings.customLogo || logoOfficial;
 
   const sections = [
+    { id: 'guide' as const, label: 'Guide', icon: BookOpen },
     { id: 'security' as const, label: 'Sécurité', icon: Lock },
     { id: 'accounts' as const, label: 'Comptes', icon: GraduationCap },
     { id: 'promos' as const, label: 'Promotions', icon: UserCheck },
@@ -1118,52 +1123,146 @@ const Parametres = () => {
               )}
 
               {/* Assign Students Modal */}
-              {showAssignPromo && (
-                <div className="fixed inset-0 bg-background/80 backdrop-blur-sm flex items-start justify-center p-4 overflow-y-auto" style={{ zIndex: 9999 }}>
-                  <div className="glass-card w-full max-w-2xl animate-scale-in my-8 flex flex-col shadow-2xl border border-border/50">
-                    <div className="flex items-center justify-between p-6 pb-4 border-b border-border/30 shrink-0">
-                      <h3 className="text-lg font-semibold">Assigner à une Promotion</h3>
-                      <button onClick={() => setShowAssignPromo(false)} className="p-2 hover:bg-muted rounded-lg"><X className="w-5 h-5" /></button>
-                    </div>
-                    <div className="flex-1 overflow-y-auto p-6 space-y-4 max-h-[60vh]">
-                      <div>
-                        <label className="text-sm font-medium mb-2 block">Sélectionner la promotion</label>
-                        <select value={selectedPromoForAssign} onChange={(e) => setSelectedPromoForAssign(e.target.value)} className="glass-input w-full p-3">
-                          <option value="">-- Choisir --</option>
-                          {promos.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                        </select>
+              {showAssignPromo && (() => {
+                const unassignedStudents = studentAccounts.filter(s => !s.promoId);
+                const filteredUnassigned = unassignedStudents.filter(s => 
+                  assignSearchTerm === '' ||
+                  s.matricule.toLowerCase().includes(assignSearchTerm.toLowerCase()) ||
+                  s.nom?.toLowerCase().includes(assignSearchTerm.toLowerCase()) ||
+                  s.prenom?.toLowerCase().includes(assignSearchTerm.toLowerCase())
+                );
+                const allFilteredSelected = filteredUnassigned.length > 0 && 
+                  filteredUnassigned.every(s => selectedStudentsForPromo.includes(s.id));
+                
+                return (
+                  <div className="fixed inset-0 bg-background/80 backdrop-blur-sm flex items-start justify-center p-4 overflow-y-auto" style={{ zIndex: 9999 }}>
+                    <div className="glass-card w-full max-w-2xl animate-scale-in my-8 flex flex-col shadow-2xl border border-border/50">
+                      <div className="flex items-center justify-between p-6 pb-4 border-b border-border/30 shrink-0">
+                        <h3 className="text-lg font-semibold">Assigner à une Promotion</h3>
+                        <button onClick={() => { setShowAssignPromo(false); setAssignSearchTerm(''); }} className="p-2 hover:bg-muted rounded-lg"><X className="w-5 h-5" /></button>
                       </div>
-                      <div>
-                        <label className="text-sm font-medium mb-2 block">Sélectionner les élèves ({selectedStudentsForPromo.length} sélectionnés)</label>
-                        <div className="max-h-60 overflow-y-auto border border-border/30 rounded-xl p-2 space-y-1">
-                          {studentAccounts.filter(s => !s.promoId).map(student => (
-                            <label key={student.id} className="flex items-center gap-3 p-2 hover:bg-muted/30 rounded-lg cursor-pointer">
-                              <input 
-                                type="checkbox" 
-                                checked={selectedStudentsForPromo.includes(student.id)}
-                                onChange={(e) => {
-                                  if (e.target.checked) {
-                                    setSelectedStudentsForPromo(prev => [...prev, student.id]);
-                                  } else {
-                                    setSelectedStudentsForPromo(prev => prev.filter(id => id !== student.id));
-                                  }
-                                }}
-                                className="w-4 h-4"
-                              />
-                              <span className="font-mono text-sm gold-text">{student.matricule}</span>
-                              <span className="text-sm">{student.nom} {student.prenom}</span>
+                      <div className="flex-1 overflow-y-auto p-6 space-y-4 max-h-[60vh]">
+                        <div>
+                          <label className="text-sm font-medium mb-2 block">Sélectionner la promotion</label>
+                          <select value={selectedPromoForAssign} onChange={(e) => setSelectedPromoForAssign(e.target.value)} className="glass-input w-full p-3">
+                            <option value="">-- Choisir --</option>
+                            {promos.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                          </select>
+                        </div>
+                        <div>
+                          <div className="flex items-center justify-between mb-3">
+                            <label className="text-sm font-medium">
+                              Sélectionner les élèves 
+                              <span className="ml-2 px-2 py-0.5 bg-primary/20 rounded-full text-xs">
+                                {selectedStudentsForPromo.length} / {unassignedStudents.length}
+                              </span>
                             </label>
-                          ))}
+                            <button
+                              onClick={() => {
+                                if (allFilteredSelected) {
+                                  // Deselect all filtered
+                                  setSelectedStudentsForPromo(prev => 
+                                    prev.filter(id => !filteredUnassigned.some(s => s.id === id))
+                                  );
+                                } else {
+                                  // Select all filtered
+                                  const filteredIds = filteredUnassigned.map(s => s.id);
+                                  setSelectedStudentsForPromo(prev => [...new Set([...prev, ...filteredIds])]);
+                                }
+                              }}
+                              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${
+                                allFilteredSelected 
+                                  ? 'bg-destructive/20 text-destructive hover:bg-destructive/30' 
+                                  : 'bg-success/20 text-success hover:bg-success/30'
+                              }`}
+                            >
+                              {allFilteredSelected ? (
+                                <>
+                                  <X className="w-4 h-4" />
+                                  Désélectionner tout
+                                </>
+                              ) : (
+                                <>
+                                  <Check className="w-4 h-4" />
+                                  Sélectionner tout ({filteredUnassigned.length})
+                                </>
+                              )}
+                            </button>
+                          </div>
+                          
+                          {/* Search input */}
+                          <div className="relative mb-3">
+                            <input
+                              type="text"
+                              placeholder="Rechercher par matricule, nom..."
+                              value={assignSearchTerm}
+                              onChange={(e) => setAssignSearchTerm(e.target.value)}
+                              className="glass-input w-full pl-10 pr-4 py-2.5"
+                            />
+                            <Users className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                          </div>
+                          
+                          <div className="max-h-72 overflow-y-auto border border-border/30 rounded-xl divide-y divide-border/20">
+                            {filteredUnassigned.length === 0 ? (
+                              <p className="text-center text-muted-foreground py-8">
+                                {assignSearchTerm ? 'Aucun résultat' : 'Aucun élève non assigné'}
+                              </p>
+                            ) : (
+                              filteredUnassigned.map(student => (
+                                <label 
+                                  key={student.id} 
+                                  className={`flex items-center gap-4 p-3 cursor-pointer transition-all ${
+                                    selectedStudentsForPromo.includes(student.id) 
+                                      ? 'bg-primary/10' 
+                                      : 'hover:bg-muted/30'
+                                  }`}
+                                >
+                                  <input 
+                                    type="checkbox" 
+                                    checked={selectedStudentsForPromo.includes(student.id)}
+                                    onChange={(e) => {
+                                      if (e.target.checked) {
+                                        setSelectedStudentsForPromo(prev => [...prev, student.id]);
+                                      } else {
+                                        setSelectedStudentsForPromo(prev => prev.filter(id => id !== student.id));
+                                      }
+                                    }}
+                                    className="w-5 h-5 rounded border-2 border-primary/50 text-primary focus:ring-primary"
+                                  />
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-2">
+                                      <span className="font-mono text-sm gold-text font-semibold">{student.matricule}</span>
+                                      {student.grade && (
+                                        <span className="px-2 py-0.5 bg-muted rounded text-xs">{student.grade}</span>
+                                      )}
+                                    </div>
+                                    <p className="text-sm text-muted-foreground truncate">
+                                      {student.nom} {student.prenom}
+                                    </p>
+                                  </div>
+                                  {selectedStudentsForPromo.includes(student.id) && (
+                                    <Check className="w-5 h-5 text-success shrink-0" />
+                                  )}
+                                </label>
+                              ))
+                            )}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                    <div className="flex gap-3 p-6 pt-4 border-t border-border/30 shrink-0 bg-background/50">
-                      <button onClick={handleAssignStudentsToPromo} className="btn-success flex-1 py-3">Assigner</button>
-                      <button onClick={() => setShowAssignPromo(false)} className="btn-ghost border border-border py-3 px-6">Annuler</button>
+                      <div className="flex gap-3 p-6 pt-4 border-t border-border/30 shrink-0 bg-background/50">
+                        <button 
+                          onClick={handleAssignStudentsToPromo} 
+                          disabled={!selectedPromoForAssign || selectedStudentsForPromo.length === 0}
+                          className="btn-success flex-1 py-3 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          Assigner {selectedStudentsForPromo.length} élève{selectedStudentsForPromo.length > 1 ? 's' : ''}
+                        </button>
+                        <button onClick={() => { setShowAssignPromo(false); setAssignSearchTerm(''); }} className="btn-ghost border border-border py-3 px-6">Annuler</button>
+                      </div>
                     </div>
                   </div>
-                </div>
-              )}
+                );
+              })()}
             </div>
           )}
 
@@ -1608,6 +1707,195 @@ const Parametres = () => {
                 <p className="text-sm text-destructive flex items-center gap-2">
                   <span className="font-bold">⚠️ Attention:</span> L'importation remplacera toutes les données existantes.
                 </p>
+              </div>
+            </div>
+          )}
+
+          {/* Guide Section */}
+          {activeSection === 'guide' && (
+            <div className="space-y-6">
+              {/* Welcome Card */}
+              <div className="glass-panel p-8 text-center">
+                <div className="w-20 h-20 mx-auto mb-6 rounded-3xl bg-gradient-gold flex items-center justify-center shadow-gold animate-float">
+                  <Sparkles className="w-10 h-10 text-primary-foreground" />
+                </div>
+                <h2 className="text-3xl font-bold mb-3">Bienvenue sur CSM</h2>
+                <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
+                  Centre Sportif Militaire - Votre plateforme de gestion des cours, élèves et promotions
+                </p>
+              </div>
+
+              {/* Quick Start Guide */}
+              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {/* Step 1 */}
+                <div className="glass-card p-6 group hover:border-primary/40 transition-all">
+                  <div className="flex items-start gap-4">
+                    <div className="w-12 h-12 rounded-xl bg-primary/20 flex items-center justify-center shrink-0 group-hover:bg-gradient-gold group-hover:shadow-gold transition-all">
+                      <span className="text-lg font-bold gold-text group-hover:text-primary-foreground">1</span>
+                    </div>
+                    <div>
+                      <h3 className="font-bold mb-2 flex items-center gap-2">
+                        <GraduationCap className="w-5 h-5 text-primary" />
+                        Créer les Comptes
+                      </h3>
+                      <p className="text-sm text-muted-foreground">
+                        Importez vos élèves via Excel ou ajoutez-les manuellement dans l'onglet <strong>Comptes</strong>
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Step 2 */}
+                <div className="glass-card p-6 group hover:border-primary/40 transition-all">
+                  <div className="flex items-start gap-4">
+                    <div className="w-12 h-12 rounded-xl bg-primary/20 flex items-center justify-center shrink-0 group-hover:bg-gradient-gold group-hover:shadow-gold transition-all">
+                      <span className="text-lg font-bold gold-text group-hover:text-primary-foreground">2</span>
+                    </div>
+                    <div>
+                      <h3 className="font-bold mb-2 flex items-center gap-2">
+                        <UserCheck className="w-5 h-5 text-success" />
+                        Gérer les Promotions
+                      </h3>
+                      <p className="text-sm text-muted-foreground">
+                        Créez des promotions et assignez les élèves dans l'onglet <strong>Promotions</strong>
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Step 3 */}
+                <div className="glass-card p-6 group hover:border-primary/40 transition-all">
+                  <div className="flex items-start gap-4">
+                    <div className="w-12 h-12 rounded-xl bg-primary/20 flex items-center justify-center shrink-0 group-hover:bg-gradient-gold group-hover:shadow-gold transition-all">
+                      <span className="text-lg font-bold gold-text group-hover:text-primary-foreground">3</span>
+                    </div>
+                    <div>
+                      <h3 className="font-bold mb-2 flex items-center gap-2">
+                        <Layers className="w-5 h-5 text-accent" />
+                        Configurer les Stages
+                      </h3>
+                      <p className="text-sm text-muted-foreground">
+                        Activez ou désactivez les stages disponibles dans l'onglet <strong>Stages</strong>
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Step 4 */}
+                <div className="glass-card p-6 group hover:border-primary/40 transition-all">
+                  <div className="flex items-start gap-4">
+                    <div className="w-12 h-12 rounded-xl bg-primary/20 flex items-center justify-center shrink-0 group-hover:bg-gradient-gold group-hover:shadow-gold transition-all">
+                      <span className="text-lg font-bold gold-text group-hover:text-primary-foreground">4</span>
+                    </div>
+                    <div>
+                      <h3 className="font-bold mb-2 flex items-center gap-2">
+                        <FileText className="w-5 h-5 text-blue-400" />
+                        Ajouter des Modèles
+                      </h3>
+                      <p className="text-sm text-muted-foreground">
+                        Uploadez vos modèles de documents (Word, PDF, PPT) dans <strong>Modèles</strong>
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Step 5 */}
+                <div className="glass-card p-6 group hover:border-primary/40 transition-all">
+                  <div className="flex items-start gap-4">
+                    <div className="w-12 h-12 rounded-xl bg-primary/20 flex items-center justify-center shrink-0 group-hover:bg-gradient-gold group-hover:shadow-gold transition-all">
+                      <span className="text-lg font-bold gold-text group-hover:text-primary-foreground">5</span>
+                    </div>
+                    <div>
+                      <h3 className="font-bold mb-2 flex items-center gap-2">
+                        <Settings className="w-5 h-5 text-orange-400" />
+                        Gérer les Cours
+                      </h3>
+                      <p className="text-sm text-muted-foreground">
+                        Ajoutez des catégories et des cours depuis la page <strong>Accueil</strong>
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Step 6 */}
+                <div className="glass-card p-6 group hover:border-primary/40 transition-all">
+                  <div className="flex items-start gap-4">
+                    <div className="w-12 h-12 rounded-xl bg-primary/20 flex items-center justify-center shrink-0 group-hover:bg-gradient-gold group-hover:shadow-gold transition-all">
+                      <span className="text-lg font-bold gold-text group-hover:text-primary-foreground">6</span>
+                    </div>
+                    <div>
+                      <h3 className="font-bold mb-2 flex items-center gap-2">
+                        <Database className="w-5 h-5 text-purple-400" />
+                        Sauvegarder les Données
+                      </h3>
+                      <p className="text-sm text-muted-foreground">
+                        Exportez régulièrement vos données via l'onglet <strong>Données</strong>
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Features Overview */}
+              <div className="glass-card overflow-hidden">
+                <div className="p-4 bg-gradient-gold border-b border-primary/20">
+                  <h2 className="text-lg font-bold flex items-center gap-2 text-primary-foreground">
+                    <Lightbulb className="w-5 h-5" />
+                    Fonctionnalités Principales
+                  </h2>
+                </div>
+                <div className="p-6 grid md:grid-cols-2 gap-4">
+                  <div className="flex items-start gap-3 p-4 bg-muted/20 rounded-xl">
+                    <Shield className="w-6 h-6 text-success shrink-0 mt-0.5" />
+                    <div>
+                      <h4 className="font-semibold mb-1">Accès Sécurisé</h4>
+                      <p className="text-sm text-muted-foreground">
+                        3 modes d'accès: Admin (gestion complète), Utilisateur (consultation), Élève (accès personnel)
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3 p-4 bg-muted/20 rounded-xl">
+                    <FileSpreadsheet className="w-6 h-6 text-primary shrink-0 mt-0.5" />
+                    <div>
+                      <h4 className="font-semibold mb-1">Import Excel</h4>
+                      <p className="text-sm text-muted-foreground">
+                        Importez des centaines d'élèves en un clic via fichier Excel/CSV
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3 p-4 bg-muted/20 rounded-xl">
+                    <FolderArchive className="w-6 h-6 text-accent shrink-0 mt-0.5" />
+                    <div>
+                      <h4 className="font-semibold mb-1">Stockage Illimité</h4>
+                      <p className="text-sm text-muted-foreground">
+                        Aucune limite de taille ou de nombre de fichiers grâce à IndexedDB
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3 p-4 bg-muted/20 rounded-xl">
+                    <Palette className="w-6 h-6 text-pink-400 shrink-0 mt-0.5" />
+                    <div>
+                      <h4 className="font-semibold mb-1">Personnalisation</h4>
+                      <p className="text-sm text-muted-foreground">
+                        Changez le fond d'écran, le logo et les sons selon vos préférences
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Tips */}
+              <div className="glass-card p-6 border-l-4 border-l-primary">
+                <div className="flex items-start gap-4">
+                  <HelpCircle className="w-8 h-8 text-primary shrink-0" />
+                  <div>
+                    <h3 className="font-bold mb-2">Astuce Rapide</h3>
+                    <p className="text-muted-foreground">
+                      Utilisez le bouton <strong>"Sélectionner tout"</strong> dans la fenêtre d'assignation pour assigner rapidement tous les élèves à une promotion. 
+                      Vous pouvez aussi filtrer par nom ou matricule avant de sélectionner.
+                    </p>
+                  </div>
+                </div>
               </div>
             </div>
           )}
