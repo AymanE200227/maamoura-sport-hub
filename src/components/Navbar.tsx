@@ -17,6 +17,19 @@ const playLogoutSound = () => {
   }
 };
 
+// Moroccan FAR diagonal stripes component
+const FARStripes = memo(() => (
+  <div className="relative w-10 h-10 overflow-hidden rounded-lg shrink-0">
+    <div 
+      className="absolute inset-0"
+      style={{
+        background: 'linear-gradient(135deg, #c1272d 0%, #c1272d 40%, #165b33 40%, #165b33 60%, #c1272d 60%, #c1272d 100%)',
+      }}
+    />
+  </div>
+));
+FARStripes.displayName = 'FARStripes';
+
 const Navbar = memo(() => {
   const location = useLocation();
   const navigate = useNavigate();
@@ -40,7 +53,7 @@ const Navbar = memo(() => {
 
   return (
     <nav className="glass-panel px-4 lg:px-6 py-3 flex items-center justify-between mb-6 shadow-xl">
-      <div className="flex items-center gap-4 lg:gap-8">
+      <div className="flex items-center gap-3 lg:gap-6">
         {/* Logo */}
         <Link to="/accueil" className="flex items-center gap-3 group" onClick={handleNavClick}>
           <div className="w-11 h-11 flex items-center justify-center">
@@ -52,21 +65,18 @@ const Navbar = memo(() => {
           </div>
         </Link>
 
-        {/* FAR Badge */}
-        <div className="hidden lg:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-gradient-to-r from-primary/10 to-accent/10 border border-primary/20">
+        {/* FAR Stripes + Badge */}
+        <div className="flex items-center gap-2">
+          <FARStripes />
           <img 
             src={farBadge} 
-            alt="Forces Armées Royales" 
-            className="w-8 h-8 object-contain drop-shadow"
+            alt="FAR" 
+            className="w-9 h-9 object-contain drop-shadow hidden sm:block"
           />
-          <div className="text-xs">
-            <span className="text-primary font-semibold block">القوات المسلحة الملكية</span>
-            <span className="text-muted-foreground">Forces Armées Royales</span>
-          </div>
         </div>
 
         {/* Navigation Links */}
-        <div className="flex items-center gap-4 lg:gap-6">
+        <div className="flex items-center gap-3 lg:gap-5">
           <Link 
             to="/accueil" 
             className={`nav-link ${isActive('/accueil') ? 'nav-link-active' : ''}`}
@@ -95,15 +105,7 @@ const Navbar = memo(() => {
         </div>
       </div>
 
-      <div className="flex items-center gap-2 lg:gap-4">
-        {/* Mobile FAR Badge */}
-        <div className="flex lg:hidden items-center">
-          <img 
-            src={farBadge} 
-            alt="FAR" 
-            className="w-7 h-7 object-contain"
-          />
-        </div>
+      <div className="flex items-center gap-2 lg:gap-3">
         <button 
           className="p-2 hover:bg-muted/50 rounded-lg transition-colors"
           onClick={handleNavClick}

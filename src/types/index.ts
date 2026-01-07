@@ -46,7 +46,33 @@ export interface StudentAccount {
   prenom?: string;
   grade?: string;
   unite?: string;
+  promoId?: string; // Link to promo
   createdAt: string;
+}
+
+export interface Promo {
+  id: string;
+  name: string; // e.g., "Promotion 1ère année 2025"
+  year: number;
+  level: number; // 1 = 1ère année, 2 = 2ème année
+  createdAt: string;
+}
+
+export interface DocumentModel {
+  id: string;
+  name: string; // e.g., "Compte Rendu", "Demande de Permission"
+  description?: string;
+  order: number;
+}
+
+export interface ModelFile {
+  id: string;
+  modelId: string;
+  title: string;
+  description?: string;
+  type: 'ppt' | 'word' | 'pdf';
+  fileName: string;
+  fileData: string;
 }
 
 export interface AppSettings {

@@ -4,7 +4,8 @@ import {
   Lock, Check, Eye, EyeOff, Download, Upload, Users, Volume2, VolumeX, 
   RotateCcw, FolderArchive, GraduationCap, Settings, Trash2, Edit, Plus, 
   FileSpreadsheet, Layers, ToggleLeft, ToggleRight, X, Palette, ImagePlus,
-  Monitor, Image as ImageIcon
+  Monitor, Image as ImageIcon, FileText, ArrowUpCircle, UserCheck, File,
+  Presentation, FileType
 } from 'lucide-react';
 import Layout from '@/components/Layout';
 import { 
@@ -31,7 +32,19 @@ import {
   addStage,
   deleteStage,
   getAppSettings,
-  saveAppSettings
+  saveAppSettings,
+  getPromos,
+  addPromo,
+  deletePromo,
+  promotePromo,
+  assignStudentsToPromo,
+  deleteStudentsByPromo,
+  getDocumentModels,
+  addDocumentModel,
+  deleteDocumentModel,
+  getModelFilesByModel,
+  addModelFile,
+  deleteModelFile
 } from '@/lib/storage';
 import { exportToZip, importFromZip } from '@/lib/zipExport';
 import { 
@@ -43,7 +56,7 @@ import {
 } from '@/hooks/useClickSound';
 import { useToast } from '@/hooks/use-toast';
 import { useClickSound } from '@/hooks/useClickSound';
-import { StudentAccount, Stage, AppSettings } from '@/types';
+import { StudentAccount, Stage, AppSettings, Promo, DocumentModel, ModelFile } from '@/types';
 import * as XLSX from 'xlsx';
 
 // Import all background images
@@ -77,10 +90,11 @@ const Parametres = () => {
   const zipInputRef = useRef<HTMLInputElement>(null);
   const excelInputRef = useRef<HTMLInputElement>(null);
   const logoInputRef = useRef<HTMLInputElement>(null);
+  const modelFileInputRef = useRef<HTMLInputElement>(null);
   const [isExporting, setIsExporting] = useState(false);
   
   // Active section
-  const [activeSection, setActiveSection] = useState<'security' | 'accounts' | 'stages' | 'appearance' | 'data'>('security');
+  const [activeSection, setActiveSection] = useState<'security' | 'accounts' | 'promos' | 'models' | 'stages' | 'appearance' | 'data'>('security');
   
   // Admin password state
   const [currentPassword, setCurrentPassword] = useState('');
@@ -122,6 +136,23 @@ const Parametres = () => {
   const [showAddStage, setShowAddStage] = useState(false);
   const [stageForm, setStageForm] = useState({ name: '', description: '' });
 
+  // Promos state
+  const [promos, setPromos] = useState<Promo[]>([]);
+  const [showAddPromo, setShowAddPromo] = useState(false);
+  const [promoForm, setPromoForm] = useState({ name: '', year: new Date().getFullYear(), level: 1 });
+  const [showAssignPromo, setShowAssignPromo] = useState(false);
+  const [selectedPromoForAssign, setSelectedPromoForAssign] = useState<string>('');
+  const [selectedStudentsForPromo, setSelectedStudentsForPromo] = useState<string[]>([]);
+
+  // Document Models state
+  const [documentModels, setDocumentModels] = useState<DocumentModel[]>([]);
+  const [showAddModel, setShowAddModel] = useState(false);
+  const [modelForm, setModelForm] = useState({ name: '', description: '' });
+  const [selectedModel, setSelectedModel] = useState<DocumentModel | null>(null);
+  const [modelFiles, setModelFiles] = useState<ModelFile[]>([]);
+  const [showAddModelFile, setShowAddModelFile] = useState(false);
+  const [modelFileForm, setModelFileForm] = useState({ title: '', description: '', type: 'pdf' as 'ppt' | 'word' | 'pdf', fileName: '', fileData: '' });
+
   // App settings
   const [appSettings, setAppSettings] = useState<AppSettings>(getAppSettings());
 
@@ -139,6 +170,8 @@ const Parametres = () => {
     setStudentAccounts(getStudentAccounts());
     setStages(getStages());
     setAppSettings(getAppSettings());
+    setPromos(getPromos());
+    setDocumentModels(getDocumentModels());
   }, []);
 
   // Filtered students - memoized
@@ -313,6 +346,142 @@ const Parametres = () => {
     loadData();
   };
 
+  // Promo handlers
+  const handleAddPromo = () => {
+    playClick();
+    if (!promoForm.name) {
+      toast({ title: 'Erreur', description: 'Le nom est requis', variant: 'destructive' });
+      return;
+    }
+    addPromo({ name: promoForm.name, year: promoForm.year, level: promoForm.level });
+    toast({ title: 'Promotion ajoutée' });
+    loadData();
+    setShowAddPromo(false);
+    setPromoForm({ name: '', year: new Date().getFullYear(), level: 1 });
+  };
+
+  const handleDeletePromo = (id: string) => {
+    playClick();
+    deletePromo(id);
+    toast({ title: 'Promotion supprimée' });
+    loadData();
+  };
+
+  const handlePromotePromo = (id: string) => {
+    playClick();
+    promotePromo(id);
+    toast({ title: 'Promotion passée en 2ème année' });
+    loadData();
+  };
+
+  const handleDeletePromoStudents = (id: string) => {
+    playClick();
+    const count = deleteStudentsByPromo(id);
+    toast({ title: `${count} élèves supprimés` });
+    loadData();
+  };
+
+  const handleAssignStudentsToPromo = () => {
+    playClick();
+    if (!selectedPromoForAssign || selectedStudentsForPromo.length === 0) {
+      toast({ title: 'Erreur', description: 'Sélectionnez une promotion et des élèves', variant: 'destructive' });
+      return;
+    }
+    assignStudentsToPromo(selectedStudentsForPromo, selectedPromoForAssign);
+    toast({ title: `${selectedStudentsForPromo.length} élèves assignés` });
+    loadData();
+    setShowAssignPromo(false);
+    setSelectedStudentsForPromo([]);
+    setSelectedPromoForAssign('');
+  };
+
+  // Document Model handlers
+  const handleAddDocumentModel = () => {
+    playClick();
+    if (!modelForm.name) {
+      toast({ title: 'Erreur', description: 'Le nom est requis', variant: 'destructive' });
+      return;
+    }
+    addDocumentModel({ name: modelForm.name, description: modelForm.description });
+    toast({ title: 'Modèle ajouté' });
+    loadData();
+    setShowAddModel(false);
+    setModelForm({ name: '', description: '' });
+  };
+
+  const handleDeleteDocumentModel = (id: string) => {
+    playClick();
+    deleteDocumentModel(id);
+    toast({ title: 'Modèle supprimé' });
+    loadData();
+    setSelectedModel(null);
+  };
+
+  const handleSelectModel = (model: DocumentModel) => {
+    playClick();
+    setSelectedModel(model);
+    setModelFiles(getModelFilesByModel(model.id));
+  };
+
+  const handleModelFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    let fileType: 'ppt' | 'word' | 'pdf' = 'pdf';
+    if (file.name.endsWith('.ppt') || file.name.endsWith('.pptx')) fileType = 'ppt';
+    else if (file.name.endsWith('.doc') || file.name.endsWith('.docx')) fileType = 'word';
+    
+    const reader = new FileReader();
+    reader.onload = () => {
+      setModelFileForm(prev => ({
+        ...prev,
+        fileName: file.name,
+        fileData: reader.result as string,
+        type: fileType
+      }));
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleSaveModelFile = () => {
+    playClick();
+    if (!selectedModel || !modelFileForm.title || !modelFileForm.fileData) {
+      toast({ title: 'Erreur', description: 'Titre et fichier requis', variant: 'destructive' });
+      return;
+    }
+    addModelFile({
+      modelId: selectedModel.id,
+      title: modelFileForm.title,
+      description: modelFileForm.description,
+      type: modelFileForm.type,
+      fileName: modelFileForm.fileName,
+      fileData: modelFileForm.fileData
+    });
+    toast({ title: 'Fichier ajouté' });
+    setModelFiles(getModelFilesByModel(selectedModel.id));
+    setShowAddModelFile(false);
+    setModelFileForm({ title: '', description: '', type: 'pdf', fileName: '', fileData: '' });
+  };
+
+  const handleDeleteModelFile = (id: string) => {
+    playClick();
+    deleteModelFile(id);
+    if (selectedModel) {
+      setModelFiles(getModelFilesByModel(selectedModel.id));
+    }
+    toast({ title: 'Fichier supprimé' });
+  };
+
+  const handleDownloadModelFile = (file: ModelFile) => {
+    playClick();
+    const link = document.createElement('a');
+    link.href = file.fileData;
+    link.download = file.fileName;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   // Data export/import handlers
   const handleExportZip = async () => {
     setIsExporting(true);
@@ -469,6 +638,8 @@ const Parametres = () => {
   const sections = [
     { id: 'security' as const, label: 'Sécurité', icon: Lock },
     { id: 'accounts' as const, label: 'Comptes', icon: GraduationCap },
+    { id: 'promos' as const, label: 'Promotions', icon: UserCheck },
+    { id: 'models' as const, label: 'Modèles', icon: FileText },
     { id: 'stages' as const, label: 'Stages', icon: Layers },
     { id: 'appearance' as const, label: 'Apparence', icon: Palette },
     { id: 'data' as const, label: 'Données', icon: FolderArchive },
@@ -803,6 +974,309 @@ const Parametres = () => {
                     <div className="flex gap-3 p-6 pt-4 border-t border-border/30 shrink-0 bg-background/50">
                       <button onClick={handleImportExcel} className="btn-success flex-1 py-3">Importer {excelData.length} comptes</button>
                       <button onClick={() => setShowExcelModal(false)} className="btn-ghost border border-border py-3 px-6">Annuler</button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Promos Section */}
+          {activeSection === 'promos' && (
+            <div className="space-y-6">
+              {/* Promo List */}
+              <div className="glass-card overflow-hidden">
+                <div className="p-4 bg-gradient-gold border-b border-primary/20 flex items-center justify-between">
+                  <h2 className="text-lg font-bold flex items-center gap-2 text-primary-foreground">
+                    <UserCheck className="w-5 h-5" />
+                    Gestion des Promotions
+                    <span className="text-sm font-normal opacity-80">({promos.length})</span>
+                  </h2>
+                  <div className="flex gap-2">
+                    <button onClick={() => { playClick(); setShowAssignPromo(true); }} className="btn-primary flex items-center gap-2 py-2">
+                      <Users className="w-4 h-4" /> Assigner
+                    </button>
+                    <button onClick={() => { playClick(); setShowAddPromo(true); }} className="btn-success flex items-center gap-2 py-2">
+                      <Plus className="w-4 h-4" /> Nouvelle
+                    </button>
+                  </div>
+                </div>
+                
+                <div className="p-6 grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {promos.length === 0 ? (
+                    <p className="text-muted-foreground col-span-full text-center py-8">Aucune promotion créée</p>
+                  ) : (
+                    promos.map((promo) => {
+                      const studentCount = studentAccounts.filter(s => s.promoId === promo.id).length;
+                      return (
+                        <div key={promo.id} className="p-4 rounded-xl border-2 border-primary/30 bg-card shadow-lg">
+                          <div className="flex items-start justify-between mb-3">
+                            <div>
+                              <h4 className="font-bold gold-text">{promo.name}</h4>
+                              <p className="text-sm text-muted-foreground">{promo.year} • {promo.level === 1 ? '1ère année' : '2ème année'}</p>
+                            </div>
+                            <span className="px-2 py-1 bg-primary/20 rounded-lg text-xs font-medium">{studentCount} élèves</span>
+                          </div>
+                          <div className="flex gap-2 mt-4">
+                            {promo.level === 1 && (
+                              <button onClick={() => handlePromotePromo(promo.id)} className="flex-1 py-2 btn-primary text-sm flex items-center justify-center gap-1">
+                                <ArrowUpCircle className="w-4 h-4" /> Passer 2ème
+                              </button>
+                            )}
+                            <button onClick={() => handleDeletePromoStudents(promo.id)} className="py-2 px-3 btn-ghost border border-destructive/30 text-destructive text-sm" title="Supprimer tous les élèves">
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                            <button onClick={() => handleDeletePromo(promo.id)} className="py-2 px-3 bg-destructive/20 hover:bg-destructive/30 rounded-lg text-destructive text-sm">
+                              <X className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+
+              {/* Add Promo Modal */}
+              {showAddPromo && (
+                <div className="fixed inset-0 bg-background/80 backdrop-blur-sm flex items-start justify-center p-4 overflow-y-auto" style={{ zIndex: 9999 }}>
+                  <div className="glass-card w-full max-w-md animate-scale-in my-8 flex flex-col shadow-2xl border border-border/50">
+                    <div className="flex items-center justify-between p-6 pb-4 border-b border-border/30 shrink-0">
+                      <h3 className="text-lg font-semibold">Nouvelle Promotion</h3>
+                      <button onClick={() => setShowAddPromo(false)} className="p-2 hover:bg-muted rounded-lg"><X className="w-5 h-5" /></button>
+                    </div>
+                    <div className="flex-1 overflow-y-auto p-6 space-y-4">
+                      <div>
+                        <label className="text-sm font-medium mb-1 block">Nom de la promotion *</label>
+                        <input value={promoForm.name} onChange={(e) => setPromoForm(p => ({ ...p, name: e.target.value }))} className="glass-input w-full p-3" placeholder="Ex: Promotion 1ère année 2025" />
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="text-sm font-medium mb-1 block">Année</label>
+                          <input type="number" value={promoForm.year} onChange={(e) => setPromoForm(p => ({ ...p, year: parseInt(e.target.value) || new Date().getFullYear() }))} className="glass-input w-full p-3" />
+                        </div>
+                        <div>
+                          <label className="text-sm font-medium mb-1 block">Niveau</label>
+                          <select value={promoForm.level} onChange={(e) => setPromoForm(p => ({ ...p, level: parseInt(e.target.value) }))} className="glass-input w-full p-3">
+                            <option value={1}>1ère année</option>
+                            <option value={2}>2ème année</option>
+                          </select>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex gap-3 p-6 pt-4 border-t border-border/30 shrink-0 bg-background/50">
+                      <button onClick={handleAddPromo} className="btn-success flex-1 py-3">Créer</button>
+                      <button onClick={() => setShowAddPromo(false)} className="btn-ghost border border-border py-3 px-6">Annuler</button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Assign Students Modal */}
+              {showAssignPromo && (
+                <div className="fixed inset-0 bg-background/80 backdrop-blur-sm flex items-start justify-center p-4 overflow-y-auto" style={{ zIndex: 9999 }}>
+                  <div className="glass-card w-full max-w-2xl animate-scale-in my-8 flex flex-col shadow-2xl border border-border/50">
+                    <div className="flex items-center justify-between p-6 pb-4 border-b border-border/30 shrink-0">
+                      <h3 className="text-lg font-semibold">Assigner à une Promotion</h3>
+                      <button onClick={() => setShowAssignPromo(false)} className="p-2 hover:bg-muted rounded-lg"><X className="w-5 h-5" /></button>
+                    </div>
+                    <div className="flex-1 overflow-y-auto p-6 space-y-4 max-h-[60vh]">
+                      <div>
+                        <label className="text-sm font-medium mb-2 block">Sélectionner la promotion</label>
+                        <select value={selectedPromoForAssign} onChange={(e) => setSelectedPromoForAssign(e.target.value)} className="glass-input w-full p-3">
+                          <option value="">-- Choisir --</option>
+                          {promos.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium mb-2 block">Sélectionner les élèves ({selectedStudentsForPromo.length} sélectionnés)</label>
+                        <div className="max-h-60 overflow-y-auto border border-border/30 rounded-xl p-2 space-y-1">
+                          {studentAccounts.filter(s => !s.promoId).map(student => (
+                            <label key={student.id} className="flex items-center gap-3 p-2 hover:bg-muted/30 rounded-lg cursor-pointer">
+                              <input 
+                                type="checkbox" 
+                                checked={selectedStudentsForPromo.includes(student.id)}
+                                onChange={(e) => {
+                                  if (e.target.checked) {
+                                    setSelectedStudentsForPromo(prev => [...prev, student.id]);
+                                  } else {
+                                    setSelectedStudentsForPromo(prev => prev.filter(id => id !== student.id));
+                                  }
+                                }}
+                                className="w-4 h-4"
+                              />
+                              <span className="font-mono text-sm gold-text">{student.matricule}</span>
+                              <span className="text-sm">{student.nom} {student.prenom}</span>
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex gap-3 p-6 pt-4 border-t border-border/30 shrink-0 bg-background/50">
+                      <button onClick={handleAssignStudentsToPromo} className="btn-success flex-1 py-3">Assigner</button>
+                      <button onClick={() => setShowAssignPromo(false)} className="btn-ghost border border-border py-3 px-6">Annuler</button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Models Section */}
+          {activeSection === 'models' && (
+            <div className="grid md:grid-cols-3 gap-6">
+              {/* Model List */}
+              <div className="glass-card overflow-hidden">
+                <div className="p-4 bg-gradient-gold border-b border-primary/20 flex items-center justify-between">
+                  <h2 className="text-base font-bold flex items-center gap-2 text-primary-foreground">
+                    <FileText className="w-5 h-5" />
+                    Modèles
+                  </h2>
+                  <button onClick={() => { playClick(); setShowAddModel(true); }} className="p-2 bg-white/20 hover:bg-white/30 rounded-lg">
+                    <Plus className="w-4 h-4" />
+                  </button>
+                </div>
+                
+                <div className="p-4 space-y-2 max-h-[500px] overflow-y-auto">
+                  {documentModels.sort((a, b) => a.order - b.order).map((model) => (
+                    <button
+                      key={model.id}
+                      onClick={() => handleSelectModel(model)}
+                      className={`w-full text-left p-3 rounded-xl transition-all flex items-center gap-3 ${
+                        selectedModel?.id === model.id 
+                          ? 'bg-primary/20 border border-primary/40' 
+                          : 'hover:bg-muted/30 border border-transparent'
+                      }`}
+                    >
+                      <FileText className="w-5 h-5 text-primary shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium truncate">{model.name}</p>
+                        {model.description && <p className="text-xs text-muted-foreground truncate">{model.description}</p>}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Model Files */}
+              <div className="md:col-span-2 glass-card overflow-hidden">
+                {selectedModel ? (
+                  <>
+                    <div className="p-4 bg-success/20 border-b border-success/20 flex items-center justify-between">
+                      <div>
+                        <h2 className="text-lg font-bold flex items-center gap-2">
+                          <File className="w-5 h-5 text-success" />
+                          {selectedModel.name}
+                        </h2>
+                        <p className="text-sm text-muted-foreground">{modelFiles.length} fichiers</p>
+                      </div>
+                      <div className="flex gap-2">
+                        <button onClick={() => { playClick(); setShowAddModelFile(true); }} className="btn-success flex items-center gap-2 py-2">
+                          <Plus className="w-4 h-4" /> Fichier
+                        </button>
+                        {!['compte_rendu', 'demande_permission', 'demande_mariage'].includes(selectedModel.id) && (
+                          <button onClick={() => handleDeleteDocumentModel(selectedModel.id)} className="p-2 bg-destructive/20 hover:bg-destructive/30 rounded-lg text-destructive">
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                    
+                    <div className="p-4 space-y-3 max-h-[400px] overflow-y-auto">
+                      {modelFiles.length === 0 ? (
+                        <p className="text-center text-muted-foreground py-8">Aucun fichier</p>
+                      ) : (
+                        modelFiles.map((file) => (
+                          <div key={file.id} className="flex items-center gap-3 p-3 bg-muted/20 rounded-xl border border-border/30">
+                            {file.type === 'ppt' ? (
+                              <Presentation className="w-8 h-8 text-orange-500 shrink-0" />
+                            ) : file.type === 'word' ? (
+                              <FileType className="w-8 h-8 text-blue-500 shrink-0" />
+                            ) : (
+                              <File className="w-8 h-8 text-red-500 shrink-0" />
+                            )}
+                            <div className="flex-1 min-w-0">
+                              <p className="font-medium truncate">{file.title}</p>
+                              <p className="text-xs text-muted-foreground truncate">{file.fileName}</p>
+                            </div>
+                            <div className="flex gap-2 shrink-0">
+                              <button onClick={() => handleDownloadModelFile(file)} className="p-2 hover:bg-muted rounded-lg">
+                                <Download className="w-4 h-4" />
+                              </button>
+                              <button onClick={() => handleDeleteModelFile(file.id)} className="p-2 hover:bg-destructive/20 rounded-lg text-destructive">
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </>
+                ) : (
+                  <div className="flex items-center justify-center h-64 text-muted-foreground">
+                    <div className="text-center">
+                      <FileText className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                      <p>Sélectionnez un modèle</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Add Model Modal */}
+              {showAddModel && (
+                <div className="fixed inset-0 bg-background/80 backdrop-blur-sm flex items-start justify-center p-4 overflow-y-auto" style={{ zIndex: 9999 }}>
+                  <div className="glass-card w-full max-w-md animate-scale-in my-8 flex flex-col shadow-2xl border border-border/50">
+                    <div className="flex items-center justify-between p-6 pb-4 border-b border-border/30 shrink-0">
+                      <h3 className="text-lg font-semibold">Nouveau Modèle</h3>
+                      <button onClick={() => setShowAddModel(false)} className="p-2 hover:bg-muted rounded-lg"><X className="w-5 h-5" /></button>
+                    </div>
+                    <div className="flex-1 overflow-y-auto p-6 space-y-4">
+                      <div>
+                        <label className="text-sm font-medium mb-1 block">Nom *</label>
+                        <input value={modelForm.name} onChange={(e) => setModelForm(p => ({ ...p, name: e.target.value }))} className="glass-input w-full p-3" placeholder="Ex: Attestation de travail" />
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium mb-1 block">Description</label>
+                        <input value={modelForm.description} onChange={(e) => setModelForm(p => ({ ...p, description: e.target.value }))} className="glass-input w-full p-3" placeholder="Description du modèle" />
+                      </div>
+                    </div>
+                    <div className="flex gap-3 p-6 pt-4 border-t border-border/30 shrink-0 bg-background/50">
+                      <button onClick={handleAddDocumentModel} className="btn-success flex-1 py-3">Ajouter</button>
+                      <button onClick={() => setShowAddModel(false)} className="btn-ghost border border-border py-3 px-6">Annuler</button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Add Model File Modal */}
+              {showAddModelFile && (
+                <div className="fixed inset-0 bg-background/80 backdrop-blur-sm flex items-start justify-center p-4 overflow-y-auto" style={{ zIndex: 9999 }}>
+                  <div className="glass-card w-full max-w-md animate-scale-in my-8 flex flex-col shadow-2xl border border-border/50">
+                    <div className="flex items-center justify-between p-6 pb-4 border-b border-border/30 shrink-0">
+                      <h3 className="text-lg font-semibold">Ajouter Fichier</h3>
+                      <button onClick={() => setShowAddModelFile(false)} className="p-2 hover:bg-muted rounded-lg"><X className="w-5 h-5" /></button>
+                    </div>
+                    <div className="flex-1 overflow-y-auto p-6 space-y-4">
+                      <div>
+                        <label className="text-sm font-medium mb-1 block">Titre *</label>
+                        <input value={modelFileForm.title} onChange={(e) => setModelFileForm(p => ({ ...p, title: e.target.value }))} className="glass-input w-full p-3" placeholder="Titre du fichier" />
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium mb-1 block">Description</label>
+                        <input value={modelFileForm.description} onChange={(e) => setModelFileForm(p => ({ ...p, description: e.target.value }))} className="glass-input w-full p-3" placeholder="Description" />
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium mb-1 block">Fichier *</label>
+                        <label className="btn-primary w-full py-3 flex items-center justify-center gap-2 cursor-pointer">
+                          <Upload className="w-4 h-4" /> 
+                          {modelFileForm.fileName || 'Sélectionner fichier'}
+                          <input ref={modelFileInputRef} type="file" accept=".pdf,.doc,.docx,.ppt,.pptx" onChange={handleModelFileUpload} className="hidden" />
+                        </label>
+                      </div>
+                    </div>
+                    <div className="flex gap-3 p-6 pt-4 border-t border-border/30 shrink-0 bg-background/50">
+                      <button onClick={handleSaveModelFile} className="btn-success flex-1 py-3">Enregistrer</button>
+                      <button onClick={() => setShowAddModelFile(false)} className="btn-ghost border border-border py-3 px-6">Annuler</button>
                     </div>
                   </div>
                 </div>
