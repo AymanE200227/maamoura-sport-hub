@@ -1,4 +1,5 @@
 import { CourseType, SportCourse, CourseTitle, CourseFile, Stage, StudentAccount, AppSettings, Promo, DocumentModel, ModelFile } from '@/types';
+import { saveFileData, getFileData, deleteFileData, deleteMultipleFileData } from './fileStorage';
 
 const STORAGE_KEYS = {
   COURSE_TYPES: 'csm_course_types',
@@ -252,7 +253,7 @@ export const deleteCourseTitle = (id: string): void => {
   saveFiles(files);
 };
 
-// Files
+// Files - Metadata only in localStorage, actual file data in IndexedDB
 export const getFiles = (): CourseFile[] => {
   const data = localStorage.getItem(STORAGE_KEYS.FILES);
   if (!data) {
@@ -268,17 +269,67 @@ export const getFiles = (): CourseFile[] => {
 };
 
 export const saveFiles = (files: CourseFile[]): void => {
-  localStorage.setItem(STORAGE_KEYS.FILES, JSON.stringify(files));
+  // Only save metadata (without fileData) to localStorage
+  const metadataOnly = files.map(f => ({ ...f, fileData: '' }));
+  localStorage.setItem(STORAGE_KEYS.FILES, JSON.stringify(metadataOnly));
 };
 
 export const getFilesByCourseTitle = (courseTitleId: string): CourseFile[] => {
   return getFiles().filter(f => f.courseTitleId === courseTitleId);
 };
 
+// Async file operations using IndexedDB
+export const addFileAsync = async (file: Omit<CourseFile, 'id'>): Promise<CourseFile> => {
+  const files = getFiles();
+  const newFile: CourseFile = { ...file, id: Date.now().toString() };
+  
+  // Store file data in IndexedDB
+  if (file.fileData) {
+    await saveFileData(newFile.id, file.fileData, file.fileName, file.type);
+  }
+  
+  // Store metadata in localStorage (without fileData)
+  files.push({ ...newFile, fileData: '' });
+  saveFiles(files);
+  
+  return newFile;
+};
+
+export const getFileDataAsync = async (fileId: string): Promise<string | null> => {
+  return getFileData(fileId);
+};
+
+export const updateFileAsync = async (id: string, updates: Partial<CourseFile>): Promise<void> => {
+  const files = getFiles();
+  const index = files.findIndex(f => f.id === id);
+  if (index !== -1) {
+    // If updating file data, save to IndexedDB
+    if (updates.fileData) {
+      await saveFileData(id, updates.fileData, updates.fileName || files[index].fileName, updates.type || files[index].type);
+      updates = { ...updates, fileData: '' };
+    }
+    files[index] = { ...files[index], ...updates };
+    saveFiles(files);
+  }
+};
+
+export const deleteFileAsync = async (id: string): Promise<void> => {
+  const files = getFiles().filter(f => f.id !== id);
+  saveFiles(files);
+  await deleteFileData(id);
+};
+
+// Legacy sync functions (for backwards compatibility - will use empty fileData)
 export const addFile = (file: Omit<CourseFile, 'id'>): CourseFile => {
   const files = getFiles();
   const newFile: CourseFile = { ...file, id: Date.now().toString() };
-  files.push(newFile);
+  
+  // Store file data asynchronously
+  if (file.fileData) {
+    saveFileData(newFile.id, file.fileData, file.fileName, file.type).catch(console.error);
+  }
+  
+  files.push({ ...newFile, fileData: '' });
   saveFiles(files);
   return newFile;
 };
@@ -287,6 +338,10 @@ export const updateFile = (id: string, updates: Partial<CourseFile>): void => {
   const files = getFiles();
   const index = files.findIndex(f => f.id === id);
   if (index !== -1) {
+    if (updates.fileData) {
+      saveFileData(id, updates.fileData, updates.fileName || files[index].fileName, updates.type || files[index].type).catch(console.error);
+      updates = { ...updates, fileData: '' };
+    }
     files[index] = { ...files[index], ...updates };
     saveFiles(files);
   }
@@ -295,6 +350,7 @@ export const updateFile = (id: string, updates: Partial<CourseFile>): void => {
 export const deleteFile = (id: string): void => {
   const files = getFiles().filter(f => f.id !== id);
   saveFiles(files);
+  deleteFileData(id).catch(console.error);
 };
 
 // Student Accounts
@@ -465,24 +521,47 @@ export const deleteDocumentModel = (id: string): void => {
   saveModelFiles(files);
 };
 
-// Model Files
+// Model Files - Metadata in localStorage, file data in IndexedDB
 export const getModelFiles = (): ModelFile[] => {
   const data = localStorage.getItem(STORAGE_KEYS.MODEL_FILES);
   return data ? JSON.parse(data) : [];
 };
 
 export const saveModelFiles = (files: ModelFile[]): void => {
-  localStorage.setItem(STORAGE_KEYS.MODEL_FILES, JSON.stringify(files));
+  const metadataOnly = files.map(f => ({ ...f, fileData: '' }));
+  localStorage.setItem(STORAGE_KEYS.MODEL_FILES, JSON.stringify(metadataOnly));
 };
 
 export const getModelFilesByModel = (modelId: string): ModelFile[] => {
   return getModelFiles().filter(f => f.modelId === modelId);
 };
 
+export const addModelFileAsync = async (file: Omit<ModelFile, 'id'>): Promise<ModelFile> => {
+  const files = getModelFiles();
+  const newFile: ModelFile = { ...file, id: `model_${Date.now().toString()}` };
+  
+  if (file.fileData) {
+    await saveFileData(newFile.id, file.fileData, file.fileName, file.type);
+  }
+  
+  files.push({ ...newFile, fileData: '' });
+  saveModelFiles(files);
+  return newFile;
+};
+
+export const getModelFileDataAsync = async (fileId: string): Promise<string | null> => {
+  return getFileData(fileId);
+};
+
 export const addModelFile = (file: Omit<ModelFile, 'id'>): ModelFile => {
   const files = getModelFiles();
-  const newFile: ModelFile = { ...file, id: Date.now().toString() };
-  files.push(newFile);
+  const newFile: ModelFile = { ...file, id: `model_${Date.now().toString()}` };
+  
+  if (file.fileData) {
+    saveFileData(newFile.id, file.fileData, file.fileName, file.type).catch(console.error);
+  }
+  
+  files.push({ ...newFile, fileData: '' });
   saveModelFiles(files);
   return newFile;
 };
@@ -491,14 +570,25 @@ export const updateModelFile = (id: string, updates: Partial<ModelFile>): void =
   const files = getModelFiles();
   const index = files.findIndex(f => f.id === id);
   if (index !== -1) {
+    if (updates.fileData) {
+      saveFileData(id, updates.fileData, updates.fileName || files[index].fileName, updates.type || files[index].type).catch(console.error);
+      updates = { ...updates, fileData: '' };
+    }
     files[index] = { ...files[index], ...updates };
     saveModelFiles(files);
   }
 };
 
+export const deleteModelFileAsync = async (id: string): Promise<void> => {
+  const files = getModelFiles().filter(f => f.id !== id);
+  saveModelFiles(files);
+  await deleteFileData(id);
+};
+
 export const deleteModelFile = (id: string): void => {
   const files = getModelFiles().filter(f => f.id !== id);
   saveModelFiles(files);
+  deleteFileData(id).catch(console.error);
 };
 
 // App Settings

@@ -44,8 +44,9 @@ import {
   updateDocumentModel,
   deleteDocumentModel,
   getModelFilesByModel,
-  addModelFile,
-  deleteModelFile
+  addModelFileAsync,
+  deleteModelFileAsync,
+  getModelFileDataAsync
 } from '@/lib/storage';
 import { exportToZip, importFromZip } from '@/lib/zipExport';
 import { 
@@ -435,14 +436,7 @@ const Parametres = () => {
     const file = e.target.files?.[0];
     if (!file) return;
     
-    // Check file size (max 10MB)
-    const maxSize = 10 * 1024 * 1024;
-    if (file.size > maxSize) {
-      toast({ title: 'Erreur', description: 'Fichier trop volumineux (max 10 Mo)', variant: 'destructive' });
-      if (modelFileInputRef.current) modelFileInputRef.current.value = '';
-      return;
-    }
-    
+    // No file size limit - IndexedDB can handle large files
     let fileType: 'ppt' | 'word' | 'pdf' = 'pdf';
     const fileName = file.name.toLowerCase();
     if (fileName.endsWith('.ppt') || fileName.endsWith('.pptx')) fileType = 'ppt';
@@ -465,7 +459,7 @@ const Parametres = () => {
     reader.readAsDataURL(file);
   };
 
-  const handleSaveModelFile = () => {
+  const handleSaveModelFile = async () => {
     playClick();
     if (!selectedModel) {
       toast({ title: 'Erreur', description: 'Aucun modèle sélectionné', variant: 'destructive' });
@@ -480,7 +474,7 @@ const Parametres = () => {
       return;
     }
     try {
-      addModelFile({
+      await addModelFileAsync({
         modelId: selectedModel.id,
         title: modelFileForm.title,
         description: modelFileForm.description,
@@ -494,27 +488,44 @@ const Parametres = () => {
       setModelFileForm({ title: '', description: '', type: 'pdf', fileName: '', fileData: '' });
       if (modelFileInputRef.current) modelFileInputRef.current.value = '';
     } catch (error) {
-      toast({ title: 'Erreur', description: 'Échec de l\'enregistrement (stockage plein?)', variant: 'destructive' });
+      console.error('Error saving model file:', error);
+      toast({ title: 'Erreur', description: 'Échec de l\'enregistrement', variant: 'destructive' });
     }
   };
 
-  const handleDeleteModelFile = (id: string) => {
+  const handleDeleteModelFile = async (id: string) => {
     playClick();
-    deleteModelFile(id);
-    if (selectedModel) {
-      setModelFiles(getModelFilesByModel(selectedModel.id));
+    try {
+      await deleteModelFileAsync(id);
+      if (selectedModel) {
+        setModelFiles(getModelFilesByModel(selectedModel.id));
+      }
+      toast({ title: 'Fichier supprimé' });
+    } catch (error) {
+      console.error('Error deleting model file:', error);
+      toast({ title: 'Erreur', description: 'Impossible de supprimer le fichier', variant: 'destructive' });
     }
-    toast({ title: 'Fichier supprimé' });
   };
 
-  const handleDownloadModelFile = (file: ModelFile) => {
+  const handleDownloadModelFile = async (file: ModelFile) => {
     playClick();
-    const link = document.createElement('a');
-    link.href = file.fileData;
-    link.download = file.fileName;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    try {
+      const fileData = await getModelFileDataAsync(file.id);
+      if (!fileData) {
+        toast({ title: 'Fichier non disponible', variant: 'destructive' });
+        return;
+      }
+      const link = document.createElement('a');
+      link.href = fileData;
+      link.download = file.fileName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      toast({ title: 'Téléchargement lancé' });
+    } catch (error) {
+      console.error('Error downloading file:', error);
+      toast({ title: 'Erreur', description: 'Impossible de télécharger le fichier', variant: 'destructive' });
+    }
   };
 
   // Data export/import handlers

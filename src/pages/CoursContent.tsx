@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Plus, FileText, Edit, Trash2, Eye, Upload, X, Download } from 'lucide-react';
+import { ArrowLeft, Plus, FileText, Edit, Trash2, Eye, Upload, X, Download, Loader2 } from 'lucide-react';
 import Layout from '@/components/Layout';
 import { 
   getSportCourses,
@@ -9,9 +9,10 @@ import {
   addCourseTitle,
   updateCourseTitle,
   deleteCourseTitle,
-  addFile,
-  updateFile,
-  deleteFile,
+  addFileAsync,
+  updateFileAsync,
+  deleteFileAsync,
+  getFileDataAsync,
   getUserMode
 } from '@/lib/storage';
 import { SportCourse, CourseTitle, CourseFile } from '@/types';
@@ -46,6 +47,7 @@ const CoursContent = () => {
     fileName: '',
     fileData: ''
   });
+  const [isLoading, setIsLoading] = useState(false);
   
   const userMode = getUserMode();
 
@@ -149,43 +151,58 @@ const CoursContent = () => {
     }
   };
 
-  const handleSaveFile = () => {
+  const handleSaveFile = async () => {
     if (!fileForm.title || !selectedTitle) {
       toast({ title: 'Erreur', description: 'Le titre est requis', variant: 'destructive' });
       return;
     }
 
-    if (editingFile) {
-      updateFile(editingFile.id, fileForm);
-      toast({ title: 'Fichier modifié' });
-    } else {
-      addFile({ ...fileForm, courseTitleId: selectedTitle.id });
-      toast({ title: 'Fichier ajouté' });
-    }
-
-    setFiles(getFilesByCourseTitle(selectedTitle.id));
-    resetFileForm();
-  };
-
-  const handleDeleteFile = (fileId: string) => {
-    if (confirm('Êtes-vous sûr de vouloir supprimer ce fichier?')) {
-      deleteFile(fileId);
-      if (selectedTitle) {
-        setFiles(getFilesByCourseTitle(selectedTitle.id));
-      }
-      toast({ title: 'Fichier supprimé' });
-    }
-  };
-
-  const handleOpenFile = (file: CourseFile) => {
-    if (!file.fileData) {
-      toast({ title: 'Fichier non disponible', description: "Ce fichier n'a pas de contenu", variant: 'destructive' });
-      return;
-    }
-
+    setIsLoading(true);
     try {
+      if (editingFile) {
+        await updateFileAsync(editingFile.id, fileForm);
+        toast({ title: 'Fichier modifié' });
+      } else {
+        await addFileAsync({ ...fileForm, courseTitleId: selectedTitle.id });
+        toast({ title: 'Fichier ajouté' });
+      }
+
+      setFiles(getFilesByCourseTitle(selectedTitle.id));
+      resetFileForm();
+    } catch (error) {
+      console.error('Error saving file:', error);
+      toast({ title: 'Erreur', description: 'Impossible de sauvegarder le fichier', variant: 'destructive' });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleDeleteFile = async (fileId: string) => {
+    if (confirm('Êtes-vous sûr de vouloir supprimer ce fichier?')) {
+      try {
+        await deleteFileAsync(fileId);
+        if (selectedTitle) {
+          setFiles(getFilesByCourseTitle(selectedTitle.id));
+        }
+        toast({ title: 'Fichier supprimé' });
+      } catch (error) {
+        console.error('Error deleting file:', error);
+        toast({ title: 'Erreur', description: 'Impossible de supprimer le fichier', variant: 'destructive' });
+      }
+    }
+  };
+
+  const handleOpenFile = async (file: CourseFile) => {
+    setIsLoading(true);
+    try {
+      const fileData = await getFileDataAsync(file.id);
+      if (!fileData) {
+        toast({ title: 'Fichier non disponible', description: "Ce fichier n'a pas de contenu", variant: 'destructive' });
+        return;
+      }
+
       if (file.type === 'pdf') {
-        const base64Data = file.fileData.split(',')[1];
+        const base64Data = fileData.split(',')[1];
         const binaryString = atob(base64Data);
         const bytes = new Uint8Array(binaryString.length);
         for (let i = 0; i < binaryString.length; i++) {
@@ -195,38 +212,66 @@ const CoursContent = () => {
         const blobUrl = URL.createObjectURL(blob);
         window.open(blobUrl, '_blank');
       } else {
-        handleDownloadFile(file);
+        // Download for non-PDF files
+        const link = document.createElement('a');
+        link.href = fileData;
+        link.download = file.fileName || `${file.title}.${file.type}`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        toast({ title: 'Téléchargement lancé' });
       }
     } catch (error) {
-      handleDownloadFile(file);
+      console.error('Error opening file:', error);
+      toast({ title: 'Erreur', description: 'Impossible d\'ouvrir le fichier', variant: 'destructive' });
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const handleDownloadFile = (file: CourseFile) => {
-    if (!file.fileData) {
-      toast({ title: 'Fichier non disponible', variant: 'destructive' });
-      return;
-    }
+  const handleDownloadFile = async (file: CourseFile) => {
+    setIsLoading(true);
+    try {
+      const fileData = await getFileDataAsync(file.id);
+      if (!fileData) {
+        toast({ title: 'Fichier non disponible', variant: 'destructive' });
+        return;
+      }
 
-    const link = document.createElement('a');
-    link.href = file.fileData;
-    link.download = file.fileName || `${file.title}.${file.type}`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    toast({ title: 'Téléchargement lancé' });
+      const link = document.createElement('a');
+      link.href = fileData;
+      link.download = file.fileName || `${file.title}.${file.type}`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      toast({ title: 'Téléchargement lancé' });
+    } catch (error) {
+      console.error('Error downloading file:', error);
+      toast({ title: 'Erreur', description: 'Impossible de télécharger le fichier', variant: 'destructive' });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const handleEditFile = (file: CourseFile) => {
-    setEditingFile(file);
-    setFileForm({
-      title: file.title,
-      description: file.description || '',
-      type: file.type,
-      fileName: file.fileName,
-      fileData: file.fileData
-    });
-    setShowAddFile(true);
+  const handleEditFile = async (file: CourseFile) => {
+    setIsLoading(true);
+    try {
+      const fileData = await getFileDataAsync(file.id);
+      setEditingFile(file);
+      setFileForm({
+        title: file.title,
+        description: file.description || '',
+        type: file.type,
+        fileName: file.fileName,
+        fileData: fileData || ''
+      });
+      setShowAddFile(true);
+    } catch (error) {
+      console.error('Error loading file for edit:', error);
+      toast({ title: 'Erreur', description: 'Impossible de charger le fichier', variant: 'destructive' });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const resetFileForm = () => {
