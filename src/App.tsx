@@ -16,6 +16,11 @@ const GestionCours = lazy(() => import("./pages/GestionCours"));
 const Parametres = lazy(() => import("./pages/Parametres"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
+// Permanence App Pages
+const PermanenceLogin = lazy(() => import("./pages/PermanenceLogin"));
+const PermanenceAdmin = lazy(() => import("./pages/PermanenceAdmin"));
+const PermanenceConsultation = lazy(() => import("./pages/PermanenceConsultation"));
+
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -40,6 +45,10 @@ const App = () => (
             <Route path="/cours/:typeId/stage/:stageId/course/:courseId" element={<CoursContent />} />
             <Route path="/gestion-cours" element={<GestionCours />} />
             <Route path="/parametres" element={<Parametres />} />
+            {/* Permanence App Routes */}
+            <Route path="/permanence" element={<PermanenceLogin />} />
+            <Route path="/permanence/admin" element={<PermanenceAdmin />} />
+            <Route path="/permanence/consultation" element={<PermanenceConsultation />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </Suspense>
