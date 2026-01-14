@@ -3,21 +3,23 @@ import { ImportTreeNode, ImportFile } from '@/components/FolderImportTree';
 // Generate unique ID
 const generateId = (): string => Math.random().toString(36).substring(2, 11);
 
-// Get file type from extension
-export const getFileTypeFromExtension = (fileName: string): 'ppt' | 'word' | 'pdf' | 'video' | 'unknown' => {
+// Get file type from extension - support ALL extensions
+export const getFileTypeFromExtension = (fileName: string): 'ppt' | 'word' | 'pdf' | 'video' => {
   const ext = fileName.split('.').pop()?.toLowerCase() || '';
   if (['pptx', 'ppt'].includes(ext)) return 'ppt';
-  if (['docx', 'doc'].includes(ext)) return 'word';
-  if (ext === 'pdf') return 'pdf';
-  if (['mp4', 'avi', 'mov', 'mkv', 'webm', 'wmv', 'flv', 'm4v'].includes(ext)) return 'video';
-  return 'unknown';
+  if (['docx', 'doc', 'rtf', 'odt', 'txt'].includes(ext)) return 'word';
+  if (['mp4', 'avi', 'mov', 'mkv', 'webm', 'wmv', 'flv', 'm4v', 'mpeg', 'mpg', '3gp'].includes(ext)) return 'video';
+  // All other extensions (pdf, xlsx, xls, jpg, png, etc.) → pdf type for download
+  return 'pdf';
 };
 
-// Check if file is valid for import
+// ALL files are valid for import now
 export const isValidFile = (fileName: string): boolean => {
-  const validExtensions = ['pptx', 'ppt', 'docx', 'doc', 'pdf', 'mp4', 'avi', 'mov', 'mkv', 'webm', 'wmv', 'flv', 'm4v'];
+  // Skip hidden files and system files
+  if (fileName.startsWith('.') || fileName.startsWith('~$')) return false;
+  // Must have an extension
   const ext = fileName.split('.').pop()?.toLowerCase() || '';
-  return validExtensions.includes(ext);
+  return ext.length > 0 && ext.length < 10;
 };
 
 // Check if this is a conclusion file (from name pattern)
@@ -26,7 +28,7 @@ const isConclusionFile = (fileName: string): boolean => {
   return lower.includes('conclusion') || lower.startsWith('conclu');
 };
 
-// Stage name mappings
+// Stage name mappings - normalize stage names to match default stages
 const stageNameMappings: Record<string, string> = {
   'a.moniteur': 'AIDE MONITEUR',
   'aide moniteur': 'AIDE MONITEUR',
@@ -40,16 +42,6 @@ const stageNameMappings: Record<string, string> = {
   'bs': 'BS',
   'moniteur': 'MONITEUR',
   'off': 'OFF',
-};
-
-// Type name mappings - normalize to SPORTIF or MILITAIRE only
-const typeNameMappings: Record<string, string> = {
-  'p.specialite': 'SPORTIF',
-  'p.sportif': 'SPORTIF',
-  'specialite': 'SPORTIF',
-  'sportif': 'SPORTIF',
-  'p.militaire': 'MILITAIRE',
-  'militaire': 'MILITAIRE',
 };
 
 // Get stage ID from name
@@ -71,21 +63,16 @@ const getStageId = (name: string): string => {
   return stageIdMap[lower] || lower.replace(/\s+/g, '_');
 };
 
-// Normalize stage name
-const normalizesStageName = (name: string): string => {
+// Normalize stage name - but preserve custom stage names
+const normalizeStageName = (name: string): string => {
   const lower = name.toLowerCase().trim();
   return stageNameMappings[lower] || name.toUpperCase();
-};
-
-// Normalize type name - ALWAYS return either SPORTIF or MILITAIRE
-const normalizeTypeName = (name: string): string => {
-  const lower = name.toLowerCase().trim().replace('p.', '');
-  return typeNameMappings[lower] || typeNameMappings[name.toLowerCase().replace('p.', '')] || 'SPORTIF';
 };
 
 // Parse folder structure from FileList
 // Expected structure: RootFolder/Stage/Type/Leçon/Heading/file.pdf
 // Example: CAT1/P.SPORTIF/BASKET/1.HISTORIQUE/test.ppt
+// NO NORMALIZATION OF TYPE NAMES - preserve exactly as folder is named
 export const parseFolderStructure = async (files: FileList): Promise<{
   tree: ImportTreeNode[];
   stats: { stages: number; types: number; lecons: number; headings: number; files: number };
@@ -147,10 +134,10 @@ export const parseFolderStructure = async (files: FileList): Promise<{
       };
 
       // Build tree structure based on folder depth
-      // Structure: Stage / Type (P.SPORTIF or P.MILITAIRE) / Leçon (BASKET) / Heading / Files
+      // Structure: Stage / Type (PRESERVE ORIGINAL NAME) / Leçon (BASKET) / Heading / Files
       
       if (folders.length >= 1) {
-        const stageName = normalizesStageName(folders[0]);
+        const stageName = normalizeStageName(folders[0]);
         const stageKey = stageName.toLowerCase();
         
         if (!stageMap.has(stageKey)) {
@@ -169,8 +156,8 @@ export const parseFolderStructure = async (files: FileList): Promise<{
         let parentNode = stageMap.get(stageKey)!;
         
         if (folders.length >= 2) {
-          // Normalize type to either SPORTIF or MILITAIRE
-          const typeName = normalizeTypeName(folders[1]);
+          // PRESERVE ORIGINAL TYPE NAME - no normalization!
+          const typeName = folders[1].toUpperCase();
           const typeKey = `${stageKey}/${typeName.toLowerCase()}`;
           
           if (!typeMap.has(typeKey)) {
@@ -297,7 +284,7 @@ export const parseFolderStructure = async (files: FileList): Promise<{
   };
 };
 
-// Import tree to storage - FIXED to ensure only ONE P.SPORTIF and ONE P.MILITAIRE per stage
+// Import tree to storage - preserves original type names
 // Also handles conclusion files directly (no separate heading needed)
 export const importTreeToStorage = async (
   tree: ImportTreeNode[],
@@ -334,20 +321,19 @@ export const importTreeToStorage = async (
     for (const typeNode of stageNode.children) {
       if (typeNode.type !== 'courseType') continue;
       
-      // Normalize type name to SPORTIF or MILITAIRE
-      const normalizedTypeName = normalizeTypeName(typeNode.name);
+      // Use ORIGINAL type name from folder - no normalization!
+      const originalTypeName = typeNode.name;
       
-      // Find existing course type (SPORTIF or MILITAIRE)
+      // Find existing course type with EXACT match
       let courseType = existingTypes.find(t => 
-        t.name.toUpperCase() === normalizedTypeName ||
-        t.name.toLowerCase() === normalizedTypeName.toLowerCase()
+        t.name.toUpperCase() === originalTypeName.toUpperCase()
       );
       
       // Only create if doesn't exist
       if (!courseType) {
         courseType = addCourseType({ 
-          name: normalizedTypeName === 'SPORTIF' ? 'Sportif' : 'Militaire', 
-          description: normalizedTypeName === 'SPORTIF' ? 'Cours sportifs' : 'Cours militaires' 
+          name: originalTypeName, 
+          description: `Cours ${originalTypeName}` 
         });
         existingTypes = [...existingTypes, courseType];
       }
@@ -398,7 +384,7 @@ export const importTreeToStorage = async (
                 courseTitleId: conclusionTitle.id,
                 title: child.name, // Use original file name
                 description: '',
-                type: child.file.type === 'unknown' ? 'pdf' : child.file.type,
+                type: child.file.type,
                 fileName: child.file.name,
                 fileData: child.file.data
               });
@@ -422,7 +408,7 @@ export const importTreeToStorage = async (
                 courseTitleId: generalTitle.id,
                 title: child.name,
                 description: '',
-                type: child.file.type === 'unknown' ? 'pdf' : child.file.type,
+                type: child.file.type,
                 fileName: child.file.name,
                 fileData: child.file.data
               });
@@ -451,7 +437,7 @@ export const importTreeToStorage = async (
                   courseTitleId: courseTitle.id,
                   title: fileNode.name,
                   description: '',
-                  type: fileNode.file.type === 'unknown' ? 'pdf' : fileNode.file.type,
+                  type: fileNode.file.type,
                   fileName: fileNode.file.name,
                   fileData: fileNode.file.data
                 });

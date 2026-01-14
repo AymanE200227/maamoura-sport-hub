@@ -695,31 +695,99 @@ export const exportAllData = (): string => {
   return JSON.stringify(data, null, 2);
 };
 
-export const importAllData = (jsonData: string): boolean => {
+// Import modes: 'replace' (clear all then import) or 'merge' (add to existing)
+export const importAllData = (jsonData: string, mode: 'replace' | 'merge' = 'replace'): boolean => {
   try {
     const data = JSON.parse(jsonData);
     
-    if (data.courseTypes) {
-      saveCourseTypes(data.courseTypes);
+    if (mode === 'replace') {
+      // Replace mode: clear existing before import
+      if (data.courseTypes) {
+        saveCourseTypes(data.courseTypes);
+      }
+      if (data.sportCourses) {
+        saveSportCourses(data.sportCourses);
+      }
+      if (data.courseTitles) {
+        saveCourseTitles(data.courseTitles);
+      }
+      if (data.files) {
+        saveFiles(data.files);
+      }
+      if (data.stages) {
+        saveStages(data.stages);
+      }
+      if (data.studentAccounts) {
+        saveStudentAccounts(data.studentAccounts);
+      }
+      if (data.appSettings) {
+        saveAppSettings(data.appSettings);
+      }
+    } else {
+      // Merge mode: add to existing data
+      if (data.courseTypes) {
+        const existing = getCourseTypes();
+        const merged = [...existing];
+        data.courseTypes.forEach((newType: CourseType) => {
+          if (!merged.find(t => t.id === newType.id || t.name.toLowerCase() === newType.name.toLowerCase())) {
+            merged.push(newType);
+          }
+        });
+        saveCourseTypes(merged);
+      }
+      if (data.sportCourses) {
+        const existing = getSportCourses();
+        const merged = [...existing];
+        data.sportCourses.forEach((newCourse: SportCourse) => {
+          if (!merged.find(c => c.id === newCourse.id)) {
+            merged.push(newCourse);
+          }
+        });
+        saveSportCourses(merged);
+      }
+      if (data.courseTitles) {
+        const existing = getCourseTitles();
+        const merged = [...existing];
+        data.courseTitles.forEach((newTitle: CourseTitle) => {
+          if (!merged.find(t => t.id === newTitle.id)) {
+            merged.push(newTitle);
+          }
+        });
+        saveCourseTitles(merged);
+      }
+      if (data.files) {
+        const existing = getFiles();
+        const merged = [...existing];
+        data.files.forEach((newFile: CourseFile) => {
+          if (!merged.find(f => f.id === newFile.id)) {
+            merged.push(newFile);
+          }
+        });
+        saveFiles(merged);
+      }
+      if (data.stages) {
+        const existing = getStages();
+        const merged = [...existing];
+        data.stages.forEach((newStage: Stage) => {
+          if (!merged.find(s => s.id === newStage.id)) {
+            merged.push(newStage);
+          }
+        });
+        saveStages(merged);
+      }
+      if (data.studentAccounts) {
+        const existing = getStudentAccounts();
+        const merged = [...existing];
+        data.studentAccounts.forEach((newAccount: StudentAccount) => {
+          if (!merged.find(a => a.id === newAccount.id || a.matricule === newAccount.matricule)) {
+            merged.push(newAccount);
+          }
+        });
+        saveStudentAccounts(merged);
+      }
     }
-    if (data.sportCourses) {
-      saveSportCourses(data.sportCourses);
-    }
-    if (data.courseTitles) {
-      saveCourseTitles(data.courseTitles);
-    }
-    if (data.files) {
-      saveFiles(data.files);
-    }
-    if (data.stages) {
-      saveStages(data.stages);
-    }
-    if (data.studentAccounts) {
-      saveStudentAccounts(data.studentAccounts);
-    }
-    if (data.appSettings) {
-      saveAppSettings(data.appSettings);
-    }
+    
+    // These always replace (passwords, settings)
     if (data.adminPassword) {
       setAdminPassword(data.adminPassword);
     }
@@ -744,4 +812,12 @@ export const importAllData = (jsonData: string): boolean => {
     console.error('Import failed:', error);
     return false;
   }
+};
+
+// Delete all application data
+export const clearAllData = (): void => {
+  // Clear all localStorage keys
+  Object.values(STORAGE_KEYS).forEach(key => {
+    localStorage.removeItem(key);
+  });
 };
