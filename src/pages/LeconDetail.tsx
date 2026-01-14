@@ -1,9 +1,11 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Plus, FileText, Edit, Trash2, Eye, Upload, X, Download, Loader2, Video, FolderUp } from 'lucide-react';
+import { ArrowLeft, Plus, FileText, Edit, Trash2, Eye, Upload, X, Download, Loader2, Video, FolderUp, ChevronRight, FileCheck } from 'lucide-react';
 import Layout from '@/components/Layout';
 import {
   getSportCourses,
+  getStages,
+  getCourseTypes,
   getCourseTitlesBySportCourse,
   getFilesByCourseTitle,
   addCourseTitle,
@@ -15,18 +17,20 @@ import {
   getFileDataAsync,
   getUserMode
 } from '@/lib/storage';
-import { SportCourse, CourseTitle, CourseFile } from '@/types';
+import { SportCourse, Stage, CourseType, CourseTitle, CourseFile } from '@/types';
 import { getSportImage } from '@/assets/sports';
 import { useToast } from '@/hooks/use-toast';
 import { useClickSound } from '@/hooks/useClickSound';
 import bgImage from '@/assets/bg3.jpg';
 
-const CoursContent = () => {
-  const { typeId, stageId, courseId } = useParams<{ typeId: string; stageId: string; courseId: string }>();
+const LeconDetail = () => {
+  const { stageId, typeId, leconId } = useParams<{ stageId: string; typeId: string; leconId: string }>();
   const navigate = useNavigate();
   const { toast } = useToast();
   const { playClick } = useClickSound();
   
+  const [stage, setStage] = useState<Stage | null>(null);
+  const [courseType, setCourseType] = useState<CourseType | null>(null);
   const [course, setCourse] = useState<SportCourse | null>(null);
   const [courseTitles, setCourseTitles] = useState<CourseTitle[]>([]);
   const [selectedTitle, setSelectedTitle] = useState<CourseTitle | null>(null);
@@ -47,6 +51,10 @@ const CoursContent = () => {
     fileName: '',
     fileData: ''
   });
+  
+  // Conclusion file state
+  const [showConclusionUpload, setShowConclusionUpload] = useState(false);
+  
   const folderInputRef = useRef<HTMLInputElement>(null);
   const [isLoading, setIsLoading] = useState(false);
   
@@ -58,14 +66,22 @@ const CoursContent = () => {
       return;
     }
     loadData();
-  }, [courseId, userMode, navigate]);
+  }, [leconId, stageId, typeId, userMode, navigate]);
 
   const loadData = () => {
+    const stages = getStages();
+    const types = getCourseTypes();
     const courses = getSportCourses();
-    const foundCourse = courses.find(c => c.id === courseId);
-    if (foundCourse) {
+    
+    const foundStage = stages.find(s => s.id === stageId);
+    const foundType = types.find(t => t.id === typeId);
+    const foundCourse = courses.find(c => c.id === leconId);
+    
+    if (foundStage && foundType && foundCourse) {
+      setStage(foundStage);
+      setCourseType(foundType);
       setCourse(foundCourse);
-      const titles = getCourseTitlesBySportCourse(courseId!);
+      const titles = getCourseTitlesBySportCourse(leconId!);
       setCourseTitles(titles);
     }
   };
@@ -84,12 +100,12 @@ const CoursContent = () => {
 
   const handleBack = () => {
     playClick();
-    navigate(`/cours/${typeId}`);
+    navigate(`/stage/${stageId}/type/${typeId}`);
   };
 
   // Title CRUD
   const handleSaveTitle = () => {
-    if (!titleForm.trim() || !courseId) {
+    if (!titleForm.trim() || !leconId) {
       toast({ title: 'Erreur', description: 'Le titre est requis', variant: 'destructive' });
       return;
     }
@@ -98,11 +114,11 @@ const CoursContent = () => {
       updateCourseTitle(editingTitle.id, { title: titleForm });
       toast({ title: 'Titre modifié' });
     } else {
-      addCourseTitle({ sportCourseId: courseId, title: titleForm });
+      addCourseTitle({ sportCourseId: leconId, title: titleForm });
       toast({ title: 'Titre ajouté' });
     }
 
-    setCourseTitles(getCourseTitlesBySportCourse(courseId));
+    setCourseTitles(getCourseTitlesBySportCourse(leconId));
     resetTitleForm();
   };
 
@@ -115,7 +131,7 @@ const CoursContent = () => {
   const handleDeleteTitle = (titleId: string) => {
     if (confirm('Êtes-vous sûr de vouloir supprimer ce titre et tous ses fichiers?')) {
       deleteCourseTitle(titleId);
-      setCourseTitles(getCourseTitlesBySportCourse(courseId!));
+      setCourseTitles(getCourseTitlesBySportCourse(leconId!));
       if (selectedTitle?.id === titleId) {
         setSelectedTitle(null);
         setFiles([]);
@@ -204,6 +220,50 @@ const CoursContent = () => {
     } finally {
       setIsLoading(false);
       if (folderInputRef.current) folderInputRef.current.value = '';
+    }
+  };
+
+  // Conclusion file upload
+  const handleConclusionUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !leconId) return;
+
+    setIsLoading(true);
+    try {
+      // Find or create a "Conclusion" course title
+      let conclusionTitle = courseTitles.find(t => t.title.toLowerCase() === 'conclusion');
+      
+      if (!conclusionTitle) {
+        conclusionTitle = addCourseTitle({ sportCourseId: leconId, title: 'Conclusion' });
+        setCourseTitles(getCourseTitlesBySportCourse(leconId));
+      }
+
+      const extension = file.name.split('.').pop() || '';
+      const fileType = getFileTypeFromExtension(extension);
+      
+      const fileData = await new Promise<string>((resolve) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.readAsDataURL(file);
+      });
+
+      await addFileAsync({
+        courseTitleId: conclusionTitle.id,
+        title: `Conclusion - ${file.name.replace(/\.[^/.]+$/, '')}`,
+        description: 'Fichier de conclusion',
+        type: fileType,
+        fileName: file.name,
+        fileData
+      });
+
+      toast({ title: 'Fichier de conclusion ajouté' });
+      setShowConclusionUpload(false);
+      setCourseTitles(getCourseTitlesBySportCourse(leconId));
+    } catch (error) {
+      console.error('Error uploading conclusion:', error);
+      toast({ title: 'Erreur', description: 'Impossible d\'ajouter le fichier', variant: 'destructive' });
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -350,21 +410,24 @@ const CoursContent = () => {
     }
   };
 
-  if (!course) return null;
+  if (!course || !stage || !courseType) return null;
+
+  // Build path for display
+  const pathDisplay = `${stage.name}\\P.${courseType.name.toUpperCase()}\\${course.title}`;
 
   return (
     <Layout backgroundImage={bgImage}>
       {/* Header */}
-      <div className="flex items-center gap-4 mb-8">
+      <div className="flex items-center gap-4 mb-6">
         <button onClick={selectedTitle ? handleBackToTitles : handleBack} className="p-2 bg-card/80 rounded-full hover:bg-card transition-colors">
           <ArrowLeft className="w-6 h-6" />
         </button>
         <div className="flex-1">
           <h1 className="text-2xl font-bold">
-            {selectedTitle ? selectedTitle.title : `Cours ${course.title}`}
+            {selectedTitle ? selectedTitle.title : course.title}
           </h1>
-          <p className="text-muted-foreground">
-            {selectedTitle ? 'Fichiers du cours' : 'Sélectionnez un cours'}
+          <p className="text-muted-foreground text-sm">
+            {selectedTitle ? 'Fichiers du cours' : pathDisplay}
           </p>
         </div>
         {course.image && (
@@ -376,18 +439,62 @@ const CoursContent = () => {
         )}
       </div>
 
-      {/* Course Titles Section */}
+      {/* Breadcrumb */}
+      <div className="flex items-center gap-2 text-sm text-muted-foreground mb-6 flex-wrap">
+        <button onClick={() => navigate('/accueil')} className="hover:text-primary transition-colors">
+          Accueil
+        </button>
+        <ChevronRight className="w-4 h-4" />
+        <button onClick={() => navigate(`/stage/${stageId}`)} className="hover:text-primary transition-colors">
+          {stage.name}
+        </button>
+        <ChevronRight className="w-4 h-4" />
+        <button onClick={handleBack} className="hover:text-primary transition-colors">
+          P.{courseType.name.toUpperCase()}
+        </button>
+        <ChevronRight className="w-4 h-4" />
+        {selectedTitle ? (
+          <>
+            <button onClick={handleBackToTitles} className="hover:text-primary transition-colors">
+              {course.title}
+            </button>
+            <ChevronRight className="w-4 h-4" />
+            <span className="text-foreground font-medium">{selectedTitle.title}</span>
+          </>
+        ) : (
+          <span className="text-foreground font-medium">{course.title}</span>
+        )}
+      </div>
+
+      {/* Loading Overlay */}
+      {isLoading && (
+        <div className="fixed inset-0 bg-background/50 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="glass-card p-6 flex items-center gap-3">
+            <Loader2 className="w-6 h-6 animate-spin text-primary" />
+            <span>Chargement...</span>
+          </div>
+        </div>
+      )}
+
+      {/* Course Titles (Headings) Section */}
       {!selectedTitle && (
         <div className="glass-card p-6 animate-fade-in">
           <div className="space-y-3 mb-6">
-            {courseTitles.map((title) => (
+            {courseTitles.map((title, index) => (
               <div key={title.id} className="file-item animate-slide-in group">
-                <div 
-                  className="flex-1 cursor-pointer hover:text-primary transition-colors"
-                  onClick={() => handleTitleSelect(title)}
-                >
-                  <h4 className="font-medium text-lg">{title.title}</h4>
-                  <p className="text-sm text-muted-foreground">Cliquer pour voir les fichiers</p>
+                <div className="flex items-center gap-3">
+                  <span className="w-8 h-8 rounded-lg bg-primary/20 flex items-center justify-center text-primary font-bold text-sm">
+                    {index + 1}
+                  </span>
+                  <div 
+                    className="flex-1 cursor-pointer hover:text-primary transition-colors"
+                    onClick={() => handleTitleSelect(title)}
+                  >
+                    <h4 className="font-medium text-lg">{title.title}</h4>
+                    <p className="text-sm text-muted-foreground">
+                      {getFilesByCourseTitle(title.id).length} fichiers
+                    </p>
+                  </div>
                 </div>
                 {userMode === 'admin' && (
                   <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -407,11 +514,49 @@ const CoursContent = () => {
             )}
           </div>
 
-          {userMode === 'admin' && !showAddTitle && (
-            <button onClick={() => setShowAddTitle(true)} className="btn-success flex items-center gap-2">
-              <Plus className="w-5 h-5" />
-              Ajouter Cours
-            </button>
+          {userMode === 'admin' && (
+            <div className="flex flex-wrap gap-3">
+              {!showAddTitle && (
+                <>
+                  <button onClick={() => setShowAddTitle(true)} className="btn-success flex items-center gap-2">
+                    <Plus className="w-5 h-5" />
+                    Ajouter Cours
+                  </button>
+                  <button 
+                    onClick={() => setShowConclusionUpload(true)} 
+                    className="btn-primary flex items-center gap-2"
+                  >
+                    <FileCheck className="w-5 h-5" />
+                    Ajouter Conclusion
+                  </button>
+                </>
+              )}
+            </div>
+          )}
+
+          {/* Conclusion Upload Modal */}
+          {showConclusionUpload && (
+            <div className="glass-card p-4 mt-4 animate-scale-in">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-semibold">Ajouter Fichier de Conclusion</h3>
+                <button onClick={() => setShowConclusionUpload(false)} className="p-1 hover:bg-muted rounded">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              <p className="text-sm text-muted-foreground mb-4">
+                Ce fichier sera ajouté comme conclusion pour {course.title}
+              </p>
+              <label className="flex items-center gap-2 btn-ghost border border-dashed border-border cursor-pointer justify-center py-4">
+                <Upload className="w-5 h-5" />
+                <span>Sélectionner un fichier (PPT, Word, PDF, Vidéo)</span>
+                <input 
+                  type="file" 
+                  onChange={handleConclusionUpload} 
+                  accept=".ppt,.pptx,.doc,.docx,.pdf,.mp4,.avi,.mov,.mkv,.webm"
+                  className="hidden" 
+                />
+              </label>
+            </div>
           )}
 
           {showAddTitle && (
@@ -430,7 +575,7 @@ const CoursContent = () => {
                     value={titleForm}
                     onChange={(e) => setTitleForm(e.target.value)}
                     className="glass-input w-full p-2"
-                    placeholder="Ex: Initiation au Basketball"
+                    placeholder="Ex: 1.HISTORIQUE, 2.REGLES, etc."
                   />
                 </div>
                 <div className="flex gap-3">
@@ -490,19 +635,17 @@ const CoursContent = () => {
                 <Plus className="w-5 h-5" />
                 Ajouter Fichier
               </button>
-              <label className="btn-ghost border border-primary/30 flex items-center gap-2 cursor-pointer hover:bg-primary/10">
-                <FolderUp className="w-5 h-5 text-primary" />
-                <span>Importer Dossier</span>
+              <label className="btn-primary flex items-center gap-2 cursor-pointer">
+                <FolderUp className="w-5 h-5" />
+                Importer Dossier
                 <input
                   ref={folderInputRef}
                   type="file"
-                  multiple
                   onChange={handleFolderUpload}
-                  className="hidden"
-                  // @ts-ignore - webkitdirectory is a non-standard attribute
-                  webkitdirectory=""
+                  multiple
                   // @ts-ignore
-                  directory=""
+                  webkitdirectory=""
+                  className="hidden"
                 />
               </label>
             </div>
@@ -516,7 +659,6 @@ const CoursContent = () => {
                   <X className="w-5 h-5" />
                 </button>
               </div>
-
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium mb-1">Titre *</label>
@@ -535,20 +677,25 @@ const CoursContent = () => {
                     value={fileForm.description}
                     onChange={(e) => setFileForm(prev => ({ ...prev, description: e.target.value }))}
                     className="glass-input w-full p-2"
-                    placeholder="Description (optionnel)"
+                    placeholder="Description optionnelle"
                   />
                 </div>
                 <div>
                   <label className="block text-sm font-medium mb-1">Fichier</label>
-                  <label className="flex items-center gap-2 btn-ghost border border-dashed border-border cursor-pointer justify-center py-4">
+                  <label className="flex items-center gap-2 btn-ghost border border-dashed border-border cursor-pointer justify-center py-3">
                     <Upload className="w-5 h-5" />
-                    <span>{fileForm.fileName || 'Choisir un fichier'}</span>
-                    <input type="file" accept=".pdf,.ppt,.pptx,.doc,.docx,.mp4,.avi,.mov,.mkv,.webm,.wmv,.flv,.m4v" onChange={handleFileUpload} className="hidden" />
+                    <span>{fileForm.fileName || 'Choisir un fichier (PPT, Word, PDF, Vidéo)'}</span>
+                    <input 
+                      type="file" 
+                      onChange={handleFileUpload} 
+                      accept=".ppt,.pptx,.doc,.docx,.pdf,.mp4,.avi,.mov,.mkv,.webm"
+                      className="hidden" 
+                    />
                   </label>
                 </div>
                 <div className="flex gap-3">
-                  <button onClick={handleSaveFile} className="btn-success flex-1" disabled={isLoading}>
-                    {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : editingFile ? 'Enregistrer' : 'Ajouter'}
+                  <button onClick={handleSaveFile} className="btn-success flex-1">
+                    {editingFile ? 'Enregistrer' : 'Ajouter'}
                   </button>
                   <button onClick={resetFileForm} className="btn-ghost border border-border">Annuler</button>
                 </div>
@@ -557,18 +704,8 @@ const CoursContent = () => {
           )}
         </div>
       )}
-      
-      {/* Loading Overlay */}
-      {isLoading && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="glass-card p-6 flex items-center gap-3">
-            <Loader2 className="w-6 h-6 animate-spin text-primary" />
-            <span>Traitement en cours...</span>
-          </div>
-        </div>
-      )}
     </Layout>
   );
 };
 
-export default CoursContent;
+export default LeconDetail;
