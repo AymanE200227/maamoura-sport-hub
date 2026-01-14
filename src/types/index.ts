@@ -33,7 +33,7 @@ export interface CourseFile {
   courseTitleId: string;
   title: string;
   description?: string;
-  type: 'ppt' | 'word' | 'pdf';
+  type: 'ppt' | 'word' | 'pdf' | 'video';
   fileName: string;
   fileData: string; // Base64 or blob URL
 }
@@ -71,7 +71,7 @@ export interface ModelFile {
   modelId: string;
   title: string;
   description?: string;
-  type: 'ppt' | 'word' | 'pdf';
+  type: 'ppt' | 'word' | 'pdf' | 'video';
   fileName: string;
   fileData: string;
 }
@@ -84,4 +84,17 @@ export interface AppSettings {
     cinColumn: string;
     additionalColumns: string[];
   };
+}
+
+// Folder upload structure for hierarchical import
+export interface FolderStructure {
+  stage: string;
+  courseType: string;
+  sportCourse: string;
+  courseTitle: string;
+  files: {
+    name: string;
+    data: string;
+    type: 'ppt' | 'word' | 'pdf' | 'video';
+  }[];
 }

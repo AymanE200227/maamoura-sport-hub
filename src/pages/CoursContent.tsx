@@ -1,8 +1,8 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Plus, FileText, Edit, Trash2, Eye, Upload, X, Download, Loader2 } from 'lucide-react';
+import { ArrowLeft, Plus, FileText, Edit, Trash2, Eye, Upload, X, Download, Loader2, Video, FolderUp } from 'lucide-react';
 import Layout from '@/components/Layout';
-import { 
+import {
   getSportCourses,
   getCourseTitlesBySportCourse,
   getFilesByCourseTitle,
@@ -43,10 +43,11 @@ const CoursContent = () => {
   const [fileForm, setFileForm] = useState({
     title: '',
     description: '',
-    type: 'pdf' as 'ppt' | 'word' | 'pdf',
+    type: 'pdf' as 'ppt' | 'word' | 'pdf' | 'video',
     fileName: '',
     fileData: ''
   });
+  const folderInputRef = useRef<HTMLInputElement>(null);
   const [isLoading, setIsLoading] = useState(false);
   
   const userMode = getUserMode();
@@ -130,13 +131,19 @@ const CoursContent = () => {
   };
 
   // File CRUD
+  const getFileTypeFromExtension = (extension: string): 'ppt' | 'word' | 'pdf' | 'video' => {
+    const ext = extension.toLowerCase();
+    if (ext === 'pptx' || ext === 'ppt') return 'ppt';
+    if (ext === 'docx' || ext === 'doc') return 'word';
+    if (['mp4', 'avi', 'mov', 'mkv', 'webm', 'wmv', 'flv', 'm4v'].includes(ext)) return 'video';
+    return 'pdf';
+  };
+
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      const extension = file.name.split('.').pop()?.toLowerCase();
-      let fileType: 'ppt' | 'word' | 'pdf' = 'pdf';
-      if (extension === 'pptx' || extension === 'ppt') fileType = 'ppt';
-      else if (extension === 'docx' || extension === 'doc') fileType = 'word';
+      const extension = file.name.split('.').pop() || '';
+      const fileType = getFileTypeFromExtension(extension);
       
       const reader = new FileReader();
       reader.onload = () => {
@@ -148,6 +155,55 @@ const CoursContent = () => {
         }));
       };
       reader.readAsDataURL(file);
+    }
+  };
+
+  // Folder upload handler
+  const handleFolderUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0 || !selectedTitle) return;
+
+    setIsLoading(true);
+    let addedCount = 0;
+
+    try {
+      for (const file of Array.from(files)) {
+        const extension = file.name.split('.').pop() || '';
+        const fileType = getFileTypeFromExtension(extension);
+        
+        // Skip unsupported files
+        if (!['ppt', 'pptx', 'doc', 'docx', 'pdf', 'mp4', 'avi', 'mov', 'mkv', 'webm'].some(ext => 
+          file.name.toLowerCase().endsWith(ext)
+        )) continue;
+
+        const fileData = await new Promise<string>((resolve) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result as string);
+          reader.readAsDataURL(file);
+        });
+
+        // Use filename without extension as title
+        const title = file.name.replace(/\.[^/.]+$/, '');
+        
+        await addFileAsync({
+          courseTitleId: selectedTitle.id,
+          title,
+          description: '',
+          type: fileType,
+          fileName: file.name,
+          fileData
+        });
+        addedCount++;
+      }
+
+      setFiles(getFilesByCourseTitle(selectedTitle.id));
+      toast({ title: `${addedCount} fichiers ajoutés` });
+    } catch (error) {
+      console.error('Error uploading folder:', error);
+      toast({ title: 'Erreur', description: 'Erreur lors de l\'import', variant: 'destructive' });
+    } finally {
+      setIsLoading(false);
+      if (folderInputRef.current) folderInputRef.current.value = '';
     }
   };
 
@@ -286,6 +342,8 @@ const CoursContent = () => {
         return <div className="file-icon file-icon-ppt"><FileText className="w-5 h-5" /></div>;
       case 'word':
         return <div className="file-icon file-icon-word"><FileText className="w-5 h-5" /></div>;
+      case 'video':
+        return <div className="file-icon bg-purple-500/20 text-purple-400 p-2 rounded-lg"><Video className="w-5 h-5" /></div>;
       case 'pdf':
       default:
         return <div className="file-icon file-icon-pdf"><FileText className="w-5 h-5" /></div>;
@@ -427,10 +485,27 @@ const CoursContent = () => {
           </div>
 
           {userMode === 'admin' && !showAddFile && (
-            <button onClick={() => setShowAddFile(true)} className="btn-success flex items-center gap-2">
-              <Plus className="w-5 h-5" />
-              Ajouter Fichier
-            </button>
+            <div className="flex gap-3 flex-wrap">
+              <button onClick={() => setShowAddFile(true)} className="btn-success flex items-center gap-2">
+                <Plus className="w-5 h-5" />
+                Ajouter Fichier
+              </button>
+              <label className="btn-ghost border border-primary/30 flex items-center gap-2 cursor-pointer hover:bg-primary/10">
+                <FolderUp className="w-5 h-5 text-primary" />
+                <span>Importer Dossier</span>
+                <input
+                  ref={folderInputRef}
+                  type="file"
+                  multiple
+                  onChange={handleFolderUpload}
+                  className="hidden"
+                  // @ts-ignore - webkitdirectory is a non-standard attribute
+                  webkitdirectory=""
+                  // @ts-ignore
+                  directory=""
+                />
+              </label>
+            </div>
           )}
 
           {showAddFile && (
@@ -468,18 +543,28 @@ const CoursContent = () => {
                   <label className="flex items-center gap-2 btn-ghost border border-dashed border-border cursor-pointer justify-center py-4">
                     <Upload className="w-5 h-5" />
                     <span>{fileForm.fileName || 'Choisir un fichier'}</span>
-                    <input type="file" accept=".pdf,.ppt,.pptx,.doc,.docx" onChange={handleFileUpload} className="hidden" />
+                    <input type="file" accept=".pdf,.ppt,.pptx,.doc,.docx,.mp4,.avi,.mov,.mkv,.webm,.wmv,.flv,.m4v" onChange={handleFileUpload} className="hidden" />
                   </label>
                 </div>
                 <div className="flex gap-3">
-                  <button onClick={handleSaveFile} className="btn-success flex-1">
-                    {editingFile ? 'Enregistrer' : 'Ajouter'}
+                  <button onClick={handleSaveFile} className="btn-success flex-1" disabled={isLoading}>
+                    {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : editingFile ? 'Enregistrer' : 'Ajouter'}
                   </button>
                   <button onClick={resetFileForm} className="btn-ghost border border-border">Annuler</button>
                 </div>
               </div>
             </div>
           )}
+        </div>
+      )}
+      
+      {/* Loading Overlay */}
+      {isLoading && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="glass-card p-6 flex items-center gap-3">
+            <Loader2 className="w-6 h-6 animate-spin text-primary" />
+            <span>Traitement en cours...</span>
+          </div>
         </div>
       )}
     </Layout>
