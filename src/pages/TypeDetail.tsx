@@ -5,10 +5,9 @@ import Layout from '@/components/Layout';
 import ArabicInput from '@/components/ArabicInput';
 import { 
   getCourseTypes, 
-  getEnabledStages,
+  getStages,
   getSportCoursesByTypeAndStage,
   addSportCourse,
-  getStages,
   getUserMode 
 } from '@/lib/storage';
 import { CourseType, Stage, SportCourse } from '@/types';
@@ -17,15 +16,14 @@ import { useClickSound } from '@/hooks/useClickSound';
 import { useToast } from '@/hooks/use-toast';
 import bgImage from '@/assets/bg3.jpg';
 
-const CoursDetail = () => {
-  const { typeId } = useParams<{ typeId: string }>();
+const TypeDetail = () => {
+  const { stageId, typeId } = useParams<{ stageId: string; typeId: string }>();
   const navigate = useNavigate();
   const { playClick } = useClickSound();
   const { toast } = useToast();
   
+  const [stage, setStage] = useState<Stage | null>(null);
   const [courseType, setCourseType] = useState<CourseType | null>(null);
-  const [stages, setStages] = useState<Stage[]>([]);
-  const [selectedStage, setSelectedStage] = useState<Stage | null>(null);
   const [sportCourses, setSportCourses] = useState<SportCourse[]>([]);
   
   // Modal state
@@ -45,47 +43,37 @@ const CoursDetail = () => {
       return;
     }
     loadData();
-  }, [typeId, userMode, navigate]);
+  }, [stageId, typeId, userMode, navigate]);
 
   const loadData = () => {
+    const stages = getStages();
     const types = getCourseTypes();
-    const type = types.find(t => t.id === typeId);
-    if (type) {
-      setCourseType(type);
-      setStages(getEnabledStages());
+    
+    const foundStage = stages.find(s => s.id === stageId);
+    const foundType = types.find(t => t.id === typeId);
+    
+    if (foundStage && foundType) {
+      setStage(foundStage);
+      setCourseType(foundType);
+      setSportCourses(getSportCoursesByTypeAndStage(typeId!, stageId!));
     }
   };
 
   const refreshCourses = () => {
-    if (typeId && selectedStage) {
-      const courses = getSportCoursesByTypeAndStage(typeId, selectedStage.id);
-      setSportCourses(courses);
+    if (typeId && stageId) {
+      setSportCourses(getSportCoursesByTypeAndStage(typeId, stageId));
     }
   };
 
-  const handleStageSelect = useCallback((stage: Stage) => {
-    playClick();
-    setSelectedStage(stage);
-    if (typeId) {
-      const courses = getSportCoursesByTypeAndStage(typeId, stage.id);
-      setSportCourses(courses);
-    }
-  }, [typeId, playClick]);
-
   const handleCourseSelect = useCallback((course: SportCourse) => {
     playClick();
-    navigate(`/cours/${typeId}/stage/${selectedStage?.id}/course/${course.id}`);
-  }, [navigate, typeId, selectedStage, playClick]);
+    navigate(`/stage/${stageId}/type/${typeId}/lecon/${course.id}`);
+  }, [navigate, stageId, typeId, playClick]);
 
   const handleBack = useCallback(() => {
     playClick();
-    if (selectedStage) {
-      setSelectedStage(null);
-      setSportCourses([]);
-    } else {
-      navigate('/accueil');
-    }
-  }, [selectedStage, navigate, playClick]);
+    navigate(`/stage/${stageId}`);
+  }, [navigate, stageId, playClick]);
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -106,13 +94,13 @@ const CoursDetail = () => {
 
     addSportCourse({
       courseTypeId: typeId!,
-      stageId: selectedStage!.id,
+      stageId: stageId!,
       title: courseForm.title,
       description: courseForm.description,
       image: courseForm.image === 'custom' ? courseForm.customImage : courseForm.image
     });
 
-    toast({ title: 'Cours ajouté', description: 'Le cours a été ajouté avec succès' });
+    toast({ title: 'Leçon ajoutée', description: 'La leçon a été ajoutée avec succès' });
     setCourseForm({ title: '', description: '', image: 'basketball', customImage: '' });
     setShowAddModal(false);
     refreshCourses();
@@ -124,7 +112,7 @@ const CoursDetail = () => {
     setShowAddModal(true);
   };
 
-  if (!courseType) return null;
+  if (!stage || !courseType) return null;
 
   return (
     <Layout backgroundImage={bgImage}>
@@ -134,100 +122,82 @@ const CoursDetail = () => {
           <ArrowLeft className="w-6 h-6" />
         </button>
         <div>
-          <h1 className="text-3xl font-bold">Cours {courseType.name}</h1>
+          <h1 className="text-3xl font-bold">{stage.name} - P.{courseType.name.toUpperCase()}</h1>
           <p className="text-muted-foreground">
-            {selectedStage ? `Stage: ${selectedStage.name}` : 'Sélectionnez un stage'}
+            Sélectionnez une leçon
           </p>
         </div>
       </div>
 
-      {/* Stage Selection */}
-      {!selectedStage && (
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 animate-fade-in">
-          {stages.map((stage) => (
-            <button
-              key={stage.id}
-              onClick={() => handleStageSelect(stage)}
-              className="glass-card p-6 text-left hover:bg-card/80 transition-all duration-300 group relative overflow-hidden"
-            >
-              <div className="relative z-10">
-                <h3 className="text-xl font-bold mb-2 group-hover:text-primary transition-colors">
-                  {stage.name}
-                </h3>
-                <p className="text-sm text-muted-foreground mb-4">
-                  {stage.description}
-                </p>
-                <div className="flex items-center justify-between">
-                  <span className="text-xs text-muted-foreground">
-                    {getSportCoursesByTypeAndStage(typeId!, stage.id).length} cours
-                  </span>
-                  <ChevronRight className="w-5 h-5 text-muted-foreground group-hover:text-primary transition-colors" />
-                </div>
-              </div>
-              <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-            </button>
-          ))}
-        </div>
-      )}
+      {/* Breadcrumb */}
+      <div className="flex items-center gap-2 text-sm text-muted-foreground mb-6 flex-wrap">
+        <button onClick={() => navigate('/accueil')} className="hover:text-primary transition-colors">
+          Accueil
+        </button>
+        <ChevronRight className="w-4 h-4" />
+        <button onClick={handleBack} className="hover:text-primary transition-colors">
+          {stage.name}
+        </button>
+        <ChevronRight className="w-4 h-4" />
+        <span className="text-foreground font-medium">P.{courseType.name.toUpperCase()}</span>
+      </div>
 
-      {/* Sport Courses List */}
-      {selectedStage && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-fade-in">
-          {sportCourses.map((course) => (
-            <button
-              key={course.id}
-              onClick={() => handleCourseSelect(course)}
-              className="course-card group h-48 text-left"
-            >
-              <img 
-                src={course.image.startsWith('data:') ? course.image : getSportImage(course.image)} 
-                alt={course.title}
-                className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
-                loading="lazy"
-              />
-              <div className="course-card-overlay">
-                <h3 className="text-xl font-bold mb-1">{course.title}</h3>
-                <p className="text-sm text-muted-foreground line-clamp-2">{course.description}</p>
-                <div className="mt-2 flex items-center text-xs text-muted-foreground">
-                  <span>Cliquer pour voir les cours</span>
-                  <ChevronRight className="w-4 h-4 ml-1" />
-                </div>
+      {/* Sport Courses (Leçons) as Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-fade-in">
+        {sportCourses.map((course) => (
+          <button
+            key={course.id}
+            onClick={() => handleCourseSelect(course)}
+            className="course-card group h-48 text-left"
+          >
+            <img 
+              src={course.image.startsWith('data:') ? course.image : getSportImage(course.image)} 
+              alt={course.title}
+              className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+              loading="lazy"
+            />
+            <div className="course-card-overlay">
+              <h3 className="text-xl font-bold mb-1">{course.title}</h3>
+              <p className="text-sm text-muted-foreground line-clamp-2">{course.description}</p>
+              <div className="mt-2 flex items-center text-xs text-muted-foreground">
+                <span>Voir les cours</span>
+                <ChevronRight className="w-4 h-4 ml-1" />
               </div>
-            </button>
-          ))}
-
-          {sportCourses.length === 0 && (
-            <div className="col-span-full text-center py-12">
-              <Lock className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-              <p className="text-muted-foreground mb-4">Aucun cours disponible pour ce stage</p>
-              {userMode === 'admin' && (
-                <button 
-                  onClick={openAddModal}
-                  className="btn-primary flex items-center gap-2 mx-auto"
-                >
-                  <Plus className="w-5 h-5" />
-                  Ajouter des cours
-                </button>
-              )}
             </div>
-          )}
+          </button>
+        ))}
 
-          {/* Add Button for Admin when courses exist */}
-          {userMode === 'admin' && sportCourses.length > 0 && (
-            <button
-              onClick={openAddModal}
-              className="glass-card h-48 flex flex-col items-center justify-center gap-3 border-2 border-dashed border-primary/30 hover:border-primary/60 hover:bg-primary/5 transition-all group"
-            >
-              <div className="w-16 h-16 rounded-full bg-primary/20 flex items-center justify-center group-hover:bg-primary/30 transition-colors">
-                <Plus className="w-8 h-8 text-primary" />
-              </div>
-              <span className="font-medium text-muted-foreground group-hover:text-foreground transition-colors">
-                Ajouter un cours
-              </span>
-            </button>
-          )}
-        </div>
-      )}
+        {sportCourses.length === 0 && (
+          <div className="col-span-full text-center py-12">
+            <Lock className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+            <p className="text-muted-foreground mb-4">Aucune leçon disponible pour cette catégorie</p>
+            {userMode === 'admin' && (
+              <button 
+                onClick={openAddModal}
+                className="btn-primary flex items-center gap-2 mx-auto"
+              >
+                <Plus className="w-5 h-5" />
+                Ajouter une leçon
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* Add Button for Admin when courses exist */}
+        {userMode === 'admin' && sportCourses.length > 0 && (
+          <button
+            onClick={openAddModal}
+            className="glass-card h-48 flex flex-col items-center justify-center gap-3 border-2 border-dashed border-primary/30 hover:border-primary/60 hover:bg-primary/5 transition-all group"
+          >
+            <div className="w-16 h-16 rounded-full bg-primary/20 flex items-center justify-center group-hover:bg-primary/30 transition-colors">
+              <Plus className="w-8 h-8 text-primary" />
+            </div>
+            <span className="font-medium text-muted-foreground group-hover:text-foreground transition-colors">
+              Ajouter une leçon
+            </span>
+          </button>
+        )}
+      </div>
 
       {/* Add Course Modal */}
       {showAddModal && (
@@ -235,9 +205,9 @@ const CoursDetail = () => {
           <div className="glass-card w-full max-w-lg animate-scale-in my-8 flex flex-col max-h-[85vh]">
             <div className="flex items-center justify-between p-6 pb-4 border-b border-border/30 shrink-0">
               <div>
-                <h3 className="text-lg font-semibold">Ajouter un Cours</h3>
+                <h3 className="text-lg font-semibold">Ajouter une Leçon</h3>
                 <p className="text-sm text-muted-foreground">
-                  {courseType.name} • {selectedStage?.name}
+                  {stage.name} • P.{courseType.name.toUpperCase()}
                 </p>
               </div>
               <button onClick={() => setShowAddModal(false)} className="p-2 hover:bg-muted rounded-lg">
@@ -247,12 +217,12 @@ const CoursDetail = () => {
 
             <div className="flex-1 overflow-y-auto p-6 space-y-4">
               <div>
-                <label className="block text-sm font-medium mb-2">Titre du cours *</label>
+                <label className="block text-sm font-medium mb-2">Titre de la leçon *</label>
                 <ArabicInput
                   value={courseForm.title}
                   onChange={(value) => setCourseForm(prev => ({ ...prev, title: value }))}
                   className="glass-input w-full p-3 pr-16"
-                  placeholder="Ex: Initiation au Basketball"
+                  placeholder="Ex: Basketball, Anatomie, etc."
                 />
               </div>
               
@@ -262,7 +232,7 @@ const CoursDetail = () => {
                   value={courseForm.description}
                   onChange={(value) => setCourseForm(prev => ({ ...prev, description: value }))}
                   className="glass-input w-full p-3 pr-16 min-h-[80px]"
-                  placeholder="Description du cours..."
+                  placeholder="Description de la leçon..."
                   multiline
                 />
               </div>
@@ -332,7 +302,7 @@ const CoursDetail = () => {
 
             <div className="flex gap-3 p-6 pt-4 border-t border-border/30 shrink-0 bg-background/50">
               <button onClick={handleAddCourse} className="btn-success flex-1 py-3 font-medium">
-                Ajouter le cours
+                Ajouter la leçon
               </button>
               <button onClick={() => setShowAddModal(false)} className="btn-ghost border border-border py-3 px-6">
                 Annuler
@@ -345,4 +315,4 @@ const CoursDetail = () => {
   );
 };
 
-export default CoursDetail;
+export default TypeDetail;

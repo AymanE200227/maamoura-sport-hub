@@ -8,48 +8,57 @@ import Layout from '@/components/Layout';
 import { 
   getCourseTypes, getUserMode, getSportCourses, 
   getCourseTitles, getFiles, getStages, getStudentAccounts,
-  getAppSettings
+  getAppSettings, getEnabledStages
 } from '@/lib/storage';
-import { CourseType } from '@/types';
-import { getSportImage } from '@/assets/sports';
+import { Stage } from '@/types';
 import { useClickSound } from '@/hooks/useClickSound';
 import bgImage from '@/assets/bg2.jpg';
 import logoOfficial from '@/assets/logo-official.png';
 import farBadge from '@/assets/far-badge.png';
 
-// Memoized Course Card
-const CourseCard = ({ type, onClick, courseCount }: { type: CourseType; onClick: () => void; courseCount: number }) => {
-  const defaultImageKey = type.name.toLowerCase().includes('milit') ? 'militaire' : 'sportif';
-  const imageSrc = type.image || getSportImage(defaultImageKey);
-  
+// Stage Card Component
+const StageCard = ({ stage, onClick, courseCount }: { 
+  stage: Stage; 
+  onClick: () => void; 
+  courseCount: number;
+}) => {
+  const stageColors: Record<string, string> = {
+    'aide_moniteur': 'from-amber-500/30 to-amber-600/10 border-amber-500/40',
+    'app': 'from-blue-500/30 to-blue-600/10 border-blue-500/40',
+    'cat1': 'from-green-500/30 to-green-600/10 border-green-500/40',
+    'cat2': 'from-emerald-500/30 to-emerald-600/10 border-emerald-500/40',
+    'be': 'from-purple-500/30 to-purple-600/10 border-purple-500/40',
+    'bs': 'from-indigo-500/30 to-indigo-600/10 border-indigo-500/40',
+    'moniteur': 'from-orange-500/30 to-orange-600/10 border-orange-500/40',
+    'off': 'from-red-500/30 to-red-600/10 border-red-500/40',
+  };
+
+  const colorClass = stageColors[stage.id] || 'from-primary/30 to-primary/10 border-primary/40';
+
   return (
-    <div 
-      className="course-card group h-56 animate-fade-in"
+    <button
       onClick={onClick}
+      className={`glass-card p-6 text-left hover:scale-105 transition-all duration-300 group relative overflow-hidden border-2 bg-gradient-to-br ${colorClass}`}
     >
-      <img 
-        src={imageSrc}
-        alt={type.name}
-        className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
-        loading="lazy"
-      />
-      <div className="course-card-overlay">
-        <div className="flex items-center gap-2 mb-2">
-          <span className="badge-gold">
+      <div className="relative z-10">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-2xl font-bold group-hover:text-primary transition-colors">
+            {stage.name}
+          </h3>
+          <span className="badge-gold text-xs">
             {courseCount} cours
           </span>
         </div>
-        <h2 className="text-xl font-bold text-white mb-1">
-          Cours {type.name}
-        </h2>
-        <p className="text-sm text-white/70 line-clamp-2">
-          {type.description || `Découvrez nos cours ${type.name.toLowerCase()}`}
+        <p className="text-sm text-muted-foreground mb-4">
+          {stage.description}
         </p>
-        <button className="mt-3 flex items-center gap-2 text-primary text-sm font-medium group-hover:gap-3 transition-all">
-          Explorer <ChevronRight className="w-4 h-4" />
-        </button>
+        <div className="flex items-center text-sm text-muted-foreground group-hover:text-primary transition-colors">
+          <span>Accéder aux cours</span>
+          <ChevronRight className="w-4 h-4 ml-1 group-hover:translate-x-1 transition-transform" />
+        </div>
       </div>
-    </div>
+      <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+    </button>
   );
 };
 
@@ -80,7 +89,7 @@ const StatCard = ({ icon: Icon, label, value, color = 'primary' }: {
 };
 
 const Accueil = () => {
-  const [courseTypes, setCourseTypes] = useState<CourseType[]>([]);
+  const [stages, setStages] = useState<Stage[]>([]);
   const navigate = useNavigate();
   const userMode = getUserMode();
   const { playClick } = useClickSound();
@@ -91,42 +100,44 @@ const Accueil = () => {
     const courses = getSportCourses();
     const titles = getCourseTitles();
     const files = getFiles();
-    const stages = getStages();
+    const allStages = getStages();
     const students = getStudentAccounts();
+    const courseTypes = getCourseTypes();
     
     return {
       totalCourses: courses.length,
       totalTitles: titles.length,
       totalFiles: files.length,
-      activeStages: stages.filter(s => s.enabled).length,
+      activeStages: allStages.filter(s => s.enabled).length,
       totalStudents: students.length,
+      totalTypes: courseTypes.length,
     };
   }, []);
 
-  // Course counts by type
+  // Course counts by stage
   const courseCounts = useMemo(() => {
     const courses = getSportCourses();
     const counts: Record<string, number> = {};
-    courseTypes.forEach(type => {
-      counts[type.id] = courses.filter(c => c.courseTypeId === type.id).length;
+    stages.forEach(stage => {
+      counts[stage.id] = courses.filter(c => c.stageId === stage.id).length;
     });
     return counts;
-  }, [courseTypes]);
+  }, [stages]);
 
   useEffect(() => {
     if (!userMode) {
       navigate('/');
       return;
     }
-    setCourseTypes(getCourseTypes());
+    setStages(getEnabledStages());
   }, [userMode, navigate]);
 
-  const handleTypeClick = useCallback((type: CourseType) => {
+  const handleStageClick = useCallback((stage: Stage) => {
     playClick();
-    navigate(`/cours/${type.id}`);
+    navigate(`/stage/${stage.id}`);
   }, [navigate, playClick]);
 
-  const handleAddClick = useCallback(() => {
+  const handleManageClick = useCallback(() => {
     playClick();
     navigate('/gestion-cours');
   }, [navigate, playClick]);
@@ -189,20 +200,20 @@ const Accueil = () => {
         {/* Statistics Grid */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           <StatCard 
-            icon={BookOpen} 
-            label="Cours" 
-            value={stats.totalCourses} 
+            icon={Layers} 
+            label="Stages" 
+            value={stats.activeStages} 
             color="primary"
           />
           <StatCard 
-            icon={Layers} 
-            label="Stages Actifs" 
-            value={stats.activeStages} 
+            icon={BookOpen} 
+            label="Leçons" 
+            value={stats.totalCourses} 
             color="success"
           />
           <StatCard 
             icon={GraduationCap} 
-            label="Leçons" 
+            label="Cours" 
             value={stats.totalTitles} 
             color="accent"
           />
@@ -227,13 +238,13 @@ const Accueil = () => {
               <div className="flex items-center gap-2">
                 <Award className="w-5 h-5 text-primary" />
                 <span className="text-sm">
-                  <strong className="text-primary">{courseTypes.length}</strong> catégories de cours
+                  <strong className="text-primary">{stats.totalTypes}</strong> catégories de cours
                 </span>
               </div>
             </div>
             {userMode === 'admin' && (
               <button 
-                onClick={handleAddClick}
+                onClick={handleManageClick}
                 className="btn-primary text-sm py-2"
               >
                 <Plus className="w-4 h-4" />
@@ -243,40 +254,40 @@ const Accueil = () => {
           </div>
         </div>
 
-        {/* Course Type Cards */}
+        {/* Stage Cards - Main Navigation */}
         <div>
           <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
-            <BookOpen className="w-5 h-5 text-primary" />
-            Catégories de Cours
+            <Layers className="w-5 h-5 text-primary" />
+            Sélectionnez votre Stage
           </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {courseTypes.map((type) => (
-              <CourseCard 
-                key={type.id} 
-                type={type} 
-                onClick={() => handleTypeClick(type)}
-                courseCount={courseCounts[type.id] || 0}
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            {stages.map((stage) => (
+              <StageCard 
+                key={stage.id} 
+                stage={stage} 
+                onClick={() => handleStageClick(stage)}
+                courseCount={courseCounts[stage.id] || 0}
               />
             ))}
           </div>
         </div>
 
         {/* Admin Quick Actions */}
-        {userMode === 'admin' && courseTypes.length === 0 && (
+        {userMode === 'admin' && stages.length === 0 && (
           <div className="glass-card p-8 text-center">
             <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-primary/20 flex items-center justify-center">
               <Plus className="w-8 h-8 text-primary" />
             </div>
-            <h3 className="text-lg font-semibold mb-2">Aucune catégorie</h3>
+            <h3 className="text-lg font-semibold mb-2">Aucun stage actif</h3>
             <p className="text-muted-foreground mb-4">
-              Commencez par ajouter des catégories de cours
+              Activez des stages dans les paramètres pour commencer
             </p>
             <button 
-              onClick={handleAddClick}
+              onClick={handleManageClick}
               className="btn-primary"
             >
               <Plus className="w-5 h-5" />
-              Ajouter une Catégorie
+              Gérer les Stages
             </button>
           </div>
         )}
