@@ -20,6 +20,12 @@ export const isValidFile = (fileName: string): boolean => {
   return validExtensions.includes(ext);
 };
 
+// Check if this is a conclusion file (from name pattern)
+const isConclusionFile = (fileName: string): boolean => {
+  const lower = fileName.toLowerCase();
+  return lower.includes('conclusion') || lower.startsWith('conclu');
+};
+
 // Stage name mappings
 const stageNameMappings: Record<string, string> = {
   'a.moniteur': 'AIDE MONITEUR',
@@ -90,10 +96,19 @@ export const parseFolderStructure = async (files: FileList): Promise<{
   const leconMap = new Map<string, ImportTreeNode>();
   const headingMap = new Map<string, ImportTreeNode>();
   
+  // Track order of insertion for stages
+  const stageOrder: string[] = [];
+  const typeOrder = new Map<string, string[]>();
+  const leconOrder = new Map<string, string[]>();
+  const headingOrder = new Map<string, string[]>();
+  
   let fileCount = 0;
   
-  // Process files in batches to avoid freezing
-  const filesArray = Array.from(files).filter(f => !f.name.startsWith('.') && isValidFile(f.name));
+  // Convert to array and sort by path to maintain folder order
+  const filesArray = Array.from(files)
+    .filter(f => !f.name.startsWith('.') && isValidFile(f.name))
+    .sort((a, b) => a.webkitRelativePath.localeCompare(b.webkitRelativePath));
+  
   const batchSize = 20;
   
   for (let i = 0; i < filesArray.length; i += batchSize) {
@@ -147,7 +162,8 @@ export const parseFolderStructure = async (files: FileList): Promise<{
             expanded: true
           };
           stageMap.set(stageKey, stageNode);
-          tree.push(stageNode);
+          stageOrder.push(stageKey);
+          typeOrder.set(stageKey, []);
         }
         
         let parentNode = stageMap.get(stageKey)!;
@@ -166,7 +182,8 @@ export const parseFolderStructure = async (files: FileList): Promise<{
               expanded: true
             };
             typeMap.set(typeKey, typeNode);
-            parentNode.children.push(typeNode);
+            typeOrder.get(stageKey)!.push(typeKey);
+            leconOrder.set(typeKey, []);
           }
           
           parentNode = typeMap.get(typeKey)!;
@@ -185,7 +202,8 @@ export const parseFolderStructure = async (files: FileList): Promise<{
                 expanded: true
               };
               leconMap.set(leconKey, leconNode);
-              parentNode.children.push(leconNode);
+              leconOrder.get(typeKey)!.push(leconKey);
+              headingOrder.set(leconKey, []);
             }
             
             parentNode = leconMap.get(leconKey)!;
@@ -204,7 +222,7 @@ export const parseFolderStructure = async (files: FileList): Promise<{
                   expanded: false
                 };
                 headingMap.set(headingKey, headingNode);
-                parentNode.children.push(headingNode);
+                headingOrder.get(leconKey)!.push(headingKey);
               }
               
               parentNode = headingMap.get(headingKey)!;
@@ -226,6 +244,47 @@ export const parseFolderStructure = async (files: FileList): Promise<{
     }
   }
 
+  // Build tree in correct order
+  for (const stageKey of stageOrder) {
+    const stageNode = stageMap.get(stageKey)!;
+    // Clear children and rebuild in order
+    const stageTypes = typeOrder.get(stageKey) || [];
+    stageNode.children = [];
+    
+    for (const typeKey of stageTypes) {
+      const typeNode = typeMap.get(typeKey)!;
+      const typeLecons = leconOrder.get(typeKey) || [];
+      
+      // Separate files and lecons
+      const directFiles = typeNode.children.filter(c => c.type === 'file');
+      typeNode.children = [];
+      
+      for (const leconKey of typeLecons) {
+        const leconNode = leconMap.get(leconKey)!;
+        const leconHeadings = headingOrder.get(leconKey) || [];
+        
+        // Separate files and headings
+        const leconFiles = leconNode.children.filter(c => c.type === 'file');
+        leconNode.children = [];
+        
+        for (const headingKey of leconHeadings) {
+          const headingNode = headingMap.get(headingKey)!;
+          leconNode.children.push(headingNode);
+        }
+        
+        // Add direct files after headings
+        leconNode.children.push(...leconFiles);
+        typeNode.children.push(leconNode);
+      }
+      
+      // Add direct files after lecons
+      typeNode.children.push(...directFiles);
+      stageNode.children.push(typeNode);
+    }
+    
+    tree.push(stageNode);
+  }
+
   return {
     tree,
     stats: {
@@ -239,6 +298,7 @@ export const parseFolderStructure = async (files: FileList): Promise<{
 };
 
 // Import tree to storage - FIXED to ensure only ONE P.SPORTIF and ONE P.MILITAIRE per stage
+// Also handles conclusion files directly (no separate heading needed)
 export const importTreeToStorage = async (
   tree: ImportTreeNode[],
   getStages: () => any[],
@@ -257,7 +317,7 @@ export const importTreeToStorage = async (
   let existingCourses = getSportCourses();
   let existingTitles = getCourseTitles();
   
-  // Process in batches
+  // Process in order (tree already sorted)
   for (const stageNode of tree) {
     // Find matching stage
     const stageId = getStageId(stageNode.name);
@@ -313,31 +373,61 @@ export const importTreeToStorage = async (
           existingCourses = [...existingCourses, sportCourse];
         }
         
+        // Process children in order
         for (const child of leconNode.children) {
           if (child.type === 'file' && child.file) {
-            // Direct file under lecon - create "Général" heading if not exists
-            let generalTitle = existingTitles.find(t => 
-              t.sportCourseId === sportCourse.id && 
-              t.title.toLowerCase() === 'général'
-            );
+            // Check if it's a conclusion file - import directly with its name
+            const isConclusion = isConclusionFile(child.file.name);
             
-            if (!generalTitle) {
-              generalTitle = addCourseTitle({
-                sportCourseId: sportCourse.id,
-                title: 'Général'
+            if (isConclusion) {
+              // Find or create a "Conclusion" course title
+              let conclusionTitle = existingTitles.find(t => 
+                t.sportCourseId === sportCourse.id && 
+                t.title.toLowerCase() === 'conclusion'
+              );
+              
+              if (!conclusionTitle) {
+                conclusionTitle = addCourseTitle({
+                  sportCourseId: sportCourse.id,
+                  title: 'Conclusion'
+                });
+                existingTitles = [...existingTitles, conclusionTitle];
+              }
+              
+              await addFileAsync({
+                courseTitleId: conclusionTitle.id,
+                title: child.name, // Use original file name
+                description: '',
+                type: child.file.type === 'unknown' ? 'pdf' : child.file.type,
+                fileName: child.file.name,
+                fileData: child.file.data
               });
-              existingTitles = [...existingTitles, generalTitle];
+              importedFiles++;
+            } else {
+              // Direct file under lecon - create "Général" heading if not exists
+              let generalTitle = existingTitles.find(t => 
+                t.sportCourseId === sportCourse.id && 
+                t.title.toLowerCase() === 'général'
+              );
+              
+              if (!generalTitle) {
+                generalTitle = addCourseTitle({
+                  sportCourseId: sportCourse.id,
+                  title: 'Général'
+                });
+                existingTitles = [...existingTitles, generalTitle];
+              }
+              
+              await addFileAsync({
+                courseTitleId: generalTitle.id,
+                title: child.name,
+                description: '',
+                type: child.file.type === 'unknown' ? 'pdf' : child.file.type,
+                fileName: child.file.name,
+                fileData: child.file.data
+              });
+              importedFiles++;
             }
-            
-            await addFileAsync({
-              courseTitleId: generalTitle.id,
-              title: child.name,
-              description: '',
-              type: child.file.type === 'unknown' ? 'pdf' : child.file.type,
-              fileName: child.file.name,
-              fileData: child.file.data
-            });
-            importedFiles++;
             
           } else if (child.type === 'heading') {
             // Find or create course title (heading)
@@ -354,7 +444,7 @@ export const importTreeToStorage = async (
               existingTitles = [...existingTitles, courseTitle];
             }
             
-            // Add files to heading
+            // Add files to heading in order
             for (const fileNode of child.children) {
               if (fileNode.type === 'file' && fileNode.file) {
                 await addFileAsync({

@@ -1,5 +1,5 @@
 import { CourseType, SportCourse, CourseTitle, CourseFile, Stage, StudentAccount, AppSettings, Promo, DocumentModel, ModelFile } from '@/types';
-import { saveFileData, getFileData, deleteFileData, deleteMultipleFileData } from './fileStorage';
+import { saveFileData, getFileData, deleteFileData } from './fileStorage';
 
 const STORAGE_KEYS = {
   COURSE_TYPES: 'csm_course_types',
@@ -227,12 +227,26 @@ export const saveCourseTitles = (titles: CourseTitle[]): void => {
 };
 
 export const getCourseTitlesBySportCourse = (sportCourseId: string): CourseTitle[] => {
-  return getCourseTitles().filter(t => t.sportCourseId === sportCourseId);
+  const titles = getCourseTitles().filter(t => t.sportCourseId === sportCourseId);
+  // Sort by order if available, otherwise by id (older first)
+  return titles.sort((a, b) => {
+    if (a.order !== undefined && b.order !== undefined) {
+      return a.order - b.order;
+    }
+    return parseInt(a.id) - parseInt(b.id);
+  });
 };
 
 export const addCourseTitle = (title: Omit<CourseTitle, 'id'>): CourseTitle => {
   const titles = getCourseTitles();
-  const newTitle: CourseTitle = { ...title, id: Date.now().toString() };
+  // Get max order for this sport course
+  const sameCourse = titles.filter(t => t.sportCourseId === title.sportCourseId);
+  const maxOrder = sameCourse.reduce((max, t) => Math.max(max, t.order ?? 0), 0);
+  const newTitle: CourseTitle = { 
+    ...title, 
+    id: Date.now().toString(),
+    order: maxOrder + 1
+  };
   titles.push(newTitle);
   saveCourseTitles(titles);
   return newTitle;

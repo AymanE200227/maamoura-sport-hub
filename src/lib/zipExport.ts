@@ -16,7 +16,9 @@ import {
   setUserPassword,
   setBackgroundImage,
   setBackgroundEnabled,
-  getFileDataAsync
+  getFileDataAsync,
+  getStages,
+  saveStages
 } from './storage';
 import { saveFileData } from './fileStorage';
 import { getClickSound, isClickSoundEnabled, setClickSound, setClickSoundEnabled } from '@/hooks/useClickSound';
@@ -26,6 +28,7 @@ interface ExportData {
   sportCourses: any[];
   courseTitles: any[];
   files: any[];
+  stages?: any[];
   adminPassword: string;
   userPassword: string;
   backgroundEnabled: boolean;
@@ -97,32 +100,45 @@ export const exportToZip = async (): Promise<void> => {
   const clickSound = getClickSound();
   
   // Prepare files list with references - fetch actual data from IndexedDB
-  const filesWithRefs = await Promise.all(files.map(async (file) => {
-    // Get actual file data from IndexedDB
-    const fileData = await getFileDataAsync(file.id);
+  // Process in batches to prevent memory issues
+  const batchSize = 10;
+  const filesWithRefs: any[] = [];
+  
+  for (let i = 0; i < files.length; i += batchSize) {
+    const batch = files.slice(i, i + batchSize);
     
-    if (fileData && filesFolder) {
-      const ext = getExtension(fileData, file.fileName);
-      const fileName = `file_${file.id}.${ext}`;
+    const batchResults = await Promise.all(batch.map(async (file) => {
+      // Get actual file data from IndexedDB
+      const fileData = await getFileDataAsync(file.id);
       
-      const blob = dataURLtoBlob(fileData);
-      if (blob) {
-        filesFolder.file(fileName, blob);
+      if (fileData && filesFolder) {
+        const ext = getExtension(fileData, file.fileName);
+        const fileName = `file_${file.id}.${ext}`;
+        
+        const blob = dataURLtoBlob(fileData);
+        if (blob) {
+          filesFolder.file(fileName, blob);
+        }
+        
+        return {
+          ...file,
+          fileData: fileName, // Replace with filename reference
+          originalFileName: file.fileName
+        };
       }
       
       return {
         ...file,
-        fileData: fileName, // Replace with filename reference
+        fileData: '',
         originalFileName: file.fileName
       };
-    }
+    }));
     
-    return {
-      ...file,
-      fileData: '',
-      originalFileName: file.fileName
-    };
-  }));
+    filesWithRefs.push(...batchResults);
+    
+    // Allow UI to breathe
+    await new Promise(resolve => setTimeout(resolve, 0));
+  }
   
   // Export background image if exists
   if (backgroundImage && settingsFolder) {
@@ -148,12 +164,13 @@ export const exportToZip = async (): Promise<void> => {
     sportCourses: getSportCourses(),
     courseTitles: getCourseTitles(),
     files: filesWithRefs,
+    stages: getStages(),
     adminPassword: getAdminPassword(),
     userPassword: getUserPassword(),
     backgroundEnabled: isBackgroundEnabled(),
     clickSoundEnabled: isClickSoundEnabled(),
     exportedAt: new Date().toISOString(),
-    version: '4.0'
+    version: '4.1'
   };
   
   // Add main data.json
@@ -185,33 +202,45 @@ export const importFromZip = async (file: File): Promise<boolean> => {
     const dataContent = await dataFile.async('string');
     const data: ExportData = JSON.parse(dataContent);
     
-    // Restore files with their actual data - save to IndexedDB
-    const restoredFiles = await Promise.all(
-      data.files.map(async (file) => {
-        const fileName = file.fileData; // This is now the filename in the ZIP
-        const zipFile = zip.file(`fichiers/${fileName}`);
-        
-        if (zipFile) {
-          const blob = await zipFile.async('blob');
-          const fileData = await new Promise<string>((resolve) => {
-            const reader = new FileReader();
-            reader.onload = () => resolve(reader.result as string);
-            reader.readAsDataURL(blob);
-          });
+    // Restore files with their actual data - save to IndexedDB in batches
+    const batchSize = 10;
+    const restoredFiles: any[] = [];
+    
+    for (let i = 0; i < data.files.length; i += batchSize) {
+      const batch = data.files.slice(i, i + batchSize);
+      
+      const batchResults = await Promise.all(
+        batch.map(async (file) => {
+          const fileName = file.fileData; // This is now the filename in the ZIP
+          const zipFile = zip.file(`fichiers/${fileName}`);
           
-          // Save to IndexedDB
-          await saveFileData(file.id, fileData, file.originalFileName || file.fileName, file.type);
+          if (zipFile) {
+            const blob = await zipFile.async('blob');
+            const fileData = await new Promise<string>((resolve) => {
+              const reader = new FileReader();
+              reader.onload = () => resolve(reader.result as string);
+              reader.readAsDataURL(blob);
+            });
+            
+            // Save to IndexedDB
+            await saveFileData(file.id, fileData, file.originalFileName || file.fileName, file.type);
+            
+            return {
+              ...file,
+              fileData: '', // Metadata only
+              fileName: file.originalFileName || file.fileName
+            };
+          }
           
-          return {
-            ...file,
-            fileData: '', // Metadata only
-            fileName: file.originalFileName || file.fileName
-          };
-        }
-        
-        return { ...file, fileData: '' };
-      })
-    );
+          return { ...file, fileData: '' };
+        })
+      );
+      
+      restoredFiles.push(...batchResults);
+      
+      // Allow UI to breathe
+      await new Promise(resolve => setTimeout(resolve, 0));
+    }
     
     // Restore background image
     const bgFiles = ['background.jpg', 'background.png', 'background.webp', 'background.gif'];
@@ -254,6 +283,7 @@ export const importFromZip = async (file: File): Promise<boolean> => {
     if (data.sportCourses) saveSportCourses(data.sportCourses);
     if (data.courseTitles) saveCourseTitles(data.courseTitles);
     if (restoredFiles) saveFiles(restoredFiles);
+    if (data.stages) saveStages(data.stages);
     if (data.adminPassword) setAdminPassword(data.adminPassword);
     if (data.userPassword) setUserPassword(data.userPassword);
     if (data.backgroundEnabled !== undefined) setBackgroundEnabled(data.backgroundEnabled);
