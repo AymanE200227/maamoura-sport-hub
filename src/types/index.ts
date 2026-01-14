@@ -26,6 +26,7 @@ export interface CourseTitle {
   id: string;
   sportCourseId: string;
   title: string;
+  order?: number; // For maintaining insertion order
 }
 
 export interface CourseFile {
