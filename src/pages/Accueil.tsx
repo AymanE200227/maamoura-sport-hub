@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, memo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   Plus, ChevronRight, BookOpen, Users, Layers, Award, 
@@ -16,8 +16,8 @@ import bgImage from '@/assets/bg2.jpg';
 import logoOfficial from '@/assets/logo-official.png';
 import farBadge from '@/assets/far-badge.png';
 
-// Stage Card Component
-const StageCard = ({ stage, onClick, courseCount }: { 
+// Stage Card Component - Memoized for performance
+const StageCard = memo(({ stage, onClick, courseCount }: { 
   stage: Stage; 
   onClick: () => void; 
   courseCount: number;
@@ -60,10 +60,12 @@ const StageCard = ({ stage, onClick, courseCount }: {
       <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
     </button>
   );
-};
+});
 
-// Stats Card Component
-const StatCard = ({ icon: Icon, label, value, color = 'primary' }: { 
+StageCard.displayName = 'StageCard';
+
+// Stats Card Component - Memoized
+const StatCard = memo(({ icon: Icon, label, value, color = 'primary' }: { 
   icon: React.ElementType; 
   label: string; 
   value: number | string;
@@ -86,7 +88,9 @@ const StatCard = ({ icon: Icon, label, value, color = 'primary' }: {
       </div>
     </div>
   );
-};
+});
+
+StatCard.displayName = 'StatCard';
 
 const Accueil = () => {
   const [stages, setStages] = useState<Stage[]>([]);

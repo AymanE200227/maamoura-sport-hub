@@ -20,6 +20,7 @@ import {
   deleteSportCourse,
   getStages,
   getUserMode,
+  getCourseTitles,
   addCourseTitle,
   addFileAsync
 } from '@/lib/storage';
@@ -272,6 +273,7 @@ const GestionCours = () => {
         addCourseType,
         getSportCourses,
         addSportCourse,
+        getCourseTitles,
         addCourseTitle,
         addFileAsync
       );

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, memo, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ChevronRight, ArrowLeft, Lock, Plus, X, Upload } from 'lucide-react';
 import Layout from '@/components/Layout';
@@ -15,6 +15,34 @@ import { getSportImage, imageCategories, categoryLabels } from '@/assets/sports'
 import { useClickSound } from '@/hooks/useClickSound';
 import { useToast } from '@/hooks/use-toast';
 import bgImage from '@/assets/bg3.jpg';
+
+// Memoized course card for performance
+const CourseCard = memo(({ course, onClick }: { 
+  course: SportCourse; 
+  onClick: () => void;
+}) => (
+  <button
+    onClick={onClick}
+    className="course-card group h-48 text-left"
+  >
+    <img 
+      src={course.image.startsWith('data:') ? course.image : getSportImage(course.image)} 
+      alt={course.title}
+      className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+      loading="lazy"
+    />
+    <div className="course-card-overlay">
+      <h3 className="text-xl font-bold mb-1">{course.title}</h3>
+      <p className="text-sm text-muted-foreground line-clamp-2">{course.description}</p>
+      <div className="mt-2 flex items-center text-xs text-muted-foreground">
+        <span>Voir les cours</span>
+        <ChevronRight className="w-4 h-4 ml-1" />
+      </div>
+    </div>
+  </button>
+));
+
+CourseCard.displayName = 'CourseCard';
 
 const TypeDetail = () => {
   const { stageId, typeId } = useParams<{ stageId: string; typeId: string }>();
@@ -145,26 +173,11 @@ const TypeDetail = () => {
       {/* Sport Courses (Leçons) as Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-fade-in">
         {sportCourses.map((course) => (
-          <button
+          <CourseCard
             key={course.id}
+            course={course}
             onClick={() => handleCourseSelect(course)}
-            className="course-card group h-48 text-left"
-          >
-            <img 
-              src={course.image.startsWith('data:') ? course.image : getSportImage(course.image)} 
-              alt={course.title}
-              className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
-              loading="lazy"
-            />
-            <div className="course-card-overlay">
-              <h3 className="text-xl font-bold mb-1">{course.title}</h3>
-              <p className="text-sm text-muted-foreground line-clamp-2">{course.description}</p>
-              <div className="mt-2 flex items-center text-xs text-muted-foreground">
-                <span>Voir les cours</span>
-                <ChevronRight className="w-4 h-4 ml-1" />
-              </div>
-            </div>
-          </button>
+          />
         ))}
 
         {sportCourses.length === 0 && (
