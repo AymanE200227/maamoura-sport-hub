@@ -1,12 +1,14 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   Plus, Edit, Trash2, X, Upload, Search, Filter, 
   LayoutGrid, List, ChevronDown, BookOpen, Layers,
-  GraduationCap, Image as ImageIcon
+  GraduationCap, Image as ImageIcon, FolderUp, Eye, ChevronRight
 } from 'lucide-react';
 import Layout from '@/components/Layout';
 import ArabicInput from '@/components/ArabicInput';
+import FolderImportTree, { ImportTreeNode } from '@/components/FolderImportTree';
+import { parseFolderStructure, importTreeToStorage } from '@/lib/folderParser';
 import { 
   getCourseTypes, 
   addCourseType, 
@@ -17,7 +19,9 @@ import {
   updateSportCourse,
   deleteSportCourse,
   getStages,
-  getUserMode 
+  getUserMode,
+  addCourseTitle,
+  addFileAsync
 } from '@/lib/storage';
 import { CourseType, SportCourse, Stage } from '@/types';
 import { getSportImage, imageCategories, categoryLabels } from '@/assets/sports';
@@ -35,7 +39,7 @@ const GestionCours = () => {
   const [stages, setStages] = useState<Stage[]>([]);
   
   // View state
-  const [activeTab, setActiveTab] = useState<'types' | 'courses'>('types');
+  const [activeTab, setActiveTab] = useState<'types' | 'courses' | 'structure'>('structure');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStage, setFilterStage] = useState<string>('all');
@@ -60,6 +64,13 @@ const GestionCours = () => {
   
   // Delete confirmation
   const [deleteConfirm, setDeleteConfirm] = useState<{ type: 'type' | 'course', id: string, name: string } | null>(null);
+
+  // Folder import state
+  const folderInputRef = useRef<HTMLInputElement>(null);
+  const [showImportTree, setShowImportTree] = useState(false);
+  const [importTree, setImportTree] = useState<ImportTreeNode[]>([]);
+  const [importStats, setImportStats] = useState({ stages: 0, types: 0, lecons: 0, headings: 0, files: 0 });
+  const [isImporting, setIsImporting] = useState(false);
 
   useEffect(() => {
     if (userMode !== 'admin') {
@@ -86,6 +97,21 @@ const GestionCours = () => {
     const matchesStage = filterStage === 'all' || course.stageId === filterStage;
     const matchesType = filterType === 'all' || course.courseTypeId === filterType;
     return matchesSearch && matchesStage && matchesType;
+  });
+
+  // Grouped structure view
+  const structureData = stages.filter(s => s.enabled).map(stage => {
+    const stageCourses = sportCourses.filter(c => c.stageId === stage.id);
+    const coursesByType: Record<string, SportCourse[]> = {};
+    
+    stageCourses.forEach(course => {
+      const type = courseTypes.find(t => t.id === course.courseTypeId);
+      const typeName = type?.name || 'Non classé';
+      if (!coursesByType[typeName]) coursesByType[typeName] = [];
+      coursesByType[typeName].push(course);
+    });
+    
+    return { stage, coursesByType, totalCourses: stageCourses.length };
   });
 
   // Handle image upload for course type
@@ -217,6 +243,60 @@ const GestionCours = () => {
     }
   };
 
+  // Folder Import handlers
+  const handleFolderSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    try {
+      const result = await parseFolderStructure(files);
+      setImportTree(result.tree);
+      setImportStats(result.stats);
+      setShowImportTree(true);
+    } catch (error) {
+      console.error('Error parsing folder:', error);
+      toast({ title: 'Erreur', description: 'Impossible d\'analyser le dossier', variant: 'destructive' });
+    }
+    
+    // Reset input
+    if (folderInputRef.current) folderInputRef.current.value = '';
+  };
+
+  const handleConfirmImport = async () => {
+    setIsImporting(true);
+    try {
+      const importedCount = await importTreeToStorage(
+        importTree,
+        getStages,
+        getCourseTypes,
+        addCourseType,
+        getSportCourses,
+        addSportCourse,
+        addCourseTitle,
+        addFileAsync
+      );
+      
+      toast({ 
+        title: 'Import réussi', 
+        description: `${importedCount} fichiers ont été importés avec succès` 
+      });
+      loadData();
+      setShowImportTree(false);
+      setImportTree([]);
+    } catch (error) {
+      console.error('Error importing:', error);
+      toast({ title: 'Erreur', description: 'Erreur lors de l\'import', variant: 'destructive' });
+    } finally {
+      setIsImporting(false);
+    }
+  };
+
+  const handleCancelImport = () => {
+    setShowImportTree(false);
+    setImportTree([]);
+    setImportStats({ stages: 0, types: 0, lecons: 0, headings: 0, files: 0 });
+  };
+
   const getCourseImage = (course: SportCourse) => {
     if (course.image.startsWith('data:')) {
       return course.image;
@@ -234,9 +314,26 @@ const GestionCours = () => {
   const getStageById = (id: string) => stages.find(s => s.id === id);
   const getTypeById = (id: string) => courseTypes.find(t => t.id === id);
 
+  const navigateToLecon = (stageId: string, typeId: string, leconId: string) => {
+    playClick();
+    navigate(`/stage/${stageId}/type/${typeId}/lecon/${leconId}`);
+  };
+
   return (
     <Layout backgroundImage={bgImage}>
       <div className="max-w-7xl mx-auto">
+        {/* Hidden folder input */}
+        <input
+          type="file"
+          ref={folderInputRef}
+          onChange={handleFolderSelect}
+          className="hidden"
+          // @ts-ignore - webkitdirectory is not in the types
+          webkitdirectory=""
+          directory=""
+          multiple
+        />
+
         {/* Premium Header */}
         <div className="glass-panel p-6 mb-6 animate-fade-in">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
@@ -252,20 +349,30 @@ const GestionCours = () => {
               </p>
             </div>
 
-            {/* Stats */}
-            <div className="flex gap-4">
-              <div className="text-center px-6 py-3 bg-primary/10 rounded-xl border border-primary/20">
-                <p className="text-2xl font-bold text-primary">{courseTypes.length}</p>
-                <p className="text-xs text-muted-foreground">Types</p>
+            {/* Stats and Import Button */}
+            <div className="flex flex-wrap gap-4 items-center">
+              <div className="flex gap-4">
+                <div className="text-center px-6 py-3 bg-primary/10 rounded-xl border border-primary/20">
+                  <p className="text-2xl font-bold text-primary">{courseTypes.length}</p>
+                  <p className="text-xs text-muted-foreground">Types</p>
+                </div>
+                <div className="text-center px-6 py-3 bg-accent/10 rounded-xl border border-accent/20">
+                  <p className="text-2xl font-bold text-accent">{sportCourses.length}</p>
+                  <p className="text-xs text-muted-foreground">Cours</p>
+                </div>
+                <div className="text-center px-6 py-3 bg-success/10 rounded-xl border border-success/20">
+                  <p className="text-2xl font-bold text-success">{stages.filter(s => s.enabled).length}</p>
+                  <p className="text-xs text-muted-foreground">Stages</p>
+                </div>
               </div>
-              <div className="text-center px-6 py-3 bg-accent/10 rounded-xl border border-accent/20">
-                <p className="text-2xl font-bold text-accent">{sportCourses.length}</p>
-                <p className="text-xs text-muted-foreground">Cours</p>
-              </div>
-              <div className="text-center px-6 py-3 bg-success/10 rounded-xl border border-success/20">
-                <p className="text-2xl font-bold text-success">{stages.filter(s => s.enabled).length}</p>
-                <p className="text-xs text-muted-foreground">Stages</p>
-              </div>
+              
+              <button
+                onClick={() => { playClick(); folderInputRef.current?.click(); }}
+                className="btn-primary flex items-center gap-2 py-3 px-4"
+              >
+                <FolderUp className="w-5 h-5" />
+                Importer Projet
+              </button>
             </div>
           </div>
         </div>
@@ -273,6 +380,17 @@ const GestionCours = () => {
         {/* Tab Navigation */}
         <div className="glass-card mb-6 p-2 flex flex-col md:flex-row md:items-center gap-4">
           <div className="flex gap-1 flex-1">
+            <button
+              onClick={() => { playClick(); setActiveTab('structure'); }}
+              className={`flex items-center gap-2 px-5 py-3 rounded-lg font-medium transition-all ${
+                activeTab === 'structure'
+                  ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/20'
+                  : 'hover:bg-muted/50 text-muted-foreground'
+              }`}
+            >
+              <Eye className="w-4 h-4" />
+              Vue Structure
+            </button>
             <button
               onClick={() => { playClick(); setActiveTab('types'); }}
               className={`flex items-center gap-2 px-5 py-3 rounded-lg font-medium transition-all ${
@@ -293,7 +411,7 @@ const GestionCours = () => {
               }`}
             >
               <GraduationCap className="w-4 h-4" />
-              Cours Carousel
+              Leçons
             </button>
           </div>
 
@@ -335,25 +453,144 @@ const GestionCours = () => {
               </>
             )}
 
-            <div className="flex border border-border/30 rounded-lg overflow-hidden">
-              <button
-                onClick={() => { playClick(); setViewMode('grid'); }}
-                className={`p-2 ${viewMode === 'grid' ? 'bg-primary text-primary-foreground' : 'hover:bg-muted'}`}
-              >
-                <LayoutGrid className="w-4 h-4" />
-              </button>
-              <button
-                onClick={() => { playClick(); setViewMode('list'); }}
-                className={`p-2 ${viewMode === 'list' ? 'bg-primary text-primary-foreground' : 'hover:bg-muted'}`}
-              >
-                <List className="w-4 h-4" />
-              </button>
-            </div>
+            {activeTab !== 'structure' && (
+              <div className="flex border border-border/30 rounded-lg overflow-hidden">
+                <button
+                  onClick={() => { playClick(); setViewMode('grid'); }}
+                  className={`p-2 ${viewMode === 'grid' ? 'bg-primary text-primary-foreground' : 'hover:bg-muted'}`}
+                >
+                  <LayoutGrid className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => { playClick(); setViewMode('list'); }}
+                  className={`p-2 ${viewMode === 'list' ? 'bg-primary text-primary-foreground' : 'hover:bg-muted'}`}
+                >
+                  <List className="w-4 h-4" />
+                </button>
+              </div>
+            )}
           </div>
         </div>
 
         {/* Content */}
         <div className="animate-fade-in">
+          {/* Structure View Tab */}
+          {activeTab === 'structure' && (
+            <div className="space-y-4">
+              {structureData.length === 0 ? (
+                <div className="glass-card p-12 text-center">
+                  <Layers className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
+                  <h3 className="text-xl font-semibold mb-2">Aucun stage actif</h3>
+                  <p className="text-muted-foreground mb-4">
+                    Activez des stages dans les paramètres pour commencer
+                  </p>
+                </div>
+              ) : (
+                structureData.map(({ stage, coursesByType, totalCourses }) => (
+                  <div key={stage.id} className="glass-card overflow-hidden">
+                    {/* Stage Header */}
+                    <div className="p-4 bg-gradient-to-r from-primary/20 to-transparent border-b border-border/30">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-lg bg-primary/30 flex items-center justify-center">
+                            <Layers className="w-5 h-5 text-primary" />
+                          </div>
+                          <div>
+                            <h3 className="font-bold text-lg">{stage.name}</h3>
+                            <p className="text-sm text-muted-foreground">{stage.description}</p>
+                          </div>
+                        </div>
+                        <span className="badge-gold">{totalCourses} leçons</span>
+                      </div>
+                    </div>
+                    
+                    {/* Course Types */}
+                    <div className="p-4 space-y-4">
+                      {Object.entries(coursesByType).length === 0 ? (
+                        <p className="text-muted-foreground text-center py-4">
+                          Aucune leçon dans ce stage
+                        </p>
+                      ) : (
+                        Object.entries(coursesByType).map(([typeName, courses]) => (
+                          <div key={typeName} className="border border-border/30 rounded-lg overflow-hidden">
+                            {/* Type Header */}
+                            <div className="p-3 bg-muted/30 flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                <GraduationCap className="w-4 h-4 text-blue-400" />
+                                <span className="font-medium">P.{typeName.toUpperCase()}</span>
+                              </div>
+                              <span className="text-xs text-muted-foreground">{courses.length} leçons</span>
+                            </div>
+                            
+                            {/* Courses Grid */}
+                            <div className="p-3 grid md:grid-cols-2 lg:grid-cols-3 gap-3">
+                              {courses.map(course => (
+                                <button
+                                  key={course.id}
+                                  onClick={() => navigateToLecon(stage.id, course.courseTypeId, course.id)}
+                                  className="flex items-center gap-3 p-3 bg-card/50 rounded-lg hover:bg-primary/10 transition-colors text-left group"
+                                >
+                                  <img 
+                                    src={getCourseImage(course)} 
+                                    alt={course.title}
+                                    className="w-12 h-12 object-cover rounded-lg"
+                                  />
+                                  <div className="flex-1 min-w-0">
+                                    <p className="font-medium truncate group-hover:text-primary transition-colors">
+                                      {course.title}
+                                    </p>
+                                    <p className="text-xs text-muted-foreground truncate">
+                                      {course.description || 'Aucune description'}
+                                    </p>
+                                  </div>
+                                  <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
+                                </button>
+                              ))}
+                              
+                              {/* Add Course Button */}
+                              <button
+                                onClick={() => {
+                                  playClick();
+                                  const type = courseTypes.find(t => t.name === typeName);
+                                  setCourseForm({
+                                    courseTypeId: type?.id || '',
+                                    stageId: stage.id,
+                                    title: '',
+                                    description: '',
+                                    image: 'basketball',
+                                    customImage: ''
+                                  });
+                                  setShowCourseForm(true);
+                                }}
+                                className="flex items-center justify-center gap-2 p-3 border-2 border-dashed border-primary/30 rounded-lg hover:border-primary/60 hover:bg-primary/5 transition-all text-muted-foreground hover:text-foreground"
+                              >
+                                <Plus className="w-4 h-4" />
+                                <span className="text-sm">Ajouter Leçon</span>
+                              </button>
+                            </div>
+                          </div>
+                        ))
+                      )}
+                      
+                      {/* Add to this stage */}
+                      <button
+                        onClick={() => { 
+                          playClick(); 
+                          handleAddCourse();
+                          setCourseForm(prev => ({ ...prev, stageId: stage.id }));
+                        }}
+                        className="w-full p-3 border-2 border-dashed border-border/50 rounded-lg hover:border-primary/50 hover:bg-primary/5 transition-all flex items-center justify-center gap-2 text-muted-foreground hover:text-foreground"
+                      >
+                        <Plus className="w-4 h-4" />
+                        Ajouter une nouvelle leçon à {stage.name}
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          )}
+
           {/* Course Types Tab */}
           {activeTab === 'types' && (
             <div className="space-y-4">
@@ -505,7 +742,7 @@ const GestionCours = () => {
                       <Plus className="w-8 h-8 text-primary" />
                     </div>
                     <span className="font-medium text-muted-foreground group-hover:text-foreground transition-colors">
-                      Ajouter un cours
+                      Ajouter une leçon
                     </span>
                   </button>
                 </div>
@@ -538,7 +775,7 @@ const GestionCours = () => {
                     );
                   })}
                   <button onClick={() => { playClick(); handleAddCourse(); }} className="w-full p-4 text-primary hover:bg-primary/5 flex items-center justify-center gap-2">
-                    <Plus className="w-5 h-5" /> Ajouter un cours
+                    <Plus className="w-5 h-5" /> Ajouter une leçon
                   </button>
                 </div>
               )}
@@ -546,12 +783,12 @@ const GestionCours = () => {
               {filteredCourses.length === 0 && (
                 <div className="glass-card p-12 text-center">
                   <GraduationCap className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
-                  <h3 className="text-xl font-semibold mb-2">Aucun cours trouvé</h3>
+                  <h3 className="text-xl font-semibold mb-2">Aucune leçon trouvée</h3>
                   <p className="text-muted-foreground mb-4">
-                    {searchQuery ? 'Aucun résultat pour votre recherche' : 'Commencez par ajouter un cours'}
+                    {searchQuery ? 'Aucun résultat pour votre recherche' : 'Commencez par ajouter une leçon'}
                   </p>
                   <button onClick={() => { playClick(); handleAddCourse(); }} className="btn-primary flex items-center gap-2 mx-auto">
-                    <Plus className="w-5 h-5" /> Ajouter un cours
+                    <Plus className="w-5 h-5" /> Ajouter une leçon
                   </button>
                 </div>
               )}
@@ -632,7 +869,7 @@ const GestionCours = () => {
             <div className="glass-card w-full max-w-lg animate-scale-in my-8 flex flex-col max-h-[85vh]">
               <div className="flex items-center justify-between p-6 pb-4 border-b border-border/30 shrink-0">
                 <h3 className="text-lg font-semibold">
-                  {editingCourse ? 'Modifier Cours' : 'Ajouter Cours'}
+                  {editingCourse ? 'Modifier Leçon' : 'Ajouter Leçon'}
                 </h3>
                 <button onClick={() => { playClick(); setShowCourseForm(false); }} className="p-2 hover:bg-muted rounded-lg">
                   <X className="w-5 h-5" />
@@ -675,7 +912,7 @@ const GestionCours = () => {
                     value={courseForm.title}
                     onChange={(value) => setCourseForm(prev => ({ ...prev, title: value }))}
                     className="glass-input w-full p-3 pr-16"
-                    placeholder="Titre du cours"
+                    placeholder="Titre de la leçon"
                   />
                 </div>
                 
@@ -685,7 +922,7 @@ const GestionCours = () => {
                     value={courseForm.description}
                     onChange={(value) => setCourseForm(prev => ({ ...prev, description: value }))}
                     className="glass-input w-full p-3 pr-16 min-h-[80px]"
-                    placeholder="Description du cours"
+                    placeholder="Description de la leçon"
                     multiline
                   />
                 </div>
@@ -807,6 +1044,18 @@ const GestionCours = () => {
               </div>
             </div>
           </div>
+        )}
+
+        {/* Folder Import Tree Modal */}
+        {showImportTree && (
+          <FolderImportTree
+            tree={importTree}
+            onTreeChange={setImportTree}
+            onConfirm={handleConfirmImport}
+            onCancel={handleCancelImport}
+            isImporting={isImporting}
+            stats={importStats}
+          />
         )}
       </div>
     </Layout>
