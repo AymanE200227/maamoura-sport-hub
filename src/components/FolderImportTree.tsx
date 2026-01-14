@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, memo } from 'react';
 import { 
   ChevronRight, ChevronDown, Folder, FolderOpen, FileText, 
   Video, File, Check, X, Edit2, Trash2, Save, FolderPlus,
@@ -88,40 +88,63 @@ interface TreeNodeProps {
   onSelect: (id: string) => void;
 }
 
-const TreeNode = ({ node, depth, onToggle, onEdit, onDelete, onSelect }: TreeNodeProps) => {
+const TreeNodeComponent = ({ node, depth, onToggle, onEdit, onDelete, onSelect }: TreeNodeProps) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState(node.name);
   
   const hasChildren = node.children && node.children.length > 0;
   const isFile = node.type === 'file';
   
-  const handleSaveEdit = () => {
+  const handleSaveEdit = useCallback(() => {
     if (editValue.trim()) {
       onEdit(node.id, editValue.trim());
     }
     setIsEditing(false);
-  };
+  }, [editValue, node.id, onEdit]);
   
-  const handleKeyDown = (e: React.KeyboardEvent) => {
+  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
     if (e.key === 'Enter') handleSaveEdit();
     if (e.key === 'Escape') {
       setEditValue(node.name);
       setIsEditing(false);
     }
-  };
+  }, [handleSaveEdit, node.name]);
+
+  const handleClick = useCallback(() => {
+    if (isFile) {
+      onSelect(node.id);
+    } else {
+      onToggle(node.id);
+    }
+  }, [isFile, node.id, onSelect, onToggle]);
+
+  const handleToggleClick = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    onToggle(node.id);
+  }, [node.id, onToggle]);
+
+  const handleEditClick = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    setIsEditing(true);
+  }, []);
+
+  const handleDeleteClick = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    onDelete(node.id);
+  }, [node.id, onDelete]);
 
   return (
-    <div className="animate-fade-in">
+    <div>
       <div 
         className={`flex items-center gap-1 py-1.5 px-2 rounded-lg hover:bg-muted/50 group cursor-pointer transition-colors ${
           node.selected ? 'bg-primary/20 border-l-2 border-primary' : ''
         }`}
         style={{ paddingLeft: `${depth * 16 + 8}px` }}
-        onClick={() => isFile ? onSelect(node.id) : onToggle(node.id)}
+        onClick={handleClick}
       >
         {/* Expand/Collapse */}
         {!isFile && (
-          <button className="p-0.5 hover:bg-muted rounded" onClick={(e) => { e.stopPropagation(); onToggle(node.id); }}>
+          <button className="p-0.5 hover:bg-muted rounded" onClick={handleToggleClick}>
             {node.expanded ? (
               <ChevronDown className="w-4 h-4 text-muted-foreground" />
             ) : (
@@ -175,14 +198,14 @@ const TreeNode = ({ node, depth, onToggle, onEdit, onDelete, onSelect }: TreeNod
         {/* Actions */}
         <div className="opacity-0 group-hover:opacity-100 flex items-center gap-1 transition-opacity">
           <button
-            onClick={(e) => { e.stopPropagation(); setIsEditing(true); }}
+            onClick={handleEditClick}
             className="p-1 hover:bg-muted rounded"
             title="Renommer"
           >
             <Edit2 className="w-3 h-3" />
           </button>
           <button
-            onClick={(e) => { e.stopPropagation(); onDelete(node.id); }}
+            onClick={handleDeleteClick}
             className="p-1 hover:bg-destructive/20 text-destructive rounded"
             title="Supprimer"
           >
@@ -191,7 +214,7 @@ const TreeNode = ({ node, depth, onToggle, onEdit, onDelete, onSelect }: TreeNod
         </div>
       </div>
       
-      {/* Children */}
+      {/* Children - Only render if expanded */}
       {hasChildren && node.expanded && (
         <div>
           {node.children.map(child => (
@@ -210,6 +233,10 @@ const TreeNode = ({ node, depth, onToggle, onEdit, onDelete, onSelect }: TreeNod
     </div>
   );
 };
+
+// Memoized TreeNode for performance
+const TreeNode = memo(TreeNodeComponent);
+TreeNode.displayName = 'TreeNode';
 
 const FolderImportTree = ({ 
   tree, 

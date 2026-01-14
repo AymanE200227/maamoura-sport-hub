@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, memo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ChevronRight, ArrowLeft, BookOpen, Dumbbell, Shield } from 'lucide-react';
 import Layout from '@/components/Layout';
@@ -12,6 +12,60 @@ import { Stage, CourseType } from '@/types';
 import { getSportImage } from '@/assets/sports';
 import { useClickSound } from '@/hooks/useClickSound';
 import bgImage from '@/assets/bg3.jpg';
+
+// Memoized course type card for performance
+const CourseTypeCard = memo(({ type, courseCount, imageSrc, onClick }: {
+  type: CourseType;
+  courseCount: number;
+  imageSrc: string;
+  onClick: () => void;
+}) => {
+  const getTypeIcon = (typeName: string) => {
+    if (typeName.toLowerCase().includes('milit')) return Shield;
+    if (typeName.toLowerCase().includes('sport') || typeName.toLowerCase().includes('specialite')) return Dumbbell;
+    return BookOpen;
+  };
+
+  const Icon = getTypeIcon(type.name);
+
+  return (
+    <button
+      onClick={onClick}
+      className="course-card group h-56 text-left"
+    >
+      <img 
+        src={imageSrc}
+        alt={type.name}
+        className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+        loading="lazy"
+      />
+      <div className="course-card-overlay">
+        <div className="flex items-center gap-3 mb-3">
+          <div className="w-12 h-12 rounded-xl bg-primary/20 flex items-center justify-center">
+            <Icon className="w-6 h-6 text-primary" />
+          </div>
+          <div>
+            <span className="badge-gold text-xs">
+              {courseCount} leçons
+            </span>
+          </div>
+        </div>
+        <h2 className="text-xl font-bold text-white mb-1">
+          P.{type.name.toUpperCase()}
+        </h2>
+        <p className="text-sm text-white/70 line-clamp-2">
+          {type.description || `Programme ${type.name.toLowerCase()}`}
+        </p>
+        <div className="mt-3 flex items-center text-primary text-sm font-medium group-hover:gap-3 transition-all">
+          <span>Voir les leçons</span>
+          <ChevronRight className="w-4 h-4" />
+        </div>
+      </div>
+    </button>
+  );
+});
+
+CourseTypeCard.displayName = 'CourseTypeCard';
 
 const StageDetail = () => {
   const { stageId } = useParams<{ stageId: string }>();
@@ -94,45 +148,17 @@ const StageDetail = () => {
       {/* Course Type Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 animate-fade-in">
         {courseTypes.map((type) => {
-          const Icon = getTypeIcon(type.name);
           const defaultImageKey = type.name.toLowerCase().includes('milit') ? 'militaire' : 'sportif';
           const imageSrc = type.image || getSportImage(defaultImageKey);
           
           return (
-            <button
+            <CourseTypeCard
               key={type.id}
+              type={type}
+              courseCount={courseCounts[type.id] || 0}
+              imageSrc={imageSrc}
               onClick={() => handleTypeClick(type)}
-              className="course-card group h-56 text-left"
-            >
-              <img 
-                src={imageSrc}
-                alt={type.name}
-                className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
-                loading="lazy"
-              />
-              <div className="course-card-overlay">
-                <div className="flex items-center gap-3 mb-3">
-                  <div className="w-12 h-12 rounded-xl bg-primary/20 flex items-center justify-center">
-                    <Icon className="w-6 h-6 text-primary" />
-                  </div>
-                  <div>
-                    <span className="badge-gold text-xs">
-                      {courseCounts[type.id] || 0} leçons
-                    </span>
-                  </div>
-                </div>
-                <h2 className="text-xl font-bold text-white mb-1">
-                  P.{type.name.toUpperCase()}
-                </h2>
-                <p className="text-sm text-white/70 line-clamp-2">
-                  {type.description || `Programme ${type.name.toLowerCase()} pour ${stage.name}`}
-                </p>
-                <div className="mt-3 flex items-center text-primary text-sm font-medium group-hover:gap-3 transition-all">
-                  <span>Voir les leçons</span>
-                  <ChevronRight className="w-4 h-4" />
-                </div>
-              </div>
-            </button>
+            />
           );
         })}
       </div>
