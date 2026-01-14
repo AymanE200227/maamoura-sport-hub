@@ -6,8 +6,11 @@ import {
   FileSpreadsheet, Layers, ToggleLeft, ToggleRight, X, Palette, ImagePlus,
   Monitor, Image as ImageIcon, FileText, ArrowUpCircle, UserCheck, File,
   Presentation, FileType, BookOpen, ChevronRight, Lightbulb, Sparkles,
-  Shield, Database, HelpCircle
+  Shield, Database, HelpCircle, GripVertical, AlertTriangle
 } from 'lucide-react';
+import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core';
+import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import TablePagination from '@/components/TablePagination';
 import Layout from '@/components/Layout';
 import { 
@@ -33,6 +36,7 @@ import {
   updateStage,
   addStage,
   deleteStage,
+  saveStages,
   getAppSettings,
   saveAppSettings,
   getPromos,
@@ -48,8 +52,10 @@ import {
   getModelFilesByModel,
   addModelFileAsync,
   deleteModelFileAsync,
-  getModelFileDataAsync
+  getModelFileDataAsync,
+  clearAllData
 } from '@/lib/storage';
+import { clearAllFiles } from '@/lib/fileStorage';
 import { exportToZip, importFromZip } from '@/lib/zipExport';
 import { 
   getClickSound, 
@@ -72,6 +78,75 @@ import doorBg from '@/assets/door.png';
 import basketballBg from '@/assets/basketball-game-concept.jpg';
 import terrainBg from '@/assets/bgterrain.png';
 import logoOfficial from '@/assets/logo-official.png';
+
+// Sortable Stage Item component
+const SortableStageItem = ({ stage, onToggle, onDelete }: { 
+  stage: Stage; 
+  onToggle: (stage: Stage) => void;
+  onDelete: (id: string) => void;
+}) => {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging
+  } = useSortable({ id: stage.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <div 
+      ref={setNodeRef} 
+      style={style}
+      className={`p-4 rounded-xl border-2 transition-all ${
+        stage.enabled 
+          ? 'bg-card border-primary/30 shadow-lg shadow-primary/5' 
+          : 'bg-muted/20 border-border/20 opacity-60'
+      }`}
+    >
+      <div className="flex items-start gap-3">
+        <div 
+          {...attributes} 
+          {...listeners}
+          className="p-2 cursor-grab active:cursor-grabbing hover:bg-muted/50 rounded-lg"
+        >
+          <GripVertical className="w-5 h-5 text-muted-foreground" />
+        </div>
+        <div className="flex-1">
+          <div className="flex items-start justify-between mb-3">
+            <div>
+              <h4 className="font-bold text-lg gold-text">{stage.name}</h4>
+              <p className="text-sm text-muted-foreground">{stage.description}</p>
+            </div>
+            <button 
+              onClick={() => onToggle(stage)} 
+              className={`p-2 rounded-lg transition-colors ${stage.enabled ? 'bg-success/20 text-success' : 'bg-muted text-muted-foreground'}`}
+            >
+              {stage.enabled ? <ToggleRight className="w-6 h-6" /> : <ToggleLeft className="w-6 h-6" />}
+            </button>
+          </div>
+          <div className="flex items-center justify-between">
+            <span className={`text-xs px-2 py-1 rounded-full ${stage.enabled ? 'bg-success/20 text-success' : 'bg-muted text-muted-foreground'}`}>
+              {stage.enabled ? 'Activé' : 'Désactivé'}
+            </span>
+            {!['fcb', 'cat1', 'cat2', 'be', 'bs', 'aide'].includes(stage.id) && (
+              <button onClick={() => onDelete(stage.id)} className="p-2 hover:bg-destructive/20 rounded-lg text-destructive">
+                <Trash2 className="w-4 h-4" />
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 
 const wallpapers = [
   { id: 'bg1', name: 'Stade', src: bg1 },
@@ -144,6 +219,91 @@ const Parametres = () => {
   const [stages, setStages] = useState<Stage[]>([]);
   const [showAddStage, setShowAddStage] = useState(false);
   const [stageForm, setStageForm] = useState({ name: '', description: '' });
+
+  // Import mode state
+  const [importMode, setImportMode] = useState<'replace' | 'merge'>('replace');
+  const [showImportModeModal, setShowImportModeModal] = useState(false);
+  const [pendingImportFile, setPendingImportFile] = useState<File | null>(null);
+  const [pendingImportType, setPendingImportType] = useState<'zip' | 'json'>('zip');
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
+  // Drag and drop sensors for stages
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
+
+  const handleStageDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (over && active.id !== over.id) {
+      const oldIndex = stages.findIndex(s => s.id === active.id);
+      const newIndex = stages.findIndex(s => s.id === over.id);
+      const newStages = arrayMove(stages, oldIndex, newIndex).map((s, i) => ({ ...s, order: i }));
+      setStages(newStages);
+      saveStages(newStages);
+      toast({ title: 'Ordre des stages mis à jour' });
+    }
+  };
+
+  const handleDeleteAllData = async () => {
+    try {
+      clearAllData();
+      await clearAllFiles();
+      toast({ title: 'Toutes les données supprimées', description: 'Rechargement...' });
+      setTimeout(() => window.location.reload(), 1500);
+    } catch (error) {
+      toast({ title: 'Erreur', description: 'Impossible de supprimer les données', variant: 'destructive' });
+    }
+  };
+
+  const handleImportWithMode = async () => {
+    if (!pendingImportFile) return;
+    try {
+      if (pendingImportType === 'zip') {
+        const success = await importFromZip(pendingImportFile, importMode);
+        if (success) {
+          toast({ title: 'Import réussi', description: 'Rechargement...' });
+          setTimeout(() => window.location.reload(), 1500);
+        } else {
+          toast({ title: 'Erreur', description: "L'archive n'est pas valide", variant: 'destructive' });
+        }
+      } else {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          const content = event.target?.result as string;
+          if (importAllData(content, importMode)) {
+            toast({ title: 'Import réussi', description: 'Rechargement...' });
+            setTimeout(() => window.location.reload(), 1500);
+          } else {
+            toast({ title: 'Erreur', description: "Le fichier n'est pas valide", variant: 'destructive' });
+          }
+        };
+        reader.readAsText(pendingImportFile);
+      }
+    } catch (error) {
+      toast({ title: 'Erreur', description: "Erreur lors de l'import", variant: 'destructive' });
+    }
+    setShowImportModeModal(false);
+    setPendingImportFile(null);
+  };
+
+  const handleImportZipWithChoice = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setPendingImportFile(file);
+    setPendingImportType('zip');
+    setShowImportModeModal(true);
+    if (zipInputRef.current) zipInputRef.current.value = '';
+  };
+
+  const handleImportJsonWithChoice = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setPendingImportFile(file);
+    setPendingImportType('json');
+    setShowImportModeModal(true);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
 
   // Promos state
   const [promos, setPromos] = useState<Promo[]>([]);
@@ -1682,55 +1842,126 @@ const Parametres = () => {
 
           {/* Data Section */}
           {activeSection === 'data' && (
-            <div className="glass-card overflow-hidden">
-              <div className="p-4 bg-gradient-gold border-b border-primary/20">
-                <h2 className="text-lg font-bold flex items-center gap-2 text-primary-foreground">
-                  <FolderArchive className="w-5 h-5" />
-                  Exporter / Importer Données
-                </h2>
-              </div>
-
-              <div className="p-6 grid md:grid-cols-2 gap-6">
-                <div className="p-6 stat-card-gold">
-                  <div className="w-12 h-12 bg-gradient-gold rounded-xl flex items-center justify-center mb-4 shadow-gold">
-                    <FolderArchive className="w-6 h-6 text-primary-foreground" />
-                  </div>
-                  <h3 className="font-bold text-lg mb-2">Export/Import Complet (ZIP)</h3>
-                  <p className="text-sm text-muted-foreground mb-6">Archive avec tous les fichiers et données</p>
-                  <div className="flex gap-3">
-                    <button onClick={handleExportZip} disabled={isExporting} className="btn-primary flex-1 py-3 flex items-center justify-center gap-2">
-                      <Download className="w-4 h-4" /> {isExporting ? 'Export...' : 'Exporter ZIP'}
-                    </button>
-                    <label className="btn-success flex-1 py-3 flex items-center justify-center gap-2 cursor-pointer">
-                      <Upload className="w-4 h-4" /> Importer
-                      <input ref={zipInputRef} type="file" accept=".zip" onChange={handleImportZip} className="hidden" />
-                    </label>
-                  </div>
+            <div className="space-y-6">
+              <div className="glass-card overflow-hidden">
+                <div className="p-4 bg-gradient-gold border-b border-primary/20">
+                  <h2 className="text-lg font-bold flex items-center gap-2 text-primary-foreground">
+                    <FolderArchive className="w-5 h-5" />
+                    Exporter / Importer Données
+                  </h2>
                 </div>
 
-                <div className="p-6 bg-muted/30 rounded-2xl border border-border/30">
-                  <div className="w-12 h-12 bg-muted rounded-xl flex items-center justify-center mb-4">
-                    <Download className="w-6 h-6 text-muted-foreground" />
+                <div className="p-6 grid md:grid-cols-2 gap-6">
+                  <div className="p-6 stat-card-gold">
+                    <div className="w-12 h-12 bg-gradient-gold rounded-xl flex items-center justify-center mb-4 shadow-gold">
+                      <FolderArchive className="w-6 h-6 text-primary-foreground" />
+                    </div>
+                    <h3 className="font-bold text-lg mb-2">Export/Import Complet (ZIP)</h3>
+                    <p className="text-sm text-muted-foreground mb-6">Archive avec tous les fichiers et données</p>
+                    <div className="flex gap-3">
+                      <button onClick={handleExportZip} disabled={isExporting} className="btn-primary flex-1 py-3 flex items-center justify-center gap-2">
+                        <Download className="w-4 h-4" /> {isExporting ? 'Export...' : 'Exporter ZIP'}
+                      </button>
+                      <label className="btn-success flex-1 py-3 flex items-center justify-center gap-2 cursor-pointer">
+                        <Upload className="w-4 h-4" /> Importer
+                        <input ref={zipInputRef} type="file" accept=".zip" onChange={handleImportZipWithChoice} className="hidden" />
+                      </label>
+                    </div>
                   </div>
-                  <h3 className="font-bold text-lg mb-2">Export JSON (backup simple)</h3>
-                  <p className="text-sm text-muted-foreground mb-6">Données sans fichiers séparés</p>
-                  <div className="flex gap-3">
-                    <button onClick={handleExportData} className="btn-ghost flex-1 py-3 flex items-center justify-center gap-2 border border-border">
-                      <Download className="w-4 h-4" /> JSON
-                    </button>
-                    <label className="btn-ghost flex-1 py-3 flex items-center justify-center gap-2 cursor-pointer border border-border">
-                      <Upload className="w-4 h-4" /> Importer
-                      <input ref={fileInputRef} type="file" accept=".json" onChange={handleImportData} className="hidden" />
-                    </label>
+
+                  <div className="p-6 bg-muted/30 rounded-2xl border border-border/30">
+                    <div className="w-12 h-12 bg-muted rounded-xl flex items-center justify-center mb-4">
+                      <Download className="w-6 h-6 text-muted-foreground" />
+                    </div>
+                    <h3 className="font-bold text-lg mb-2">Export JSON (backup simple)</h3>
+                    <p className="text-sm text-muted-foreground mb-6">Données sans fichiers séparés</p>
+                    <div className="flex gap-3">
+                      <button onClick={handleExportData} className="btn-ghost flex-1 py-3 flex items-center justify-center gap-2 border border-border">
+                        <Download className="w-4 h-4" /> JSON
+                      </button>
+                      <label className="btn-ghost flex-1 py-3 flex items-center justify-center gap-2 cursor-pointer border border-border">
+                        <Upload className="w-4 h-4" /> Importer
+                        <input ref={fileInputRef} type="file" accept=".json" onChange={handleImportJsonWithChoice} className="hidden" />
+                      </label>
+                    </div>
                   </div>
                 </div>
               </div>
 
-              <div className="mx-6 mb-6 p-4 bg-destructive/10 rounded-xl border border-destructive/30">
-                <p className="text-sm text-destructive flex items-center gap-2">
-                  <span className="font-bold">⚠️ Attention:</span> L'importation remplacera toutes les données existantes.
-                </p>
+              {/* Delete All Data */}
+              <div className="glass-card overflow-hidden">
+                <div className="p-4 bg-destructive/20 border-b border-destructive/30">
+                  <h2 className="text-lg font-bold flex items-center gap-2 text-destructive">
+                    <AlertTriangle className="w-5 h-5" />
+                    Zone Dangereuse
+                  </h2>
+                </div>
+                <div className="p-6">
+                  <p className="text-muted-foreground mb-4">Supprimer toutes les données de l'application (cours, fichiers, élèves, paramètres).</p>
+                  <button 
+                    onClick={() => setShowDeleteConfirm(true)} 
+                    className="btn-ghost py-3 px-6 border-2 border-destructive text-destructive hover:bg-destructive/10 flex items-center gap-2"
+                  >
+                    <Trash2 className="w-4 h-4" /> Supprimer toutes les données
+                  </button>
+                </div>
               </div>
+
+              {/* Import Mode Modal */}
+              {showImportModeModal && (
+                <div className="fixed inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center p-4" style={{ zIndex: 9999 }}>
+                  <div className="glass-card w-full max-w-md animate-scale-in shadow-2xl border border-border/50">
+                    <div className="flex items-center justify-between p-6 pb-4 border-b border-border/30">
+                      <h3 className="text-lg font-semibold">Mode d'importation</h3>
+                      <button onClick={() => { setShowImportModeModal(false); setPendingImportFile(null); }} className="p-2 hover:bg-muted rounded-lg"><X className="w-5 h-5" /></button>
+                    </div>
+                    <div className="p-6 space-y-4">
+                      <p className="text-muted-foreground">Comment voulez-vous importer les données?</p>
+                      <div className="space-y-3">
+                        <button 
+                          onClick={() => setImportMode('replace')}
+                          className={`w-full p-4 rounded-xl border-2 text-left transition-all ${importMode === 'replace' ? 'border-primary bg-primary/10' : 'border-border/30 hover:border-border'}`}
+                        >
+                          <div className="font-semibold">Remplacer tout</div>
+                          <div className="text-sm text-muted-foreground">Efface les données existantes et importe les nouvelles</div>
+                        </button>
+                        <button 
+                          onClick={() => setImportMode('merge')}
+                          className={`w-full p-4 rounded-xl border-2 text-left transition-all ${importMode === 'merge' ? 'border-primary bg-primary/10' : 'border-border/30 hover:border-border'}`}
+                        >
+                          <div className="font-semibold">Fusionner</div>
+                          <div className="text-sm text-muted-foreground">Garde les données existantes et ajoute les nouvelles</div>
+                        </button>
+                      </div>
+                    </div>
+                    <div className="flex gap-3 p-6 pt-4 border-t border-border/30">
+                      <button onClick={handleImportWithMode} className="btn-primary flex-1 py-3">Importer</button>
+                      <button onClick={() => { setShowImportModeModal(false); setPendingImportFile(null); }} className="btn-ghost border border-border py-3 px-6">Annuler</button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Delete Confirmation Modal */}
+              {showDeleteConfirm && (
+                <div className="fixed inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center p-4" style={{ zIndex: 9999 }}>
+                  <div className="glass-card w-full max-w-md animate-scale-in shadow-2xl border border-destructive/50">
+                    <div className="flex items-center justify-between p-6 pb-4 border-b border-border/30">
+                      <h3 className="text-lg font-semibold text-destructive flex items-center gap-2">
+                        <AlertTriangle className="w-5 h-5" /> Confirmation
+                      </h3>
+                      <button onClick={() => setShowDeleteConfirm(false)} className="p-2 hover:bg-muted rounded-lg"><X className="w-5 h-5" /></button>
+                    </div>
+                    <div className="p-6">
+                      <p className="text-muted-foreground mb-4">Êtes-vous sûr de vouloir supprimer <strong>TOUTES</strong> les données? Cette action est irréversible.</p>
+                    </div>
+                    <div className="flex gap-3 p-6 pt-4 border-t border-border/30">
+                      <button onClick={handleDeleteAllData} className="bg-destructive text-destructive-foreground hover:bg-destructive/90 flex-1 py-3 rounded-lg font-medium">Oui, tout supprimer</button>
+                      <button onClick={() => setShowDeleteConfirm(false)} className="btn-ghost border border-border py-3 px-6">Annuler</button>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 

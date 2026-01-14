@@ -189,7 +189,8 @@ export const exportToZip = async (): Promise<void> => {
   URL.revokeObjectURL(url);
 };
 
-export const importFromZip = async (file: File): Promise<boolean> => {
+// Import modes: 'replace' (clear all then import) or 'merge' (add to existing)
+export const importFromZip = async (file: File, mode: 'replace' | 'merge' = 'replace'): Promise<boolean> => {
   try {
     const zip = await JSZip.loadAsync(file);
     
@@ -278,12 +279,69 @@ export const importFromZip = async (file: File): Promise<boolean> => {
       }
     }
     
-    // Save all data
-    if (data.courseTypes) saveCourseTypes(data.courseTypes);
-    if (data.sportCourses) saveSportCourses(data.sportCourses);
-    if (data.courseTitles) saveCourseTitles(data.courseTitles);
-    if (restoredFiles) saveFiles(restoredFiles);
-    if (data.stages) saveStages(data.stages);
+    // Save all data based on mode
+    if (mode === 'replace') {
+      // Replace mode: overwrite everything
+      if (data.courseTypes) saveCourseTypes(data.courseTypes);
+      if (data.sportCourses) saveSportCourses(data.sportCourses);
+      if (data.courseTitles) saveCourseTitles(data.courseTitles);
+      if (restoredFiles) saveFiles(restoredFiles);
+      if (data.stages) saveStages(data.stages);
+    } else {
+      // Merge mode: add to existing
+      if (data.courseTypes) {
+        const existing = getCourseTypes();
+        const merged = [...existing];
+        data.courseTypes.forEach((newType: any) => {
+          if (!merged.find(t => t.id === newType.id || t.name.toLowerCase() === newType.name.toLowerCase())) {
+            merged.push(newType);
+          }
+        });
+        saveCourseTypes(merged);
+      }
+      if (data.sportCourses) {
+        const existing = getSportCourses();
+        const merged = [...existing];
+        data.sportCourses.forEach((newCourse: any) => {
+          if (!merged.find(c => c.id === newCourse.id)) {
+            merged.push(newCourse);
+          }
+        });
+        saveSportCourses(merged);
+      }
+      if (data.courseTitles) {
+        const existing = getCourseTitles();
+        const merged = [...existing];
+        data.courseTitles.forEach((newTitle: any) => {
+          if (!merged.find(t => t.id === newTitle.id)) {
+            merged.push(newTitle);
+          }
+        });
+        saveCourseTitles(merged);
+      }
+      if (restoredFiles) {
+        const existing = getFiles();
+        const merged = [...existing];
+        restoredFiles.forEach((newFile: any) => {
+          if (!merged.find(f => f.id === newFile.id)) {
+            merged.push(newFile);
+          }
+        });
+        saveFiles(merged);
+      }
+      if (data.stages) {
+        const existing = getStages();
+        const merged = [...existing];
+        data.stages.forEach((newStage: any) => {
+          if (!merged.find(s => s.id === newStage.id)) {
+            merged.push(newStage);
+          }
+        });
+        saveStages(merged);
+      }
+    }
+    
+    // These always replace (passwords, settings)
     if (data.adminPassword) setAdminPassword(data.adminPassword);
     if (data.userPassword) setUserPassword(data.userPassword);
     if (data.backgroundEnabled !== undefined) setBackgroundEnabled(data.backgroundEnabled);
