@@ -35,6 +35,19 @@ import youthAcademyImg from './youth_academy.jpg';
 // Nutrition
 import nutritionFoodImg from './nutrition_food.jpg';
 
+// ===== NEW TOPIC IMAGES =====
+import protectionPersonnelImg from './protection_personnel.jpg';
+import sprintImg from './sprint.jpg';
+import fouleeImg from './foulee.jpg';
+import pisteAthleteImg from './piste_athlete.jpg';
+import courseOrientationImg from './course_orientation.jpg';
+import lancerImg from './lancer.jpg';
+import organisationsEpmsImg from './organisations_epms.jpg';
+import sautsImg from './sauts.jpg';
+import tkdImg from './tkd.jpg';
+import anatomiePhysiologieImg from './anatomie_physiologie.jpg';
+import pentathlonMilitaireImg from './pentathlon_militaire.jpg';
+
 // ===== MILITARY SECTION =====
 
 // Weapons
@@ -73,6 +86,30 @@ import tactiqueImg from './tactique.jpg';
 import secourismeImg from './secourisme.jpg';
 
 export const sportImages: Record<string, string> = {
+  // ===== NEW TOPIC IMAGES =====
+  protection_personnel: protectionPersonnelImg,
+  protection: protectionPersonnelImg,
+  lutte_influences: protectionPersonnelImg,
+  consignes_particulieres: protectionPersonnelImg,
+  sprint: sprintImg,
+  foulee: fouleeImg,
+  piste_athlete: pisteAthleteImg,
+  piste: pisteAthleteImg,
+  course_orientation: courseOrientationImg,
+  orientation: courseOrientationImg,
+  lancer: lancerImg,
+  organisations_epms: organisationsEpmsImg,
+  epms: organisationsEpmsImg,
+  sauts: sautsImg,
+  saut: sautsImg,
+  tkd: tkdImg,
+  taekwondo_new: tkdImg,
+  anatomie_physiologie: anatomiePhysiologieImg,
+  anatomie: anatomiePhysiologieImg,
+  physiologie: anatomiePhysiologieImg,
+  pentathlon_militaire: pentathlonMilitaireImg,
+  pentathlon: pentathlonMilitaireImg,
+  
   // ===== SPORTS BALLS =====
   football_ball: footballBallImg,
   basketball_ball: basketballBallImg,
@@ -81,6 +118,7 @@ export const sportImages: Record<string, string> = {
   tennis_ball: tennisBallImg,
   rugby_ball: rugbyBallImg,
   beach_soccer: beachSoccerImg,
+  foot: footballBallImg,
   
   // ===== COMBAT & MARTIAL ARTS =====
   boxing: boxingGlovesImg,
@@ -146,27 +184,35 @@ export const sportImages: Record<string, string> = {
 };
 
 export const getSportImage = (key: string): string => {
-  return sportImages[key.toLowerCase()] || sportImages.default;
+  const normalizedKey = key.toLowerCase().replace(/[- ]/g, '_');
+  return sportImages[normalizedKey] || sportImages.default;
 };
 
 // ===== IMAGE CATEGORIES FOR UI =====
 export const imageCategories = {
+  // New Topics
+  newTopics: [
+    'protection_personnel', 'sprint', 'foulee', 'piste_athlete', 
+    'course_orientation', 'lancer', 'organisations_epms', 'sauts',
+    'tkd', 'anatomie_physiologie', 'pentathlon_militaire'
+  ],
   // Sports Section
   ballSports: [
     'football_ball', 'basketball_ball', 'volleyball_ball', 
-    'handball_ball', 'tennis_ball', 'rugby_ball', 'beach_soccer'
+    'handball_ball', 'tennis_ball', 'rugby_ball', 'beach_soccer', 'foot'
   ],
   combatSports: [
-    'boxing', 'taekwondo', 'wrestling', 'combat_training'
+    'boxing', 'taekwondo', 'wrestling', 'combat_training', 'tkd'
   ],
   athleticsGym: [
-    'athletics', 'gymnastics', 'fitness', 'running', 'agility'
+    'athletics', 'gymnastics', 'fitness', 'running', 'agility',
+    'sprint', 'foulee', 'piste_athlete', 'lancer', 'sauts'
   ],
   aquatic: [
-    'swimming_pool', 'swimming_gear'
+    'swimming_pool', 'swimming_gear', 'natation'
   ],
   facilities: [
-    'indoor_hall', 'youth_academy', 'nutrition_food'
+    'indoor_hall', 'youth_academy', 'nutrition_food', 'organisations_epms'
   ],
   
   // Military Section
@@ -175,7 +221,8 @@ export const imageCategories = {
   ],
   militaryTraining: [
     'obstacle_course', 'tactical_field', 'military_endurance', 
-    'topography', 'first_aid'
+    'topography', 'first_aid', 'protection_personnel', 
+    'course_orientation', 'pentathlon_militaire'
   ],
   
   // Legacy categories (for backwards compatibility)
@@ -186,6 +233,7 @@ export const imageCategories = {
 
 // Category labels for UI
 export const categoryLabels: Record<string, string> = {
+  newTopics: 'Nouveaux Thèmes',
   ballSports: 'Sports de Ballon',
   combatSports: 'Sports de Combat',
   athleticsGym: 'Athlétisme & Gym',
@@ -200,6 +248,7 @@ export const allImageOptions = Object.keys(sportImages).filter(k => k !== 'defau
 
 // Get images by section
 export const getSportsSectionImages = () => [
+  ...imageCategories.newTopics,
   ...imageCategories.ballSports,
   ...imageCategories.combatSports,
   ...imageCategories.athleticsGym,

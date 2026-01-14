@@ -24,14 +24,16 @@ const STORAGE_KEYS = {
 const DEFAULT_ADMIN_PASSWORD = 'admin123';
 const DEFAULT_USER_PASSWORD = 'user123';
 
-// Default stages
+// Default stages - AIDE MONITEUR, APP, CAT1, CAT2, BE, BS, MONITEUR, OFF
 const DEFAULT_STAGES: Stage[] = [
-  { id: 'fcb', name: 'FCB', description: 'Formation Commune de Base', enabled: false, order: 0 },
-  { id: 'cat1', name: 'CAT1', description: 'Catégorie 1', enabled: true, order: 1 },
-  { id: 'cat2', name: 'CAT2', description: 'Catégorie 2', enabled: true, order: 2 },
-  { id: 'be', name: 'BE', description: 'Brevet Élémentaire', enabled: true, order: 3 },
-  { id: 'bs', name: 'BS', description: 'Brevet Supérieur', enabled: true, order: 4 },
-  { id: 'aide', name: 'Aide', description: 'Formation Aide', enabled: true, order: 5 },
+  { id: 'aide_moniteur', name: 'AIDE MONITEUR', description: 'Aide Moniteur', enabled: true, order: 0 },
+  { id: 'app', name: 'APP', description: 'Apprentissage', enabled: true, order: 1 },
+  { id: 'cat1', name: 'CAT1', description: 'Catégorie 1', enabled: true, order: 2 },
+  { id: 'cat2', name: 'CAT2', description: 'Catégorie 2', enabled: true, order: 3 },
+  { id: 'be', name: 'BE', description: 'Brevet Élémentaire', enabled: true, order: 4 },
+  { id: 'bs', name: 'BS', description: 'Brevet Supérieur', enabled: true, order: 5 },
+  { id: 'moniteur', name: 'MONITEUR', description: 'Moniteur', enabled: true, order: 6 },
+  { id: 'off', name: 'OFF', description: 'Officier', enabled: true, order: 7 },
 ];
 
 // Background settings

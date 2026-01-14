@@ -15,8 +15,10 @@ import {
   setAdminPassword,
   setUserPassword,
   setBackgroundImage,
-  setBackgroundEnabled
+  setBackgroundEnabled,
+  getFileDataAsync
 } from './storage';
+import { saveFileData } from './fileStorage';
 import { getClickSound, isClickSoundEnabled, setClickSound, setClickSoundEnabled } from '@/hooks/useClickSound';
 
 interface ExportData {
@@ -73,6 +75,10 @@ const getExtension = (dataURL: string, fileName?: string): string => {
     'audio/mpeg': 'mp3',
     'audio/wav': 'wav',
     'audio/ogg': 'ogg',
+    'video/mp4': 'mp4',
+    'video/webm': 'webm',
+    'video/x-msvideo': 'avi',
+    'video/quicktime': 'mov',
   };
   
   return mimeToExt[mime] || 'bin';
@@ -90,25 +96,33 @@ export const exportToZip = async (): Promise<void> => {
   const backgroundImage = getBackgroundImage();
   const clickSound = getClickSound();
   
-  // Prepare files list with references instead of base64
-  const filesWithRefs = files.map((file, index) => {
-    const ext = getExtension(file.fileData || '', file.fileName);
-    const fileName = `file_${file.id}.${ext}`;
+  // Prepare files list with references - fetch actual data from IndexedDB
+  const filesWithRefs = await Promise.all(files.map(async (file) => {
+    // Get actual file data from IndexedDB
+    const fileData = await getFileDataAsync(file.id);
     
-    // Add file to ZIP if it has data
-    if (file.fileData && filesFolder) {
-      const blob = dataURLtoBlob(file.fileData);
+    if (fileData && filesFolder) {
+      const ext = getExtension(fileData, file.fileName);
+      const fileName = `file_${file.id}.${ext}`;
+      
+      const blob = dataURLtoBlob(fileData);
       if (blob) {
         filesFolder.file(fileName, blob);
       }
+      
+      return {
+        ...file,
+        fileData: fileName, // Replace with filename reference
+        originalFileName: file.fileName
+      };
     }
     
     return {
       ...file,
-      fileData: fileName, // Replace base64 with filename reference
+      fileData: '',
       originalFileName: file.fileName
     };
-  });
+  }));
   
   // Export background image if exists
   if (backgroundImage && settingsFolder) {
@@ -139,7 +153,7 @@ export const exportToZip = async (): Promise<void> => {
     backgroundEnabled: isBackgroundEnabled(),
     clickSoundEnabled: isClickSoundEnabled(),
     exportedAt: new Date().toISOString(),
-    version: '3.0'
+    version: '4.0'
   };
   
   // Add main data.json
@@ -171,7 +185,7 @@ export const importFromZip = async (file: File): Promise<boolean> => {
     const dataContent = await dataFile.async('string');
     const data: ExportData = JSON.parse(dataContent);
     
-    // Restore files with their actual data
+    // Restore files with their actual data - save to IndexedDB
     const restoredFiles = await Promise.all(
       data.files.map(async (file) => {
         const fileName = file.fileData; // This is now the filename in the ZIP
@@ -179,18 +193,20 @@ export const importFromZip = async (file: File): Promise<boolean> => {
         
         if (zipFile) {
           const blob = await zipFile.async('blob');
-          const reader = new FileReader();
-          
-          return new Promise<typeof file>((resolve) => {
-            reader.onload = () => {
-              resolve({
-                ...file,
-                fileData: reader.result as string,
-                fileName: file.originalFileName || file.fileName
-              });
-            };
+          const fileData = await new Promise<string>((resolve) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result as string);
             reader.readAsDataURL(blob);
           });
+          
+          // Save to IndexedDB
+          await saveFileData(file.id, fileData, file.originalFileName || file.fileName, file.type);
+          
+          return {
+            ...file,
+            fileData: '', // Metadata only
+            fileName: file.originalFileName || file.fileName
+          };
         }
         
         return { ...file, fileData: '' };
