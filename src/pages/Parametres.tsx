@@ -13,6 +13,7 @@ import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, v
 import { CSS } from '@dnd-kit/utilities';
 import TablePagination from '@/components/TablePagination';
 import Layout from '@/components/Layout';
+import PermissionsManager from '@/components/PermissionsManager';
 import { 
   getAdminPassword, 
   setAdminPassword, 
@@ -173,7 +174,7 @@ const Parametres = () => {
   const [isExporting, setIsExporting] = useState(false);
   
   // Active section - default to guide for first-time users
-  const [activeSection, setActiveSection] = useState<'security' | 'accounts' | 'promos' | 'models' | 'stages' | 'appearance' | 'data' | 'guide'>('guide');
+  const [activeSection, setActiveSection] = useState<'security' | 'accounts' | 'promos' | 'models' | 'stages' | 'permissions' | 'appearance' | 'data' | 'guide'>('guide');
   
   // Search state for assign modal
   const [assignSearchTerm, setAssignSearchTerm] = useState('');
@@ -866,6 +867,7 @@ const Parametres = () => {
     { id: 'promos' as const, label: 'Promotions', icon: UserCheck },
     { id: 'models' as const, label: 'Modèles', icon: FileText },
     { id: 'stages' as const, label: 'Stages', icon: Layers },
+    { id: 'permissions' as const, label: 'Permissions', icon: Shield },
     { id: 'appearance' as const, label: 'Apparence', icon: Palette },
     { id: 'data' as const, label: 'Données', icon: FolderArchive },
   ];
@@ -1640,7 +1642,7 @@ const Parametres = () => {
             </div>
           )}
 
-          {/* Stages Section */}
+          {/* Stages Section with Drag & Drop */}
           {activeSection === 'stages' && (
             <div className="glass-card overflow-hidden">
               <div className="p-4 bg-gradient-gold border-b border-primary/20 flex items-center justify-between">
@@ -1654,38 +1656,32 @@ const Parametres = () => {
               </div>
 
               <div className="p-6">
-                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {stages.sort((a, b) => a.order - b.order).map((stage) => (
-                    <div key={stage.id} className={`p-4 rounded-xl border-2 transition-all ${
-                      stage.enabled 
-                        ? 'bg-card border-primary/30 shadow-lg shadow-primary/5' 
-                        : 'bg-muted/20 border-border/20 opacity-60'
-                    }`}>
-                      <div className="flex items-start justify-between mb-3">
-                        <div>
-                          <h4 className="font-bold text-lg gold-text">{stage.name}</h4>
-                          <p className="text-sm text-muted-foreground">{stage.description}</p>
-                        </div>
-                        <button 
-                          onClick={() => handleToggleStage(stage)} 
-                          className={`p-2 rounded-lg transition-colors ${stage.enabled ? 'bg-success/20 text-success' : 'bg-muted text-muted-foreground'}`}
-                        >
-                          {stage.enabled ? <ToggleRight className="w-6 h-6" /> : <ToggleLeft className="w-6 h-6" />}
-                        </button>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className={`text-xs px-2 py-1 rounded-full ${stage.enabled ? 'bg-success/20 text-success' : 'bg-muted text-muted-foreground'}`}>
-                          {stage.enabled ? 'Activé' : 'Désactivé'}
-                        </span>
-                        {!['fcb', 'cat1', 'cat2', 'be', 'bs', 'aide'].includes(stage.id) && (
-                          <button onClick={() => handleDeleteStage(stage.id)} className="p-2 hover:bg-destructive/20 rounded-lg text-destructive">
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        )}
-                      </div>
+                <p className="text-sm text-muted-foreground mb-4 flex items-center gap-2">
+                  <GripVertical className="w-4 h-4" />
+                  Glissez-déposez les stages pour réorganiser leur ordre
+                </p>
+                
+                <DndContext 
+                  sensors={sensors} 
+                  collisionDetection={closestCenter} 
+                  onDragEnd={handleStageDragEnd}
+                >
+                  <SortableContext 
+                    items={stages.sort((a, b) => a.order - b.order).map(s => s.id)} 
+                    strategy={verticalListSortingStrategy}
+                  >
+                    <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {stages.sort((a, b) => a.order - b.order).map((stage) => (
+                        <SortableStageItem
+                          key={stage.id}
+                          stage={stage}
+                          onToggle={handleToggleStage}
+                          onDelete={handleDeleteStage}
+                        />
+                      ))}
                     </div>
-                  ))}
-                </div>
+                  </SortableContext>
+                </DndContext>
 
                 <p className="text-sm text-muted-foreground mt-6 p-4 bg-primary/10 rounded-lg border border-primary/20">
                   <strong>Note:</strong> FCB est désactivé par défaut. Activez-le ici pour l'afficher dans les cours.
@@ -1718,6 +1714,11 @@ const Parametres = () => {
                 </div>
               )}
             </div>
+          )}
+
+          {/* Permissions Section */}
+          {activeSection === 'permissions' && (
+            <PermissionsManager />
           )}
 
           {/* Appearance Section */}
