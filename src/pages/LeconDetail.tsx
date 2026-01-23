@@ -1,6 +1,6 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Plus, FileText, Edit, Trash2, Eye, Upload, X, Download, Loader2, Video, FolderUp, ChevronRight, FileCheck } from 'lucide-react';
+import { ArrowLeft, Plus, FileText, Edit, Trash2, Eye, Upload, X, Download, Loader2, Video, FolderUp, ChevronRight, FileCheck, Lock } from 'lucide-react';
 import Layout from '@/components/Layout';
 import {
   getSportCourses,
@@ -17,7 +17,8 @@ import {
   getFileDataAsync,
   getUserMode
 } from '@/lib/storage';
-import { SportCourse, Stage, CourseType, CourseTitle, CourseFile } from '@/types';
+import { canAccess, canAccessStage } from '@/lib/permissions';
+import { SportCourse, Stage, CourseType, CourseTitle, CourseFile, UserRole } from '@/types';
 import { getSportImage } from '@/assets/sports';
 import { useToast } from '@/hooks/use-toast';
 import { useClickSound } from '@/hooks/useClickSound';
@@ -59,14 +60,21 @@ const LeconDetail = () => {
   const [isLoading, setIsLoading] = useState(false);
   
   const userMode = getUserMode();
-
+  
+  // Map user mode to role for permissions
+  const userRole: UserRole = useMemo(() => {
+    if (userMode === 'admin') return 'admin';
+    if (userMode === 'user') return 'instructeur';
+    if (userMode === 'eleve') return 'eleve';
+    return 'eleve';
+  }, [userMode]);
   useEffect(() => {
     if (!userMode) {
       navigate('/');
       return;
     }
     loadData();
-  }, [leconId, stageId, typeId, userMode, navigate]);
+  }, [leconId, stageId, typeId, userMode, userRole, navigate]);
 
   const loadData = () => {
     const stages = getStages();
@@ -78,18 +86,41 @@ const LeconDetail = () => {
     const foundCourse = courses.find(c => c.id === leconId);
     
     if (foundStage && foundType && foundCourse) {
+      // Check permission to access stage and course
+      if (!canAccessStage(userRole, foundStage.id)) {
+        toast({ title: 'Accès refusé', description: 'Vous n\'avez pas accès à ce stage', variant: 'destructive' });
+        navigate('/accueil');
+        return;
+      }
+      
+      if (!canAccess(userRole, 'lecon', foundCourse.id)) {
+        toast({ title: 'Accès refusé', description: 'Vous n\'avez pas accès à cette leçon', variant: 'destructive' });
+        navigate(`/stage/${stageId}/type/${typeId}`);
+        return;
+      }
+      
       setStage(foundStage);
       setCourseType(foundType);
       setCourse(foundCourse);
-      const titles = getCourseTitlesBySportCourse(leconId!);
-      setCourseTitles(titles);
+      
+      // Filter titles by permissions
+      const allTitles = getCourseTitlesBySportCourse(leconId!);
+      const accessibleTitles = allTitles.filter(title => 
+        canAccess(userRole, 'heading', title.id)
+      );
+      setCourseTitles(accessibleTitles);
     }
   };
 
   const handleTitleSelect = (title: CourseTitle) => {
     playClick();
     setSelectedTitle(title);
-    setFiles(getFilesByCourseTitle(title.id));
+    // Filter files by permissions
+    const allFiles = getFilesByCourseTitle(title.id);
+    const accessibleFiles = allFiles.filter(file => 
+      canAccess(userRole, 'file', file.id)
+    );
+    setFiles(accessibleFiles);
   };
 
   const handleBackToTitles = () => {

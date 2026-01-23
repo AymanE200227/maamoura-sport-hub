@@ -11,6 +11,7 @@ export interface Stage {
   description?: string;
   enabled: boolean;
   order: number;
+  disabledFor?: 'all' | 'eleves' | 'instructeurs' | 'none'; // Role-based disable targeting
 }
 
 export interface SportCourse {

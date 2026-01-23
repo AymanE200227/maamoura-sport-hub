@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   GraduationCap, BookOpen, FileText, Download, ChevronRight,
-  Calendar, User, Award, Layers, File, Shield, Loader2
+  Calendar, User, Award, Layers, File, Shield, Loader2, Lock
 } from 'lucide-react';
 import Layout from '@/components/Layout';
 import { 
@@ -10,7 +10,8 @@ import {
   getSportCourses, getDocumentModels, getModelFilesByModel, getStages,
   getModelFileDataAsync
 } from '@/lib/storage';
-import { StudentAccount, Promo, DocumentModel, ModelFile, CourseType } from '@/types';
+import { canAccessStage, canAccess } from '@/lib/permissions';
+import { StudentAccount, Promo, DocumentModel, ModelFile, CourseType, UserRole } from '@/types';
 import { useClickSound } from '@/hooks/useClickSound';
 import { useToast } from '@/hooks/use-toast';
 import bgImage from '@/assets/bg2.jpg';
@@ -24,6 +25,14 @@ const StudentDashboard = () => {
   const [selectedModelId, setSelectedModelId] = useState<string | null>(null);
   const [modelFiles, setModelFiles] = useState<ModelFile[]>([]);
   const [isDownloading, setIsDownloading] = useState<string | null>(null);
+
+  // Map user mode to role for permissions
+  const userRole: UserRole = useMemo(() => {
+    if (userMode === 'admin') return 'admin';
+    if (userMode === 'user') return 'instructeur';
+    if (userMode === 'eleve') return 'eleve';
+    return 'eleve';
+  }, [userMode]);
 
   // Get current student data (in real app would use session)
   const currentStudent = useMemo(() => {
@@ -39,8 +48,23 @@ const StudentDashboard = () => {
 
   const courseTypes = useMemo(() => getCourseTypes(), []);
   const documentModels = useMemo(() => getDocumentModels().filter(m => m.enabled !== false), []);
-  const stages = useMemo(() => getStages().filter(s => s.enabled), []);
-  const courses = useMemo(() => getSportCourses(), []);
+  
+  // Filter stages by permissions
+  const stages = useMemo(() => {
+    const allStages = getStages().filter(s => s.enabled);
+    return allStages.filter(stage => canAccessStage(userRole, stage.id));
+  }, [userRole]);
+  
+  // Filter courses by permissions
+  const courses = useMemo(() => {
+    const allCourses = getSportCourses();
+    return allCourses.filter(course => {
+      // Check if stage is accessible
+      if (!canAccessStage(userRole, course.stageId)) return false;
+      // Check if course itself is accessible
+      return canAccess(userRole, 'lecon', course.id);
+    });
+  }, [userRole]);
 
   useEffect(() => {
     if (!userMode) {
@@ -93,6 +117,11 @@ const StudentDashboard = () => {
     }
   };
 
+  // Get course count that respects permissions
+  const getCourseCount = useCallback((typeId: string) => {
+    return courses.filter(c => c.courseTypeId === typeId).length;
+  }, [courses]);
+
   return (
     <Layout backgroundImage={bgImage}>
       <div className="max-w-6xl mx-auto space-y-6">
@@ -125,7 +154,7 @@ const StudentDashboard = () => {
             <div className="flex gap-4">
               <div className="text-center p-4 stat-card-gold rounded-xl">
                 <p className="text-2xl font-bold gold-text">{courses.length}</p>
-                <p className="text-xs text-muted-foreground">Cours</p>
+                <p className="text-xs text-muted-foreground">Cours accessibles</p>
               </div>
               <div className="text-center p-4 stat-card-gold rounded-xl">
                 <p className="text-2xl font-bold text-success">{stages.length}</p>
@@ -187,16 +216,29 @@ const StudentDashboard = () => {
             </div>
             <div className="p-4 grid sm:grid-cols-2 gap-4">
               {courseTypes.map((type) => {
-                const courseCount = courses.filter(c => c.courseTypeId === type.id).length;
+                const courseCount = getCourseCount(type.id);
+                const hasAccess = courseCount > 0;
+                
                 return (
                   <button
                     key={type.id}
-                    onClick={() => handleCourseClick(type.id)}
-                    className="p-4 rounded-xl border-2 border-primary/20 hover:border-primary/40 bg-card hover:bg-card/80 transition-all text-left group"
+                    onClick={() => hasAccess && handleCourseClick(type.id)}
+                    disabled={!hasAccess}
+                    className={`p-4 rounded-xl border-2 transition-all text-left group ${
+                      hasAccess 
+                        ? 'border-primary/20 hover:border-primary/40 bg-card hover:bg-card/80 cursor-pointer' 
+                        : 'border-muted/20 bg-muted/10 opacity-60 cursor-not-allowed'
+                    }`}
                   >
                     <div className="flex items-center justify-between mb-2">
-                      <span className="badge-gold text-xs">{courseCount} cours</span>
-                      <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
+                      <span className={`badge-gold text-xs ${!hasAccess ? 'opacity-50' : ''}`}>
+                        {courseCount} cours
+                      </span>
+                      {hasAccess ? (
+                        <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
+                      ) : (
+                        <Lock className="w-4 h-4 text-muted-foreground" />
+                      )}
                     </div>
                     <h3 className="font-bold text-lg">{type.name}</h3>
                     <p className="text-sm text-muted-foreground line-clamp-2">
