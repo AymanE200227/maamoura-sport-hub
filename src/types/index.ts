@@ -99,3 +99,20 @@ export interface FolderStructure {
     type: 'ppt' | 'word' | 'pdf' | 'video';
   }[];
 }
+
+// Permission/Access Control Types
+export type PermissionTarget = 'stage' | 'courseType' | 'lecon' | 'heading' | 'file';
+export type PermissionRole = 'all' | 'eleves' | 'instructeurs' | 'none';
+
+export interface Permission {
+  id: string;
+  targetType: PermissionTarget;
+  targetId: string; // ID of stage/courseType/lecon/heading/file
+  role: PermissionRole;
+  enabled: boolean; // false = disabled for everyone
+  createdAt: string;
+  updatedAt: string;
+}
+
+// User role type
+export type UserRole = 'admin' | 'instructeur' | 'eleve';
