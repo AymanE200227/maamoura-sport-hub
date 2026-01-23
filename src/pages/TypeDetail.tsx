@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, memo, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ChevronRight, ArrowLeft, Lock, Plus, X, Upload } from 'lucide-react';
+import { ChevronRight, ArrowLeft, Lock, Plus, X, Upload, Shield } from 'lucide-react';
 import Layout from '@/components/Layout';
 import ArabicInput from '@/components/ArabicInput';
 import { 
@@ -10,20 +10,23 @@ import {
   addSportCourse,
   getUserMode 
 } from '@/lib/storage';
-import { CourseType, Stage, SportCourse } from '@/types';
+import { canAccess, canAccessStage } from '@/lib/permissions';
+import { CourseType, Stage, SportCourse, UserRole } from '@/types';
 import { getSportImage, imageCategories, categoryLabels } from '@/assets/sports';
 import { useClickSound } from '@/hooks/useClickSound';
 import { useToast } from '@/hooks/use-toast';
 import bgImage from '@/assets/bg3.jpg';
 
 // Memoized course card for performance
-const CourseCard = memo(({ course, onClick }: { 
+const CourseCard = memo(({ course, onClick, locked }: { 
   course: SportCourse; 
   onClick: () => void;
+  locked?: boolean;
 }) => (
   <button
     onClick={onClick}
-    className="course-card group h-48 text-left"
+    disabled={locked}
+    className={`course-card group h-48 text-left ${locked ? 'opacity-60 cursor-not-allowed' : ''}`}
   >
     <img 
       src={course.image.startsWith('data:') ? course.image : getSportImage(course.image)} 
@@ -32,10 +35,15 @@ const CourseCard = memo(({ course, onClick }: {
       loading="lazy"
     />
     <div className="course-card-overlay">
+      {locked && (
+        <div className="absolute top-2 right-2">
+          <Lock className="w-5 h-5 text-destructive" />
+        </div>
+      )}
       <h3 className="text-xl font-bold mb-1">{course.title}</h3>
       <p className="text-sm text-muted-foreground line-clamp-2">{course.description}</p>
       <div className="mt-2 flex items-center text-xs text-muted-foreground">
-        <span>Voir les cours</span>
+        <span>{locked ? 'Accès restreint' : 'Voir les cours'}</span>
         <ChevronRight className="w-4 h-4 ml-1" />
       </div>
     </div>
@@ -65,13 +73,21 @@ const TypeDetail = () => {
   
   const userMode = getUserMode();
 
+  // Map user mode to role for permissions
+  const userRole: UserRole = useMemo(() => {
+    if (userMode === 'admin') return 'admin';
+    if (userMode === 'user') return 'instructeur';
+    if (userMode === 'eleve') return 'eleve';
+    return 'eleve';
+  }, [userMode]);
+
   useEffect(() => {
     if (!userMode) {
       navigate('/');
       return;
     }
     loadData();
-  }, [stageId, typeId, userMode, navigate]);
+  }, [stageId, typeId, userMode, userRole, navigate]);
 
   const loadData = () => {
     const stages = getStages();
@@ -81,11 +97,26 @@ const TypeDetail = () => {
     const foundType = types.find(t => t.id === typeId);
     
     if (foundStage && foundType) {
+      // Check permission to access stage
+      if (!canAccessStage(userRole, foundStage.id)) {
+        toast({ title: 'Accès refusé', description: 'Vous n\'avez pas accès à ce stage', variant: 'destructive' });
+        navigate('/accueil');
+        return;
+      }
+      
       setStage(foundStage);
       setCourseType(foundType);
-      setSportCourses(getSportCoursesByTypeAndStage(typeId!, stageId!));
+      
+      // Filter courses by permissions (but show locked for admin)
+      const allCourses = getSportCoursesByTypeAndStage(typeId!, stageId!);
+      setSportCourses(allCourses);
     }
   };
+
+  // Check if a course is accessible
+  const isCourseAccessible = useCallback((course: SportCourse) => {
+    return canAccess(userRole, 'lecon', course.id);
+  }, [userRole]);
 
   const refreshCourses = () => {
     if (typeId && stageId) {
@@ -94,9 +125,14 @@ const TypeDetail = () => {
   };
 
   const handleCourseSelect = useCallback((course: SportCourse) => {
+    // Check if course is accessible
+    if (!isCourseAccessible(course)) {
+      toast({ title: 'Accès refusé', description: 'Vous n\'avez pas accès à cette leçon', variant: 'destructive' });
+      return;
+    }
     playClick();
     navigate(`/stage/${stageId}/type/${typeId}/lecon/${course.id}`);
-  }, [navigate, stageId, typeId, playClick]);
+  }, [navigate, stageId, typeId, playClick, isCourseAccessible, toast]);
 
   const handleBack = useCallback(() => {
     playClick();
@@ -172,13 +208,17 @@ const TypeDetail = () => {
 
       {/* Sport Courses (Leçons) as Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-fade-in">
-        {sportCourses.map((course) => (
-          <CourseCard
-            key={course.id}
-            course={course}
-            onClick={() => handleCourseSelect(course)}
-          />
-        ))}
+        {sportCourses.map((course) => {
+          const accessible = isCourseAccessible(course);
+          return (
+            <CourseCard
+              key={course.id}
+              course={course}
+              onClick={() => handleCourseSelect(course)}
+              locked={!accessible}
+            />
+          );
+        })}
 
         {sportCourses.length === 0 && (
           <div className="col-span-full text-center py-12">

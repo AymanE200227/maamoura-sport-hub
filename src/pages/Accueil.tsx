@@ -10,7 +10,8 @@ import {
   getCourseTitles, getFiles, getStages, getStudentAccounts,
   getAppSettings, getEnabledStages
 } from '@/lib/storage';
-import { Stage } from '@/types';
+import { canAccessStage } from '@/lib/permissions';
+import { Stage, UserRole } from '@/types';
 import { useClickSound } from '@/hooks/useClickSound';
 import bgImage from '@/assets/bg2.jpg';
 import logoOfficial from '@/assets/logo-official.png';
@@ -98,6 +99,14 @@ const Accueil = () => {
   const { playClick } = useClickSound();
   const appSettings = getAppSettings();
 
+  // Map user mode to role for permissions
+  const userRole: UserRole = useMemo(() => {
+    if (userMode === 'admin') return 'admin';
+    if (userMode === 'user') return 'instructeur';
+    if (userMode === 'eleve') return 'eleve';
+    return 'eleve';
+  }, [userMode]);
+
   // Memoized statistics
   const stats = useMemo(() => {
     const courses = getSportCourses();
@@ -132,8 +141,15 @@ const Accueil = () => {
       navigate('/');
       return;
     }
-    setStages(getEnabledStages());
-  }, [userMode, navigate]);
+    
+    // Get enabled stages and filter by permissions
+    const enabledStages = getEnabledStages();
+    const accessibleStages = enabledStages.filter(stage => 
+      canAccessStage(userRole, stage.id)
+    );
+    
+    setStages(accessibleStages);
+  }, [userMode, userRole, navigate]);
 
   const handleStageClick = useCallback((stage: Stage) => {
     playClick();
@@ -170,7 +186,7 @@ const Accueil = () => {
                 Centre Sportif <span className="gold-text">FAR</span>
               </h1>
               <p className="text-muted-foreground text-lg leading-relaxed max-w-2xl">
-                lateforme officielle de gestion des cours sportifs et militaires du Centre Sportif FAR. encadré par le chef d'instruction.
+                Plateforme officielle de gestion des cours sportifs et militaires du Centre Sportif FAR. Encadré par le chef d'instruction.
               </p>
               <div className="flex flex-wrap gap-3 mt-4 justify-center lg:justify-start">
                 <span className="badge-gold flex items-center gap-1">
@@ -279,6 +295,19 @@ const Accueil = () => {
               <Plus className="w-5 h-5" />
               Gérer les Stages
             </button>
+          </div>
+        )}
+
+        {/* No access message for non-admin */}
+        {userMode !== 'admin' && stages.length === 0 && (
+          <div className="glass-card p-8 text-center">
+            <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-muted flex items-center justify-center">
+              <Shield className="w-8 h-8 text-muted-foreground" />
+            </div>
+            <h3 className="text-lg font-semibold mb-2">Aucun stage disponible</h3>
+            <p className="text-muted-foreground">
+              Vous n'avez pas encore accès aux stages. Contactez votre administrateur.
+            </p>
           </div>
         )}
       </div>

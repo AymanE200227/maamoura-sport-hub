@@ -80,12 +80,22 @@ import basketballBg from '@/assets/basketball-game-concept.jpg';
 import terrainBg from '@/assets/bgterrain.png';
 import logoOfficial from '@/assets/logo-official.png';
 
+// Role targeting options
+const disableTargetOptions = [
+  { value: 'none', label: 'Aucun', color: 'bg-success/20 text-success border-success/40' },
+  { value: 'eleves', label: 'Élèves', color: 'bg-blue-500/20 text-blue-400 border-blue-500/40' },
+  { value: 'instructeurs', label: 'Instructeurs', color: 'bg-amber-500/20 text-amber-400 border-amber-500/40' },
+  { value: 'all', label: 'Tous', color: 'bg-destructive/20 text-destructive border-destructive/40' },
+] as const;
+
 // Sortable Stage Item component
-const SortableStageItem = ({ stage, onToggle, onDelete }: { 
+const SortableStageItem = ({ stage, onToggle, onDelete, onChangeDisableTarget }: { 
   stage: Stage; 
   onToggle: (stage: Stage) => void;
   onDelete: (id: string) => void;
+  onChangeDisableTarget: (stageId: string, target: 'all' | 'eleves' | 'instructeurs' | 'none') => void;
 }) => {
+  const [showTargetMenu, setShowTargetMenu] = useState(false);
   const {
     attributes,
     listeners,
@@ -99,23 +109,27 @@ const SortableStageItem = ({ stage, onToggle, onDelete }: {
     transform: CSS.Transform.toString(transform),
     transition,
     opacity: isDragging ? 0.5 : 1,
+    zIndex: isDragging ? 100 : 1,
   };
+
+  const currentTarget = stage.disabledFor || 'none';
+  const targetOption = disableTargetOptions.find(o => o.value === currentTarget) || disableTargetOptions[0];
 
   return (
     <div 
       ref={setNodeRef} 
       style={style}
-      className={`p-4 rounded-xl border-2 transition-all ${
+      className={`p-4 rounded-xl border-2 transition-all duration-200 ${
         stage.enabled 
           ? 'bg-card border-primary/30 shadow-lg shadow-primary/5' 
           : 'bg-muted/20 border-border/20 opacity-60'
-      }`}
+      } ${isDragging ? 'shadow-2xl ring-2 ring-primary scale-105' : ''}`}
     >
       <div className="flex items-start gap-3">
         <div 
           {...attributes} 
           {...listeners}
-          className="p-2 cursor-grab active:cursor-grabbing hover:bg-muted/50 rounded-lg"
+          className="p-2 cursor-grab active:cursor-grabbing hover:bg-muted/50 rounded-lg touch-none"
         >
           <GripVertical className="w-5 h-5 text-muted-foreground" />
         </div>
@@ -127,17 +141,58 @@ const SortableStageItem = ({ stage, onToggle, onDelete }: {
             </div>
             <button 
               onClick={() => onToggle(stage)} 
-              className={`p-2 rounded-lg transition-colors ${stage.enabled ? 'bg-success/20 text-success' : 'bg-muted text-muted-foreground'}`}
+              className={`p-2 rounded-lg transition-all duration-200 ${
+                stage.enabled 
+                  ? 'bg-success/20 text-success hover:bg-success/30 hover:scale-110' 
+                  : 'bg-muted text-muted-foreground hover:bg-muted/80'
+              }`}
             >
               {stage.enabled ? <ToggleRight className="w-6 h-6" /> : <ToggleLeft className="w-6 h-6" />}
             </button>
           </div>
+          
+          {/* Role Targeting */}
+          <div className="mb-3">
+            <p className="text-xs text-muted-foreground mb-2">Désactiver pour:</p>
+            <div className="relative">
+              <button
+                onClick={() => setShowTargetMenu(!showTargetMenu)}
+                className={`w-full text-left px-3 py-2 rounded-lg border text-sm flex items-center justify-between transition-all ${targetOption.color}`}
+              >
+                <span>{targetOption.label}</span>
+                <ChevronRight className={`w-4 h-4 transition-transform ${showTargetMenu ? 'rotate-90' : ''}`} />
+              </button>
+              {showTargetMenu && (
+                <div className="absolute top-full left-0 right-0 mt-1 bg-card border border-border rounded-lg shadow-xl z-50 overflow-hidden animate-fade-in">
+                  {disableTargetOptions.map(option => (
+                    <button
+                      key={option.value}
+                      onClick={() => {
+                        onChangeDisableTarget(stage.id, option.value);
+                        setShowTargetMenu(false);
+                      }}
+                      className={`w-full text-left px-3 py-2 text-sm flex items-center gap-2 transition-colors hover:bg-muted/50 ${
+                        currentTarget === option.value ? option.color : ''
+                      }`}
+                    >
+                      {option.value === 'none' && <Check className="w-4 h-4" />}
+                      {option.value === 'eleves' && <GraduationCap className="w-4 h-4" />}
+                      {option.value === 'instructeurs' && <UserCheck className="w-4 h-4" />}
+                      {option.value === 'all' && <X className="w-4 h-4" />}
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+          
           <div className="flex items-center justify-between">
-            <span className={`text-xs px-2 py-1 rounded-full ${stage.enabled ? 'bg-success/20 text-success' : 'bg-muted text-muted-foreground'}`}>
+            <span className={`text-xs px-2 py-1 rounded-full transition-colors ${stage.enabled ? 'bg-success/20 text-success' : 'bg-muted text-muted-foreground'}`}>
               {stage.enabled ? 'Activé' : 'Désactivé'}
             </span>
             {!['fcb', 'cat1', 'cat2', 'be', 'bs', 'aide'].includes(stage.id) && (
-              <button onClick={() => onDelete(stage.id)} className="p-2 hover:bg-destructive/20 rounded-lg text-destructive">
+              <button onClick={() => onDelete(stage.id)} className="p-2 hover:bg-destructive/20 rounded-lg text-destructive transition-colors">
                 <Trash2 className="w-4 h-4" />
               </button>
             )}
@@ -525,6 +580,13 @@ const Parametres = () => {
     deleteStage(id);
     toast({ title: 'Stage supprimé' });
     loadData();
+  };
+
+  const handleChangeDisableTarget = (stageId: string, target: 'all' | 'eleves' | 'instructeurs' | 'none') => {
+    updateStage(stageId, { disabledFor: target });
+    loadData();
+    const labels = { all: 'tous', eleves: 'élèves', instructeurs: 'instructeurs', none: 'aucun' };
+    toast({ title: 'Ciblage mis à jour', description: `Désactivé pour: ${labels[target]}` });
   };
 
   // Promo handlers
@@ -1670,13 +1732,14 @@ const Parametres = () => {
                     items={stages.sort((a, b) => a.order - b.order).map(s => s.id)} 
                     strategy={verticalListSortingStrategy}
                   >
-                    <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <div className="grid md:grid-cols-2 gap-4">
                       {stages.sort((a, b) => a.order - b.order).map((stage) => (
                         <SortableStageItem
                           key={stage.id}
                           stage={stage}
                           onToggle={handleToggleStage}
                           onDelete={handleDeleteStage}
+                          onChangeDisableTarget={handleChangeDisableTarget}
                         />
                       ))}
                     </div>
