@@ -51,7 +51,7 @@ const CourseTypeCard = memo(({ type, courseCount, imageSrc, onClick }: {
           </div>
         </div>
         <h2 className="text-xl font-bold text-white mb-1">
-          P.{type.name.toUpperCase()}
+          {`P.${type.name.toUpperCase().replace(/^(P\.)+/, '')}`}
         </h2>
         <p className="text-sm text-white/70 line-clamp-2">
           {type.description || `Programme ${type.name.toLowerCase()}`}
