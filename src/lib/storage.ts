@@ -817,7 +817,16 @@ export const importAllData = (jsonData: string, mode: 'replace' | 'merge' = 'rep
 // Delete all application data
 export const clearAllData = (): void => {
   // Clear all localStorage keys
-  Object.values(STORAGE_KEYS).forEach(key => {
+  Object.values(STORAGE_KEYS).forEach((key) => {
     localStorage.removeItem(key);
   });
+
+  // IMPORTANT: prevent auto-seeding defaults after a "delete all".
+  // Some getters (getStages/getCourseTypes/getSportCourses/...) re-seed when their key is missing.
+  // By writing explicit empty arrays, the app stays truly empty until the admin imports/creates data.
+  localStorage.setItem(STORAGE_KEYS.STAGES, JSON.stringify([]));
+  localStorage.setItem(STORAGE_KEYS.COURSE_TYPES, JSON.stringify([]));
+  localStorage.setItem(STORAGE_KEYS.SPORT_COURSES, JSON.stringify([]));
+  localStorage.setItem(STORAGE_KEYS.COURSE_TITLES, JSON.stringify([]));
+  localStorage.setItem(STORAGE_KEYS.FILES, JSON.stringify([]));
 };
