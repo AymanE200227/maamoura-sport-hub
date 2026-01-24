@@ -10,7 +10,10 @@ export interface ImportFile {
   name: string;
   path: string;
   type: 'ppt' | 'word' | 'pdf' | 'video' | 'unknown';
+  /** Base64 DataURL (may be empty when we defer reading bytes until import). */
   data: string;
+  /** Original File reference (only available right after a folder upload). */
+  blob?: File;
   size: number;
 }
 

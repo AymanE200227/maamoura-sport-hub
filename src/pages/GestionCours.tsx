@@ -8,6 +8,7 @@ import {
 import Layout from '@/components/Layout';
 import ArabicInput from '@/components/ArabicInput';
 import FolderImportTree, { ImportTreeNode } from '@/components/FolderImportTree';
+import ImportProgressOverlay, { type ImportProgressState } from '@/components/ImportProgressOverlay';
 import { parseFolderStructure, importTreeToStorage } from '@/lib/folderParser';
 import { 
   getCourseTypes, 
@@ -72,6 +73,31 @@ const GestionCours = () => {
   const [importTree, setImportTree] = useState<ImportTreeNode[]>([]);
   const [importStats, setImportStats] = useState({ stages: 0, types: 0, lecons: 0, headings: 0, files: 0 });
   const [isImporting, setIsImporting] = useState(false);
+
+  const [importProgress, setImportProgress] = useState<ImportProgressState>({
+    open: false,
+    phase: 'parsing',
+    processed: 0,
+    total: 0,
+    current: ''
+  });
+  const progressRafRef = useRef<number | null>(null);
+  const progressNextRef = useRef<ImportProgressState | null>(null);
+
+  const setProgressThrottled = useCallback((next: ImportProgressState) => {
+    progressNextRef.current = next;
+    if (progressRafRef.current !== null) return;
+    progressRafRef.current = requestAnimationFrame(() => {
+      progressRafRef.current = null;
+      if (progressNextRef.current) setImportProgress(progressNextRef.current);
+    });
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (progressRafRef.current !== null) cancelAnimationFrame(progressRafRef.current);
+    };
+  }, []);
 
   useEffect(() => {
     if (userMode !== 'admin') {
@@ -250,6 +276,7 @@ const GestionCours = () => {
     if (!files || files.length === 0) return;
 
     try {
+      setImportProgress({ open: true, phase: 'parsing', processed: 0, total: files.length, current: '' });
       const result = await parseFolderStructure(files);
       setImportTree(result.tree);
       setImportStats(result.stats);
@@ -257,6 +284,8 @@ const GestionCours = () => {
     } catch (error) {
       console.error('Error parsing folder:', error);
       toast({ title: 'Erreur', description: 'Impossible d\'analyser le dossier', variant: 'destructive' });
+    } finally {
+      setImportProgress((p) => ({ ...p, open: false }));
     }
     
     // Reset input
@@ -265,6 +294,7 @@ const GestionCours = () => {
 
   const handleConfirmImport = async () => {
     setIsImporting(true);
+    setImportProgress({ open: true, phase: 'importing', processed: 0, total: importStats.files, current: '' });
     try {
       const importedCount = await importTreeToStorage(
         importTree,
@@ -275,7 +305,20 @@ const GestionCours = () => {
         addSportCourse,
         getCourseTitles,
         addCourseTitle,
-        addFileAsync
+        addFileAsync,
+        {
+          totalFiles: importStats.files,
+          yieldEvery: 6,
+          onProgress: ({ processed, total, currentPath }) => {
+            setProgressThrottled({
+              open: true,
+              phase: 'importing',
+              processed,
+              total,
+              current: currentPath || ''
+            });
+          }
+        }
       );
       
       toast({ 
@@ -290,6 +333,7 @@ const GestionCours = () => {
       toast({ title: 'Erreur', description: 'Erreur lors de l\'import', variant: 'destructive' });
     } finally {
       setIsImporting(false);
+      setImportProgress((p) => ({ ...p, open: false }));
     }
   };
 
@@ -324,6 +368,7 @@ const GestionCours = () => {
   return (
     <Layout backgroundImage={bgImage}>
       <div className="max-w-7xl mx-auto">
+        <ImportProgressOverlay {...importProgress} />
         {/* Hidden folder input */}
         <input
           type="file"
