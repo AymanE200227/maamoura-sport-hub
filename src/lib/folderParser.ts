@@ -128,10 +128,10 @@ export const parseFolderStructure = async (
     }
     
     for (const file of batch) {
-        processed++;
-        if (options?.onProgress && (processed % progressEvery === 0 || processed === total)) {
-          options.onProgress({ processed, total, currentPath: file.webkitRelativePath });
-        }
+      processed++;
+      if (options?.onProgress && (processed % progressEvery === 0 || processed === total)) {
+        options.onProgress({ processed, total, currentPath: file.webkitRelativePath });
+      }
       // Get path parts (folder structure)
       const pathParts = file.webkitRelativePath.split('/').filter(p => p);
       
@@ -314,6 +314,26 @@ export interface ImportReport {
   warnings: string[];
 }
 
+// Safe file read with timeout to prevent hanging
+const safeReadFileAsDataURL = async (file: File, timeoutMs = 30000): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const timeout = setTimeout(() => {
+      reject(new Error(`Timeout reading file: ${file.name}`));
+    }, timeoutMs);
+    
+    const reader = new FileReader();
+    reader.onerror = () => {
+      clearTimeout(timeout);
+      reject(reader.error || new Error('FileReader error'));
+    };
+    reader.onload = () => {
+      clearTimeout(timeout);
+      resolve(reader.result as string);
+    };
+    reader.readAsDataURL(file);
+  });
+};
+
 // Import tree to storage - preserves original type names
 // Also handles conclusion files directly (no separate heading needed)
 export const importTreeToStorage = async (
@@ -330,11 +350,7 @@ export const importTreeToStorage = async (
     totalFiles?: number;
     onProgress?: (info: { processed: number; total: number; currentPath?: string }) => void;
     yieldEvery?: number;
-
-    /** Required to support importing into an empty app after a full wipe. */
     saveStages?: (stages: any[]) => void;
-
-    /** Optional file upsert support (replace instead of duplicating). */
     getFilesByCourseTitle?: (courseTitleId: string) => any[];
     updateFileAsync?: (id: string, updates: any) => Promise<void>;
   }
@@ -355,6 +371,7 @@ export const importTreeToStorage = async (
   const totalFiles = options?.totalFiles ?? 0;
   const yieldEvery = options?.yieldEvery ?? 8;
   
+  // Get fresh data from storage
   let existingStages = getStages();
   let existingTypes = getCourseTypes();
   let existingCourses = getSportCourses();
@@ -370,9 +387,10 @@ export const importTreeToStorage = async (
     );
     
     if (!stage) {
-      // After "Supprimer tout", there are no stages left. We must create them.
+      // After "Supprimer tout", there are no stages left. Create them.
       if (!options?.saveStages) {
-        throw new Error('importTreeToStorage: saveStages option is required to import stages into an empty app');
+        report.warnings.push(`Impossible de créer le stage "${stageNode.name}" - saveStages manquant`);
+        continue;
       }
 
       stage = {
@@ -385,7 +403,6 @@ export const importTreeToStorage = async (
       existingStages = [...existingStages, stage];
       options.saveStages(existingStages);
       report.stages.created++;
-      report.warnings.push(`Stage créé: ${stageNode.name}`);
     } else {
       report.stages.matched++;
     }
@@ -443,12 +460,20 @@ export const importTreeToStorage = async (
           if (child.type === 'file' && child.file) {
             let fileData = '';
             try {
-              fileData = child.file.data || (child.file.blob ? await readFileAsDataURL(child.file.blob) : '');
+              if (child.file.data) {
+                fileData = child.file.data;
+              } else if (child.file.blob) {
+                fileData = await safeReadFileAsDataURL(child.file.blob);
+              }
             } catch (e) {
               report.files.errors++;
-              report.warnings.push(`Erreur lecture fichier: ${child.file.path}`);
+              report.warnings.push(`Erreur lecture: ${child.file.path}`);
+              importedFiles++;
+              report.files.imported = importedFiles;
+              options?.onProgress?.({ processed: importedFiles, total: totalFiles, currentPath: child.file.path });
               continue;
             }
+            
             // Check if it's a conclusion file - import directly with its name
             const isConclusion = isConclusionFile(child.file.name);
             
@@ -471,27 +496,32 @@ export const importTreeToStorage = async (
               }
 
               // Upsert file by filename within the same heading
-              const existingFiles = options?.getFilesByCourseTitle?.(conclusionTitle.id) ?? [];
-              const match = existingFiles.find((f: any) => (f.fileName || '').toLowerCase() === child.file!.name.toLowerCase());
-              if (match && options?.updateFileAsync) {
-                await options.updateFileAsync(match.id, {
-                  title: child.name,
-                  description: '',
-                  type: child.file.type,
-                  fileName: child.file.name,
-                  fileData,
-                });
-                report.files.replaced++;
-              } else {
-                await addFileAsync({
-                  courseTitleId: conclusionTitle.id,
-                  title: child.name,
-                  description: '',
-                  type: child.file.type,
-                  fileName: child.file.name,
-                  fileData
-                });
-                report.files.created++;
+              try {
+                const existingFiles = options?.getFilesByCourseTitle?.(conclusionTitle.id) ?? [];
+                const match = existingFiles.find((f: any) => (f.fileName || '').toLowerCase() === child.file!.name.toLowerCase());
+                if (match && options?.updateFileAsync) {
+                  await options.updateFileAsync(match.id, {
+                    title: child.name,
+                    description: '',
+                    type: child.file.type,
+                    fileName: child.file.name,
+                    fileData,
+                  });
+                  report.files.replaced++;
+                } else {
+                  await addFileAsync({
+                    courseTitleId: conclusionTitle.id,
+                    title: child.name,
+                    description: '',
+                    type: child.file.type,
+                    fileName: child.file.name,
+                    fileData
+                  });
+                  report.files.created++;
+                }
+              } catch (e) {
+                report.files.errors++;
+                report.warnings.push(`Erreur enregistrement: ${child.file.path}`);
               }
               importedFiles++;
               report.files.imported = importedFiles;
@@ -514,27 +544,32 @@ export const importTreeToStorage = async (
                 report.headings.matched++;
               }
 
-              const existingFiles = options?.getFilesByCourseTitle?.(generalTitle.id) ?? [];
-              const match = existingFiles.find((f: any) => (f.fileName || '').toLowerCase() === child.file!.name.toLowerCase());
-              if (match && options?.updateFileAsync) {
-                await options.updateFileAsync(match.id, {
-                  title: child.name,
-                  description: '',
-                  type: child.file.type,
-                  fileName: child.file.name,
-                  fileData,
-                });
-                report.files.replaced++;
-              } else {
-                await addFileAsync({
-                  courseTitleId: generalTitle.id,
-                  title: child.name,
-                  description: '',
-                  type: child.file.type,
-                  fileName: child.file.name,
-                  fileData
-                });
-                report.files.created++;
+              try {
+                const existingFiles = options?.getFilesByCourseTitle?.(generalTitle.id) ?? [];
+                const match = existingFiles.find((f: any) => (f.fileName || '').toLowerCase() === child.file!.name.toLowerCase());
+                if (match && options?.updateFileAsync) {
+                  await options.updateFileAsync(match.id, {
+                    title: child.name,
+                    description: '',
+                    type: child.file.type,
+                    fileName: child.file.name,
+                    fileData,
+                  });
+                  report.files.replaced++;
+                } else {
+                  await addFileAsync({
+                    courseTitleId: generalTitle.id,
+                    title: child.name,
+                    description: '',
+                    type: child.file.type,
+                    fileName: child.file.name,
+                    fileData
+                  });
+                  report.files.created++;
+                }
+              } catch (e) {
+                report.files.errors++;
+                report.warnings.push(`Erreur enregistrement: ${child.file.path}`);
               }
               importedFiles++;
               report.files.imported = importedFiles;
@@ -568,34 +603,46 @@ export const importTreeToStorage = async (
               if (fileNode.type === 'file' && fileNode.file) {
                 let fileData = '';
                 try {
-                  fileData = fileNode.file.data || (fileNode.file.blob ? await readFileAsDataURL(fileNode.file.blob) : '');
+                  if (fileNode.file.data) {
+                    fileData = fileNode.file.data;
+                  } else if (fileNode.file.blob) {
+                    fileData = await safeReadFileAsDataURL(fileNode.file.blob);
+                  }
                 } catch (e) {
                   report.files.errors++;
-                  report.warnings.push(`Erreur lecture fichier: ${fileNode.file.path}`);
+                  report.warnings.push(`Erreur lecture: ${fileNode.file.path}`);
+                  importedFiles++;
+                  report.files.imported = importedFiles;
+                  options?.onProgress?.({ processed: importedFiles, total: totalFiles, currentPath: fileNode.file.path });
                   continue;
                 }
 
-                const existingFiles = options?.getFilesByCourseTitle?.(courseTitle.id) ?? [];
-                const match = existingFiles.find((f: any) => (f.fileName || '').toLowerCase() === fileNode.file!.name.toLowerCase());
-                if (match && options?.updateFileAsync) {
-                  await options.updateFileAsync(match.id, {
-                    title: fileNode.name,
-                    description: '',
-                    type: fileNode.file.type,
-                    fileName: fileNode.file.name,
-                    fileData,
-                  });
-                  report.files.replaced++;
-                } else {
-                  await addFileAsync({
-                    courseTitleId: courseTitle.id,
-                    title: fileNode.name,
-                    description: '',
-                    type: fileNode.file.type,
-                    fileName: fileNode.file.name,
-                    fileData
-                  });
-                  report.files.created++;
+                try {
+                  const existingFiles = options?.getFilesByCourseTitle?.(courseTitle.id) ?? [];
+                  const match = existingFiles.find((f: any) => (f.fileName || '').toLowerCase() === fileNode.file!.name.toLowerCase());
+                  if (match && options?.updateFileAsync) {
+                    await options.updateFileAsync(match.id, {
+                      title: fileNode.name,
+                      description: '',
+                      type: fileNode.file.type,
+                      fileName: fileNode.file.name,
+                      fileData,
+                    });
+                    report.files.replaced++;
+                  } else {
+                    await addFileAsync({
+                      courseTitleId: courseTitle.id,
+                      title: fileNode.name,
+                      description: '',
+                      type: fileNode.file.type,
+                      fileName: fileNode.file.name,
+                      fileData
+                    });
+                    report.files.created++;
+                  }
+                } catch (e) {
+                  report.files.errors++;
+                  report.warnings.push(`Erreur enregistrement: ${fileNode.file.path}`);
                 }
                 importedFiles++;
                 report.files.imported = importedFiles;

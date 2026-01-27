@@ -103,12 +103,14 @@ const GestionCours = () => {
   }, []);
 
   const closeImportProgress = useCallback(() => {
+    // Clear any pending RAF
     progressNextRef.current = null;
     if (progressRafRef.current !== null) {
       cancelAnimationFrame(progressRafRef.current);
       progressRafRef.current = null;
     }
-    setImportProgress((p) => ({ ...p, open: false, current: '' }));
+    // Force immediate close
+    setImportProgress({ open: false, phase: 'parsing', processed: 0, total: 0, current: '' });
   }, []);
 
   useEffect(() => {
@@ -324,8 +326,11 @@ const GestionCours = () => {
   const handleConfirmImport = async () => {
     setIsImporting(true);
     setImportProgress({ open: true, phase: 'importing', processed: 0, total: importStats.files, current: '' });
+    
+    let report: ImportReport | null = null;
+    
     try {
-      const report = await importTreeToStorage(
+      report = await importTreeToStorage(
         importTree,
         getStages,
         getCourseTypes,
@@ -357,8 +362,7 @@ const GestionCours = () => {
       
       toast({ 
         title: importedCount > 0 ? 'Import réussi' : 'Import terminé',
-        description: `${importedCount} fichiers importés • ${report.files.replaced} remplacés • ${report.files.errors} erreurs`,
-        variant: importedCount > 0 ? 'default' : 'destructive'
+        description: `${importedCount} fichiers importés • ${report.files.replaced} remplacés • ${report.files.errors} erreurs`
       });
 
       setImportReport(report);
@@ -368,9 +372,10 @@ const GestionCours = () => {
       setImportTree([]);
     } catch (error) {
       console.error('Error importing:', error);
-      toast({ title: 'Erreur', description: 'Erreur lors de l\'import', variant: 'destructive' });
+      toast({ title: 'Erreur', description: String(error) || 'Erreur lors de l\'import', variant: 'destructive' });
     } finally {
       setIsImporting(false);
+      // Always close the overlay
       closeImportProgress();
     }
   };
@@ -497,11 +502,11 @@ const GestionCours = () => {
               }`}
             >
               <GraduationCap className="w-4 h-4" />
-              Leçons
+              Cours
             </button>
           </div>
 
-          {/* Search & Filters */}
+          {/* Search and View Toggle */}
           <div className="flex items-center gap-3">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -510,46 +515,21 @@ const GestionCours = () => {
                 placeholder="Rechercher..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="glass-input pl-10 pr-4 py-2 w-48"
+                className="input-field pl-10 py-2 w-48"
               />
             </div>
 
             {activeTab === 'courses' && (
-              <>
-                <select
-                  value={filterType}
-                  onChange={(e) => setFilterType(e.target.value)}
-                  className="glass-input py-2 px-3"
-                >
-                  <option value="all">Tous les types</option>
-                  {courseTypes.map(type => (
-                    <option key={type.id} value={type.id}>{type.name}</option>
-                  ))}
-                </select>
-                <select
-                  value={filterStage}
-                  onChange={(e) => setFilterStage(e.target.value)}
-                  className="glass-input py-2 px-3"
-                >
-                  <option value="all">Tous les stages</option>
-                  {stages.filter(s => s.enabled).map(stage => (
-                    <option key={stage.id} value={stage.id}>{stage.name}</option>
-                  ))}
-                </select>
-              </>
-            )}
-
-            {activeTab !== 'structure' && (
-              <div className="flex border border-border/30 rounded-lg overflow-hidden">
+              <div className="flex items-center bg-muted/30 rounded-lg p-1">
                 <button
-                  onClick={() => { playClick(); setViewMode('grid'); }}
-                  className={`p-2 ${viewMode === 'grid' ? 'bg-primary text-primary-foreground' : 'hover:bg-muted'}`}
+                  onClick={() => setViewMode('grid')}
+                  className={`p-2 rounded-md transition-colors ${viewMode === 'grid' ? 'bg-primary text-primary-foreground' : 'hover:bg-muted'}`}
                 >
                   <LayoutGrid className="w-4 h-4" />
                 </button>
                 <button
-                  onClick={() => { playClick(); setViewMode('list'); }}
-                  className={`p-2 ${viewMode === 'list' ? 'bg-primary text-primary-foreground' : 'hover:bg-muted'}`}
+                  onClick={() => setViewMode('list')}
+                  className={`p-2 rounded-md transition-colors ${viewMode === 'list' ? 'bg-primary text-primary-foreground' : 'hover:bg-muted'}`}
                 >
                   <List className="w-4 h-4" />
                 </button>
@@ -558,393 +538,363 @@ const GestionCours = () => {
           </div>
         </div>
 
-        {/* Content */}
-        <div className="animate-fade-in">
-          {/* Structure View Tab */}
-          {activeTab === 'structure' && (
-            <div className="space-y-4">
-              {structureData.length === 0 ? (
-                <div className="glass-card p-12 text-center">
-                  <Layers className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
-                  <h3 className="text-xl font-semibold mb-2">Aucun stage actif</h3>
-                  <p className="text-muted-foreground mb-4">
-                    Activez des stages dans les paramètres pour commencer
-                  </p>
-                </div>
-              ) : (
-                structureData.map(({ stage, coursesByType, totalCourses }) => (
-                  <div key={stage.id} className="glass-card overflow-hidden">
-                    {/* Stage Header */}
-                    <div className="p-4 bg-gradient-to-r from-primary/20 to-transparent border-b border-border/30">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-lg bg-primary/30 flex items-center justify-center">
-                            <Layers className="w-5 h-5 text-primary" />
-                          </div>
-                          <div>
-                            <h3 className="font-bold text-lg">{stage.name}</h3>
-                            <p className="text-sm text-muted-foreground">{stage.description}</p>
-                          </div>
+        {/* Filters for Courses tab */}
+        {activeTab === 'courses' && (
+          <div className="glass-card mb-6 p-4 flex flex-wrap gap-4">
+            <div className="flex items-center gap-2">
+              <Filter className="w-4 h-4 text-muted-foreground" />
+              <span className="text-sm text-muted-foreground">Filtres:</span>
+            </div>
+            
+            <select
+              value={filterStage}
+              onChange={(e) => setFilterStage(e.target.value)}
+              className="input-field py-2 min-w-[150px]"
+            >
+              <option value="all">Tous les stages</option>
+              {stages.filter(s => s.enabled).map(stage => (
+                <option key={stage.id} value={stage.id}>{stage.name}</option>
+              ))}
+            </select>
+
+            <select
+              value={filterType}
+              onChange={(e) => setFilterType(e.target.value)}
+              className="input-field py-2 min-w-[150px]"
+            >
+              <option value="all">Tous les types</option>
+              {courseTypes.map(type => (
+                <option key={type.id} value={type.id}>{formatCourseTypeLabel(type.name)}</option>
+              ))}
+            </select>
+          </div>
+        )}
+
+        {/* Structure View Tab */}
+        {activeTab === 'structure' && (
+          <div className="space-y-6">
+            {structureData.length === 0 ? (
+              <div className="glass-card p-12 text-center">
+                <Eye className="w-16 h-16 mx-auto mb-4 text-muted-foreground/30" />
+                <h3 className="text-xl font-semibold mb-2">Aucun stage actif</h3>
+                <p className="text-muted-foreground">
+                  Activez des stages dans les paramètres ou importez un projet
+                </p>
+              </div>
+            ) : (
+              structureData.map(({ stage, coursesByType, totalCourses }) => (
+                <div key={stage.id} className="glass-card overflow-hidden">
+                  {/* Stage Header */}
+                  <div className="p-4 bg-gradient-to-r from-primary/20 to-transparent border-b border-border/30">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-lg bg-primary/30 flex items-center justify-center">
+                          <Layers className="w-5 h-5 text-primary" />
                         </div>
-                        <span className="badge-gold">{totalCourses} leçons</span>
+                        <div>
+                          <h3 className="font-semibold text-lg">{stage.name}</h3>
+                          <p className="text-sm text-muted-foreground">{stage.description}</p>
+                        </div>
+                      </div>
+                      <div className="px-3 py-1 rounded-full bg-muted/50 text-sm">
+                        {totalCourses} cours
                       </div>
                     </div>
-                    
-                    {/* Course Types */}
-                    <div className="p-4 space-y-4">
-                      {Object.entries(coursesByType).length === 0 ? (
-                        <p className="text-muted-foreground text-center py-4">
-                          Aucune leçon dans ce stage
-                        </p>
-                      ) : (
-                        Object.entries(coursesByType).map(([typeName, courses]) => (
-                          <div key={typeName} className="border border-border/30 rounded-lg overflow-hidden">
-                            {/* Type Header */}
-                            <div className="p-3 bg-muted/30 flex items-center justify-between">
-                              <div className="flex items-center gap-2">
-                                <GraduationCap className="w-4 h-4 text-blue-400" />
-                                <span className="font-medium">
-                                  {typeName === 'Non classé' ? typeName : formatCourseTypeLabel(typeName)}
-                                </span>
-                              </div>
-                              <span className="text-xs text-muted-foreground">{courses.length} leçons</span>
+                  </div>
+
+                  {/* Types and Courses */}
+                  <div className="p-4 space-y-4">
+                    {Object.entries(coursesByType).length === 0 ? (
+                      <p className="text-center text-muted-foreground py-6">Aucun cours dans ce stage</p>
+                    ) : (
+                      Object.entries(coursesByType).map(([typeName, courses]) => (
+                        <div key={typeName} className="glass-card p-4 bg-muted/10">
+                          <div className="flex items-center gap-2 mb-3">
+                            <div className="w-6 h-6 rounded bg-accent/20 flex items-center justify-center">
+                              <GraduationCap className="w-3.5 h-3.5 text-accent" />
                             </div>
-                            
-                            {/* Courses Grid */}
-                            <div className="p-3 grid md:grid-cols-2 lg:grid-cols-3 gap-3">
-                              {courses.map(course => (
-                                <button
-                                  key={course.id}
-                                  onClick={() => navigateToLecon(stage.id, course.courseTypeId, course.id)}
-                                  className="flex items-center gap-3 p-3 bg-card/50 rounded-lg hover:bg-primary/10 transition-colors text-left group"
-                                >
-                                  <img 
-                                    src={getCourseImage(course)} 
-                                    alt={course.title}
-                                    className="w-12 h-12 object-cover rounded-lg"
-                                  />
-                                  <div className="flex-1 min-w-0">
-                                    <p className="font-medium truncate group-hover:text-primary transition-colors">
-                                      {course.title}
-                                    </p>
-                                    <p className="text-xs text-muted-foreground truncate">
-                                      {course.description || 'Aucune description'}
-                                    </p>
-                                  </div>
-                                  <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
-                                </button>
-                              ))}
-                              
-                              {/* Add Course Button */}
-                              <button
-                                onClick={() => {
-                                  playClick();
-                                  const type = courseTypes.find(t => t.name === typeName);
-                                  setCourseForm({
-                                    courseTypeId: type?.id || '',
-                                    stageId: stage.id,
-                                    title: '',
-                                    description: '',
-                                    image: 'basketball',
-                                    customImage: ''
-                                  });
-                                  setShowCourseForm(true);
-                                }}
-                                className="flex items-center justify-center gap-2 p-3 border-2 border-dashed border-primary/30 rounded-lg hover:border-primary/60 hover:bg-primary/5 transition-all text-muted-foreground hover:text-foreground"
-                              >
-                                <Plus className="w-4 h-4" />
-                                <span className="text-sm">Ajouter Leçon</span>
-                              </button>
-                            </div>
+                            <span className="font-medium">
+                              {typeName === 'Non classé' ? typeName : formatCourseTypeLabel(typeName)}
+                            </span>
+                            <span className="text-xs text-muted-foreground">({courses.length})</span>
                           </div>
-                        ))
-                      )}
-                      
-                      {/* Add to this stage */}
+
+                          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+                            {courses.map(course => (
+                              <button
+                                key={course.id}
+                                onClick={() => navigateToLecon(stage.id, course.courseTypeId, course.id)}
+                                className="flex items-center gap-3 p-3 rounded-lg bg-card/50 hover:bg-card border border-border/30 hover:border-primary/30 transition-all group text-left"
+                              >
+                                <div className="w-10 h-10 rounded-lg overflow-hidden bg-muted flex-shrink-0">
+                                  <img 
+                                    src={getCourseImage(course)}
+                                    alt={course.title}
+                                    className="w-full h-full object-cover"
+                                    loading="lazy"
+                                  />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <p className="font-medium text-sm truncate group-hover:text-primary transition-colors">
+                                    {course.title}
+                                  </p>
+                                  <p className="text-xs text-muted-foreground truncate">
+                                    {course.description || 'Aucune description'}
+                                  </p>
+                                </div>
+                                <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        )}
+
+        {/* Types Tab */}
+        {activeTab === 'types' && (
+          <div className="space-y-4">
+            <div className="flex justify-end">
+              <button onClick={handleAddType} className="btn-primary flex items-center gap-2">
+                <Plus className="w-4 h-4" />
+                Nouveau Type
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {filteredTypes.map(type => (
+                <div key={type.id} className="glass-card p-4 hover:shadow-xl transition-all group">
+                  <div className="flex items-start gap-3">
+                    {getTypeImage(type) ? (
+                      <div className="w-14 h-14 rounded-xl overflow-hidden flex-shrink-0">
+                        <img src={getTypeImage(type)!} alt={type.name} className="w-full h-full object-cover" />
+                      </div>
+                    ) : (
+                      <div className="w-14 h-14 rounded-xl bg-primary/20 flex items-center justify-center flex-shrink-0">
+                        <Layers className="w-6 h-6 text-primary" />
+                      </div>
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-semibold text-lg">{formatCourseTypeLabel(type.name)}</h3>
+                      <p className="text-sm text-muted-foreground truncate">{type.description}</p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {sportCourses.filter(c => c.courseTypeId === type.id).length} cours
+                      </p>
+                    </div>
+                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                       <button
-                        onClick={() => { 
-                          playClick(); 
-                          handleAddCourse();
-                          setCourseForm(prev => ({ ...prev, stageId: stage.id }));
-                        }}
-                        className="w-full p-3 border-2 border-dashed border-border/50 rounded-lg hover:border-primary/50 hover:bg-primary/5 transition-all flex items-center justify-center gap-2 text-muted-foreground hover:text-foreground"
+                        onClick={() => handleEditType(type)}
+                        className="p-2 rounded-lg hover:bg-primary/20 text-primary transition-colors"
                       >
-                        <Plus className="w-4 h-4" />
-                        Ajouter une nouvelle leçon à {stage.name}
+                        <Edit className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => setDeleteConfirm({ type: 'type', id: type.id, name: type.name })}
+                        className="p-2 rounded-lg hover:bg-destructive/20 text-destructive transition-colors"
+                      >
+                        <Trash2 className="w-4 h-4" />
                       </button>
                     </div>
                   </div>
-                ))
-              )}
-            </div>
-          )}
-
-          {/* Course Types Tab */}
-          {activeTab === 'types' && (
-            <div className="space-y-4">
-              {viewMode === 'grid' ? (
-                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {filteredTypes.map((type) => (
-                    <div key={type.id} className="glass-card group overflow-hidden">
-                      {getTypeImage(type) ? (
-                        <div className="h-32 overflow-hidden">
-                          <img 
-                            src={getTypeImage(type)!} 
-                            alt={type.name}
-                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                          />
-                        </div>
-                      ) : (
-                        <div className="h-32 bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center">
-                          <ImageIcon className="w-12 h-12 text-muted-foreground" />
-                        </div>
-                      )}
-                      <div className="p-4">
-                        <h3 className="font-bold text-lg mb-1">{type.name}</h3>
-                        <p className="text-sm text-muted-foreground line-clamp-2 mb-4">
-                          {type.description || 'Aucune description'}
-                        </p>
-                        <div className="flex gap-2">
-                          <button 
-                            onClick={() => { playClick(); handleEditType(type); }}
-                            className="btn-ghost text-sm flex items-center gap-1 flex-1 justify-center border border-border"
-                          >
-                            <Edit className="w-4 h-4" /> Modifier
-                          </button>
-                          <button 
-                            onClick={() => { playClick(); setDeleteConfirm({ type: 'type', id: type.id, name: type.name }); }}
-                            className="btn-destructive text-sm p-2"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-
-                  <button
-                    onClick={() => { playClick(); handleAddType(); }}
-                    className="glass-card h-full min-h-[200px] flex flex-col items-center justify-center gap-3 border-2 border-dashed border-primary/30 hover:border-primary/60 hover:bg-primary/5 transition-all group"
-                  >
-                    <div className="w-16 h-16 rounded-full bg-primary/20 flex items-center justify-center group-hover:bg-primary/30 transition-colors">
-                      <Plus className="w-8 h-8 text-primary" />
-                    </div>
-                    <span className="font-medium text-muted-foreground group-hover:text-foreground transition-colors">
-                      Ajouter un type
-                    </span>
-                  </button>
                 </div>
-              ) : (
-                <div className="glass-card divide-y divide-border/30">
-                  {filteredTypes.map((type) => (
-                    <div key={type.id} className="flex items-center gap-4 p-4 hover:bg-muted/20 transition-colors">
-                      {getTypeImage(type) ? (
-                        <img src={getTypeImage(type)!} alt={type.name} className="w-16 h-12 object-cover rounded-lg" />
-                      ) : (
-                        <div className="w-16 h-12 bg-muted rounded-lg flex items-center justify-center">
-                          <ImageIcon className="w-6 h-6 text-muted-foreground" />
-                        </div>
-                      )}
-                      <div className="flex-1">
-                        <h4 className="font-semibold">{type.name}</h4>
-                        <p className="text-sm text-muted-foreground">{type.description || 'Aucune description'}</p>
+              ))}
+            </div>
+
+            {filteredTypes.length === 0 && (
+              <div className="glass-card p-12 text-center">
+                <Layers className="w-16 h-16 mx-auto mb-4 text-muted-foreground/30" />
+                <h3 className="text-xl font-semibold mb-2">Aucun type de cours</h3>
+                <p className="text-muted-foreground mb-4">Créez votre premier type de cours</p>
+                <button onClick={handleAddType} className="btn-primary inline-flex items-center gap-2">
+                  <Plus className="w-4 h-4" />
+                  Nouveau Type
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Courses Tab */}
+        {activeTab === 'courses' && (
+          <div className="space-y-4">
+            <div className="flex justify-end">
+              <button onClick={handleAddCourse} className="btn-primary flex items-center gap-2">
+                <Plus className="w-4 h-4" />
+                Nouveau Cours
+              </button>
+            </div>
+
+            {viewMode === 'grid' ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                {filteredCourses.map(course => (
+                  <div key={course.id} className="glass-card overflow-hidden hover:shadow-xl transition-all group">
+                    <div className="aspect-video relative overflow-hidden">
+                      <img 
+                        src={getCourseImage(course)}
+                        alt={course.title}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                        loading="lazy"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+                      <div className="absolute bottom-2 left-2 right-2">
+                        <h3 className="font-semibold text-white truncate">{course.title}</h3>
                       </div>
-                      <div className="flex gap-2">
-                        <button onClick={() => { playClick(); handleEditType(type); }} className="p-2 hover:bg-muted rounded-lg">
-                          <Edit className="w-4 h-4" />
+                    </div>
+                    <div className="p-3">
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground mb-2">
+                        <span className="px-2 py-0.5 rounded-full bg-primary/20 text-primary">
+                          {getStageById(course.stageId)?.name || 'Stage'}
+                        </span>
+                        <span className="px-2 py-0.5 rounded-full bg-accent/20 text-accent">
+                          {formatCourseTypeLabel(getTypeById(course.courseTypeId)?.name || 'Type')}
+                        </span>
+                      </div>
+                      <p className="text-sm text-muted-foreground truncate">{course.description}</p>
+                      <div className="flex gap-1 mt-3 pt-3 border-t border-border/30">
+                        <button
+                          onClick={() => handleEditCourse(course)}
+                          className="flex-1 py-2 rounded-lg hover:bg-primary/20 text-primary text-sm font-medium transition-colors"
+                        >
+                          Modifier
                         </button>
-                        <button 
-                          onClick={() => { playClick(); setDeleteConfirm({ type: 'type', id: type.id, name: type.name }); }}
-                          className="p-2 hover:bg-destructive/20 rounded-lg text-destructive"
+                        <button
+                          onClick={() => setDeleteConfirm({ type: 'course', id: course.id, name: course.title })}
+                          className="py-2 px-3 rounded-lg hover:bg-destructive/20 text-destructive transition-colors"
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
                       </div>
                     </div>
-                  ))}
-                  <button onClick={() => { playClick(); handleAddType(); }} className="w-full p-4 text-primary hover:bg-primary/5 flex items-center justify-center gap-2">
-                    <Plus className="w-5 h-5" /> Ajouter un type
-                  </button>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Courses Tab */}
-          {activeTab === 'courses' && (
-            <div className="space-y-4">
-              {viewMode === 'grid' ? (
-                <div className="grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                  {filteredCourses.map((course) => {
-                    const type = getTypeById(course.courseTypeId);
-                    const stage = getStageById(course.stageId);
-                    return (
-                      <div key={course.id} className="glass-card group overflow-hidden">
-                        <div className="h-32 overflow-hidden relative">
-                          <img 
-                            src={getCourseImage(course)} 
-                            alt={course.title}
-                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                          />
-                          <div className="absolute top-2 right-2 flex gap-1">
-                            {type && (
-                              <span className="text-xs px-2 py-1 bg-primary/80 rounded-full backdrop-blur-sm">
-                                {type.name}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                        <div className="p-4">
-                          <h3 className="font-bold mb-1 line-clamp-1">{course.title}</h3>
-                          <p className="text-xs text-muted-foreground mb-1">
-                            Stage: {stage?.name || 'Non défini'}
-                          </p>
-                          <p className="text-sm text-muted-foreground line-clamp-2 mb-3">
-                            {course.description || 'Aucune description'}
-                          </p>
-                          <div className="flex gap-2">
-                            <button 
-                              onClick={() => { playClick(); handleEditCourse(course); }}
-                              className="btn-ghost text-sm flex items-center gap-1 flex-1 justify-center border border-border"
-                            >
-                              <Edit className="w-4 h-4" /> Modifier
-                            </button>
-                            <button 
-                              onClick={() => { playClick(); setDeleteConfirm({ type: 'course', id: course.id, name: course.title }); }}
-                              className="btn-destructive text-sm p-2"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-
-                  {/* Add Course Card */}
-                  <button
-                    onClick={() => { playClick(); handleAddCourse(); }}
-                    className="glass-card h-full min-h-[240px] flex flex-col items-center justify-center gap-3 border-2 border-dashed border-primary/30 hover:border-primary/60 hover:bg-primary/5 transition-all group"
-                  >
-                    <div className="w-16 h-16 rounded-full bg-primary/20 flex items-center justify-center group-hover:bg-primary/30 transition-colors">
-                      <Plus className="w-8 h-8 text-primary" />
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="glass-card divide-y divide-border/30">
+                {filteredCourses.map(course => (
+                  <div key={course.id} className="flex items-center gap-4 p-4 hover:bg-muted/30 transition-colors">
+                    <div className="w-16 h-12 rounded-lg overflow-hidden flex-shrink-0">
+                      <img 
+                        src={getCourseImage(course)}
+                        alt={course.title}
+                        className="w-full h-full object-cover"
+                        loading="lazy"
+                      />
                     </div>
-                    <span className="font-medium text-muted-foreground group-hover:text-foreground transition-colors">
-                      Ajouter une leçon
-                    </span>
-                  </button>
-                </div>
-              ) : (
-                <div className="glass-card divide-y divide-border/30">
-                  {filteredCourses.map((course) => {
-                    const type = getTypeById(course.courseTypeId);
-                    const stage = getStageById(course.stageId);
-                    return (
-                      <div key={course.id} className="flex items-center gap-4 p-4 hover:bg-muted/20 transition-colors">
-                        <img src={getCourseImage(course)} alt={course.title} className="w-20 h-14 object-cover rounded-lg" />
-                        <div className="flex-1">
-                          <h4 className="font-semibold">{course.title}</h4>
-                          <p className="text-xs text-muted-foreground">
-                            {type?.name} • {stage?.name}
-                          </p>
-                        </div>
-                        <div className="flex gap-2">
-                          <button onClick={() => { playClick(); handleEditCourse(course); }} className="p-2 hover:bg-muted rounded-lg">
-                            <Edit className="w-4 h-4" />
-                          </button>
-                          <button 
-                            onClick={() => { playClick(); setDeleteConfirm({ type: 'course', id: course.id, name: course.title }); }}
-                            className="p-2 hover:bg-destructive/20 rounded-lg text-destructive"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-medium truncate">{course.title}</h3>
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <span>{getStageById(course.stageId)?.name}</span>
+                        <span>•</span>
+                        <span>{formatCourseTypeLabel(getTypeById(course.courseTypeId)?.name || 'Type')}</span>
                       </div>
-                    );
-                  })}
-                  <button onClick={() => { playClick(); handleAddCourse(); }} className="w-full p-4 text-primary hover:bg-primary/5 flex items-center justify-center gap-2">
-                    <Plus className="w-5 h-5" /> Ajouter une leçon
-                  </button>
-                </div>
-              )}
+                    </div>
+                    <div className="flex gap-1">
+                      <button
+                        onClick={() => handleEditCourse(course)}
+                        className="p-2 rounded-lg hover:bg-primary/20 text-primary transition-colors"
+                      >
+                        <Edit className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => setDeleteConfirm({ type: 'course', id: course.id, name: course.title })}
+                        className="p-2 rounded-lg hover:bg-destructive/20 text-destructive transition-colors"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
 
-              {filteredCourses.length === 0 && (
-                <div className="glass-card p-12 text-center">
-                  <GraduationCap className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
-                  <h3 className="text-xl font-semibold mb-2">Aucune leçon trouvée</h3>
-                  <p className="text-muted-foreground mb-4">
-                    {searchQuery ? 'Aucun résultat pour votre recherche' : 'Commencez par ajouter une leçon'}
-                  </p>
-                  <button onClick={() => { playClick(); handleAddCourse(); }} className="btn-primary flex items-center gap-2 mx-auto">
-                    <Plus className="w-5 h-5" /> Ajouter une leçon
-                  </button>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
+            {filteredCourses.length === 0 && (
+              <div className="glass-card p-12 text-center">
+                <GraduationCap className="w-16 h-16 mx-auto mb-4 text-muted-foreground/30" />
+                <h3 className="text-xl font-semibold mb-2">Aucun cours</h3>
+                <p className="text-muted-foreground mb-4">Créez votre premier cours</p>
+                <button onClick={handleAddCourse} className="btn-primary inline-flex items-center gap-2">
+                  <Plus className="w-4 h-4" />
+                  Nouveau Cours
+                </button>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Type Form Modal */}
         {showTypeForm && (
-          <div className="fixed inset-0 bg-background/80 backdrop-blur-sm flex items-start justify-center p-4 overflow-y-auto" style={{ zIndex: 9999 }}>
-            <div className="glass-card w-full max-w-md animate-scale-in my-8 flex flex-col max-h-[85vh]">
-              <div className="flex items-center justify-between p-6 pb-4 border-b border-border/30 shrink-0">
-                <h3 className="text-lg font-semibold">
-                  {editingType ? 'Modifier Type' : 'Ajouter Type'}
-                </h3>
-                <button onClick={() => { playClick(); setShowTypeForm(false); }} className="p-2 hover:bg-muted rounded-lg">
+          <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div className="glass-card w-full max-w-md p-6 animate-scale-in">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-xl font-bold">
+                  {editingType ? 'Modifier le type' : 'Nouveau type'}
+                </h2>
+                <button
+                  onClick={() => setShowTypeForm(false)}
+                  className="p-2 hover:bg-muted rounded-lg transition-colors"
+                >
                   <X className="w-5 h-5" />
                 </button>
               </div>
 
-              <div className="flex-1 overflow-y-auto p-6 space-y-4">
+              <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium mb-2">Nom *</label>
+                  <label className="text-sm font-medium mb-1 block">Nom</label>
                   <ArabicInput
                     value={typeForm.name}
-                    onChange={(value) => setTypeForm(prev => ({ ...prev, name: value }))}
-                    className="glass-input w-full p-3 pr-16"
-                    placeholder="Nom du type"
+                    onChange={(val) => setTypeForm(prev => ({ ...prev, name: val }))}
+                    placeholder="Ex: Sportif"
+                    className="input-field"
                   />
                 </div>
+
                 <div>
-                  <label className="block text-sm font-medium mb-2">Description</label>
+                  <label className="text-sm font-medium mb-1 block">Description</label>
                   <ArabicInput
                     value={typeForm.description}
-                    onChange={(value) => setTypeForm(prev => ({ ...prev, description: value }))}
-                    className="glass-input w-full p-3 pr-16 min-h-[80px]"
-                    placeholder="Description (optionnel)"
+                    onChange={(val) => setTypeForm(prev => ({ ...prev, description: val }))}
+                    placeholder="Description du type..."
                     multiline
+                    className="input-field resize-none h-20"
                   />
                 </div>
+
                 <div>
-                  <label className="block text-sm font-medium mb-2">Image (optionnel)</label>
-                  <label className="flex items-center gap-2 btn-ghost border border-dashed border-border cursor-pointer justify-center py-4">
-                    <Upload className="w-5 h-5" />
-                    <span>{typeForm.image ? 'Image sélectionnée' : 'Choisir une image'}</span>
-                    <input type="file" onChange={handleTypeImageUpload} accept="image/*" className="hidden" />
-                  </label>
-                  {typeForm.image && (
-                    <div className="mt-2 relative">
-                      <img src={typeForm.image} alt="Preview" className="w-full h-24 object-cover rounded-lg" />
-                      <button 
-                        type="button"
-                        onClick={() => setTypeForm(prev => ({ ...prev, image: '' }))}
-                        className="absolute top-2 right-2 p-1 bg-destructive rounded-full"
-                      >
-                        <X className="w-4 h-4" />
-                      </button>
-                    </div>
-                  )}
+                  <label className="text-sm font-medium mb-1 block">Image (optionnelle)</label>
+                  <div className="flex items-center gap-3">
+                    {typeForm.image && (
+                      <div className="w-16 h-16 rounded-lg overflow-hidden">
+                        <img src={typeForm.image} alt="Preview" className="w-full h-full object-cover" />
+                      </div>
+                    )}
+                    <label className="btn-ghost border border-dashed border-border cursor-pointer flex items-center gap-2">
+                      <Upload className="w-4 h-4" />
+                      Choisir une image
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleTypeImageUpload}
+                        className="hidden"
+                      />
+                    </label>
+                  </div>
                 </div>
               </div>
 
-              <div className="flex gap-3 p-6 pt-4 border-t border-border/30 shrink-0 bg-background/50">
-                <button onClick={() => { playClick(); handleSaveType(); }} className="btn-success flex-1 py-3 font-medium">
-                  Enregistrer
-                </button>
-                <button onClick={() => { playClick(); setShowTypeForm(false); }} className="btn-ghost border border-border py-3 px-6">
+              <div className="flex gap-3 mt-6">
+                <button
+                  onClick={() => setShowTypeForm(false)}
+                  className="btn-ghost flex-1"
+                >
                   Annuler
+                </button>
+                <button onClick={handleSaveType} className="btn-primary flex-1">
+                  {editingType ? 'Enregistrer' : 'Ajouter'}
                 </button>
               </div>
             </div>
@@ -953,155 +903,131 @@ const GestionCours = () => {
 
         {/* Course Form Modal */}
         {showCourseForm && (
-          <div className="fixed inset-0 bg-background/80 backdrop-blur-sm flex items-start justify-center p-4 overflow-y-auto" style={{ zIndex: 9999 }}>
-            <div className="glass-card w-full max-w-lg animate-scale-in my-8 flex flex-col max-h-[85vh]">
-              <div className="flex items-center justify-between p-6 pb-4 border-b border-border/30 shrink-0">
-                <h3 className="text-lg font-semibold">
-                  {editingCourse ? 'Modifier Leçon' : 'Ajouter Leçon'}
-                </h3>
-                <button onClick={() => { playClick(); setShowCourseForm(false); }} className="p-2 hover:bg-muted rounded-lg">
+          <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-auto">
+            <div className="glass-card w-full max-w-2xl p-6 animate-scale-in my-4">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-xl font-bold">
+                  {editingCourse ? 'Modifier le cours' : 'Nouveau cours'}
+                </h2>
+                <button
+                  onClick={() => setShowCourseForm(false)}
+                  className="p-2 hover:bg-muted rounded-lg transition-colors"
+                >
                   <X className="w-5 h-5" />
                 </button>
               </div>
 
-              <div className="flex-1 overflow-y-auto p-6 space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium mb-2">Type de cours *</label>
-                    <select
-                      value={courseForm.courseTypeId}
-                      onChange={(e) => setCourseForm(prev => ({ ...prev, courseTypeId: e.target.value }))}
-                      className="glass-input w-full p-3"
-                    >
-                      <option value="">Sélectionner...</option>
-                      {courseTypes.map(type => (
-                        <option key={type.id} value={type.id}>{type.name}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium mb-2">Stage *</label>
-                    <select
-                      value={courseForm.stageId}
-                      onChange={(e) => setCourseForm(prev => ({ ...prev, stageId: e.target.value }))}
-                      className="glass-input w-full p-3"
-                    >
-                      <option value="">Sélectionner...</option>
-                      {stages.filter(s => s.enabled).map(stage => (
-                        <option key={stage.id} value={stage.id}>{stage.name}</option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-                
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium mb-2">Titre *</label>
+                  <label className="text-sm font-medium mb-1 block">Titre</label>
                   <ArabicInput
                     value={courseForm.title}
-                    onChange={(value) => setCourseForm(prev => ({ ...prev, title: value }))}
-                    className="glass-input w-full p-3 pr-16"
-                    placeholder="Titre de la leçon"
+                    onChange={(val) => setCourseForm(prev => ({ ...prev, title: val }))}
+                    placeholder="Titre du cours"
+                    className="input-field"
                   />
                 </div>
-                
+
                 <div>
-                  <label className="block text-sm font-medium mb-2">Description</label>
+                  <label className="text-sm font-medium mb-1 block">Stage</label>
+                  <select
+                    value={courseForm.stageId}
+                    onChange={(e) => setCourseForm(prev => ({ ...prev, stageId: e.target.value }))}
+                    className="input-field"
+                  >
+                    {stages.filter(s => s.enabled).map(stage => (
+                      <option key={stage.id} value={stage.id}>{stage.name}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-sm font-medium mb-1 block">Type de cours</label>
+                  <select
+                    value={courseForm.courseTypeId}
+                    onChange={(e) => setCourseForm(prev => ({ ...prev, courseTypeId: e.target.value }))}
+                    className="input-field"
+                  >
+                    {courseTypes.map(type => (
+                      <option key={type.id} value={type.id}>{formatCourseTypeLabel(type.name)}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-sm font-medium mb-1 block">Description</label>
                   <ArabicInput
                     value={courseForm.description}
-                    onChange={(value) => setCourseForm(prev => ({ ...prev, description: value }))}
-                    className="glass-input w-full p-3 pr-16 min-h-[80px]"
-                    placeholder="Description de la leçon"
-                    multiline
+                    onChange={(val) => setCourseForm(prev => ({ ...prev, description: val }))}
+                    placeholder="Description du cours"
+                    className="input-field"
                   />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium mb-2">Image</label>
-                  <div className="space-y-3 max-h-48 overflow-y-auto p-2 bg-muted/20 rounded-lg">
-                    <p className="text-xs text-muted-foreground">{categoryLabels.ballSports}</p>
-                    <div className="grid grid-cols-6 gap-1">
-                      {imageCategories.ballSports.map(img => (
-                        <button
-                          key={img}
-                          type="button"
-                          onClick={() => setCourseForm(prev => ({ ...prev, image: img, customImage: '' }))}
-                          className={`p-0.5 rounded border-2 transition-all ${
-                            courseForm.image === img 
-                              ? 'border-primary ring-2 ring-primary/30' 
-                              : 'border-transparent hover:border-border'
-                          }`}
-                        >
-                          <img src={getSportImage(img)} alt={img} className="w-full h-8 object-cover rounded" />
-                        </button>
-                      ))}
-                    </div>
-                    
-                    <p className="text-xs text-muted-foreground mt-2">{categoryLabels.combatSports}</p>
-                    <div className="grid grid-cols-6 gap-1">
-                      {imageCategories.combatSports.map(img => (
-                        <button
-                          key={img}
-                          type="button"
-                          onClick={() => setCourseForm(prev => ({ ...prev, image: img, customImage: '' }))}
-                          className={`p-0.5 rounded border-2 transition-all ${
-                            courseForm.image === img 
-                              ? 'border-primary ring-2 ring-primary/30' 
-                              : 'border-transparent hover:border-border'
-                          }`}
-                        >
-                          <img src={getSportImage(img)} alt={img} className="w-full h-8 object-cover rounded" />
-                        </button>
-                      ))}
-                    </div>
-
-                    <p className="text-xs text-muted-foreground mt-2">{categoryLabels.militaryTraining}</p>
-                    <div className="grid grid-cols-6 gap-1">
-                      {imageCategories.militaryTraining.map(img => (
-                        <button
-                          key={img}
-                          type="button"
-                          onClick={() => setCourseForm(prev => ({ ...prev, image: img, customImage: '' }))}
-                          className={`p-0.5 rounded border-2 transition-all ${
-                            courseForm.image === img 
-                              ? 'border-primary ring-2 ring-primary/30' 
-                              : 'border-transparent hover:border-border'
-                          }`}
-                        >
-                          <img src={getSportImage(img)} alt={img} className="w-full h-8 object-cover rounded" />
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium mb-2">Ou image personnalisée</label>
-                  <label className="flex items-center gap-2 btn-ghost border border-dashed border-border cursor-pointer justify-center py-3">
-                    <Upload className="w-5 h-5" />
-                    <span>{courseForm.customImage ? 'Image sélectionnée' : 'Choisir une image'}</span>
-                    <input type="file" onChange={handleCourseImageUpload} accept="image/*" className="hidden" />
-                  </label>
-                  {courseForm.customImage && (
-                    <div className="mt-2 relative">
-                      <img src={courseForm.customImage} alt="Preview" className="w-full h-20 object-cover rounded-lg" />
-                      <button 
-                        type="button"
-                        onClick={() => setCourseForm(prev => ({ ...prev, customImage: '', image: 'basketball' }))}
-                        className="absolute top-2 right-2 p-1 bg-destructive rounded-full"
-                      >
-                        <X className="w-4 h-4" />
-                      </button>
-                    </div>
-                  )}
                 </div>
               </div>
 
-              <div className="flex gap-3 p-6 pt-4 border-t border-border/30 shrink-0 bg-background/50">
-                <button onClick={() => { playClick(); handleSaveCourse(); }} className="btn-success flex-1 py-3 font-medium">
-                  Enregistrer
-                </button>
-                <button onClick={() => { playClick(); setShowCourseForm(false); }} className="btn-ghost border border-border py-3 px-6">
+              {/* Image Selection */}
+              <div className="mt-4">
+                <label className="text-sm font-medium mb-2 block">Image du cours</label>
+                
+                {/* Custom image upload */}
+                <div className="flex items-center gap-3 mb-4">
+                  <label className="btn-ghost border border-dashed border-border cursor-pointer flex items-center gap-2">
+                    <ImageIcon className="w-4 h-4" />
+                    Image personnalisée
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleCourseImageUpload}
+                      className="hidden"
+                    />
+                  </label>
+                  {courseForm.image === 'custom' && courseForm.customImage && (
+                    <div className="w-16 h-12 rounded-lg overflow-hidden">
+                      <img src={courseForm.customImage} alt="Custom" className="w-full h-full object-cover" />
+                    </div>
+                  )}
+                </div>
+
+                {/* Predefined images by category */}
+                <div className="space-y-3 max-h-[300px] overflow-y-auto">
+                  {Object.entries(imageCategories).map(([category, images]) => (
+                    <div key={category}>
+                      <p className="text-xs font-medium text-muted-foreground mb-2">
+                        {categoryLabels[category as keyof typeof categoryLabels]}
+                      </p>
+                      <div className="grid grid-cols-6 sm:grid-cols-8 gap-2">
+                        {images.map(imgKey => (
+                          <button
+                            key={imgKey}
+                            type="button"
+                            onClick={() => setCourseForm(prev => ({ ...prev, image: imgKey, customImage: '' }))}
+                            className={`aspect-square rounded-lg overflow-hidden border-2 transition-all ${
+                              courseForm.image === imgKey ? 'border-primary ring-2 ring-primary/30' : 'border-transparent hover:border-muted'
+                            }`}
+                          >
+                            <img
+                              src={getSportImage(imgKey)}
+                              alt={imgKey}
+                              className="w-full h-full object-cover"
+                              loading="lazy"
+                            />
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex gap-3 mt-6">
+                <button
+                  onClick={() => setShowCourseForm(false)}
+                  className="btn-ghost flex-1"
+                >
                   Annuler
+                </button>
+                <button onClick={handleSaveCourse} className="btn-primary flex-1">
+                  {editingCourse ? 'Enregistrer' : 'Ajouter'}
                 </button>
               </div>
             </div>
@@ -1110,25 +1036,31 @@ const GestionCours = () => {
 
         {/* Delete Confirmation Modal */}
         {deleteConfirm && (
-          <div className="fixed inset-0 bg-background/80 backdrop-blur-sm flex items-start justify-center p-4 overflow-y-auto" style={{ zIndex: 9999 }}>
-            <div className="glass-card p-6 w-full max-w-sm animate-scale-in text-center shadow-2xl border border-border/50 my-auto">
-              <div className="w-14 h-14 bg-destructive/20 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Trash2 className="w-7 h-7 text-destructive" />
-              </div>
-              <h3 className="text-lg font-semibold mb-2">Confirmer la suppression</h3>
-              <p className="text-muted-foreground mb-6">
-                Êtes-vous sûr de vouloir supprimer "<span className="text-foreground font-medium">{deleteConfirm.name}</span>"?
-              </p>
-              <div className="flex gap-3 justify-center">
-                <button onClick={() => { playClick(); setDeleteConfirm(null); }} className="btn-ghost border border-border px-6 py-2.5">
-                  Annuler
-                </button>
-                <button 
-                  onClick={() => { playClick(); deleteConfirm.type === 'type' ? handleDeleteType() : handleDeleteCourse(); }}
-                  className="btn-destructive px-6 py-2.5"
-                >
-                  Supprimer
-                </button>
+          <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div className="glass-card w-full max-w-sm p-6 animate-scale-in">
+              <div className="text-center">
+                <div className="w-16 h-16 rounded-full bg-destructive/20 flex items-center justify-center mx-auto mb-4">
+                  <Trash2 className="w-8 h-8 text-destructive" />
+                </div>
+                <h3 className="text-xl font-bold mb-2">Confirmer la suppression</h3>
+                <p className="text-muted-foreground mb-6">
+                  Êtes-vous sûr de vouloir supprimer "{deleteConfirm.name}" ?
+                  {deleteConfirm.type === 'type' && ' Tous les cours associés seront également supprimés.'}
+                </p>
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => setDeleteConfirm(null)}
+                    className="btn-ghost flex-1"
+                  >
+                    Annuler
+                  </button>
+                  <button
+                    onClick={deleteConfirm.type === 'type' ? handleDeleteType : handleDeleteCourse}
+                    className="btn-primary bg-destructive hover:bg-destructive/90 flex-1"
+                  >
+                    Supprimer
+                  </button>
+                </div>
               </div>
             </div>
           </div>
