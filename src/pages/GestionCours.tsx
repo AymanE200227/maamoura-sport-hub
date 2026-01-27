@@ -10,6 +10,8 @@ import ArabicInput from '@/components/ArabicInput';
 import FolderImportTree, { ImportTreeNode } from '@/components/FolderImportTree';
 import ImportProgressOverlay, { type ImportProgressState } from '@/components/ImportProgressOverlay';
 import { parseFolderStructure, importTreeToStorage } from '@/lib/folderParser';
+import type { ImportReport } from '@/lib/folderParser';
+import ImportReportDialog from '@/components/ImportReportDialog';
 import { 
   getCourseTypes, 
   addCourseType, 
@@ -20,16 +22,20 @@ import {
   updateSportCourse,
   deleteSportCourse,
   getStages,
+  saveStages,
   getUserMode,
   getCourseTitles,
   addCourseTitle,
-  addFileAsync
+  addFileAsync,
+  getFilesByCourseTitle,
+  updateFileAsync
 } from '@/lib/storage';
 import { CourseType, SportCourse, Stage } from '@/types';
 import { getSportImage, imageCategories, categoryLabels } from '@/assets/sports';
 import { useToast } from '@/hooks/use-toast';
 import { useClickSound } from '@/hooks/useClickSound';
 import bgImage from '@/assets/bg4.jpg';
+import { formatCourseTypeLabel } from '@/lib/courseTypeFormat';
 
 const GestionCours = () => {
   const navigate = useNavigate();
@@ -74,6 +80,9 @@ const GestionCours = () => {
   const [importStats, setImportStats] = useState({ stages: 0, types: 0, lecons: 0, headings: 0, files: 0 });
   const [isImporting, setIsImporting] = useState(false);
 
+  const [importReport, setImportReport] = useState<ImportReport | null>(null);
+  const [showImportReport, setShowImportReport] = useState(false);
+
   const [importProgress, setImportProgress] = useState<ImportProgressState>({
     open: false,
     phase: 'parsing',
@@ -91,6 +100,15 @@ const GestionCours = () => {
       progressRafRef.current = null;
       if (progressNextRef.current) setImportProgress(progressNextRef.current);
     });
+  }, []);
+
+  const closeImportProgress = useCallback(() => {
+    progressNextRef.current = null;
+    if (progressRafRef.current !== null) {
+      cancelAnimationFrame(progressRafRef.current);
+      progressRafRef.current = null;
+    }
+    setImportProgress((p) => ({ ...p, open: false, current: '' }));
   }, []);
 
   useEffect(() => {
@@ -277,7 +295,18 @@ const GestionCours = () => {
 
     try {
       setImportProgress({ open: true, phase: 'parsing', processed: 0, total: files.length, current: '' });
-      const result = await parseFolderStructure(files);
+      const result = await parseFolderStructure(files, {
+        progressEvery: 10,
+        onProgress: ({ processed, total, currentPath }) => {
+          setProgressThrottled({
+            open: true,
+            phase: 'parsing',
+            processed,
+            total,
+            current: currentPath || ''
+          });
+        }
+      });
       setImportTree(result.tree);
       setImportStats(result.stats);
       setShowImportTree(true);
@@ -285,7 +314,7 @@ const GestionCours = () => {
       console.error('Error parsing folder:', error);
       toast({ title: 'Erreur', description: 'Impossible d\'analyser le dossier', variant: 'destructive' });
     } finally {
-      setImportProgress((p) => ({ ...p, open: false }));
+      closeImportProgress();
     }
     
     // Reset input
@@ -296,7 +325,7 @@ const GestionCours = () => {
     setIsImporting(true);
     setImportProgress({ open: true, phase: 'importing', processed: 0, total: importStats.files, current: '' });
     try {
-      const importedCount = await importTreeToStorage(
+      const report = await importTreeToStorage(
         importTree,
         getStages,
         getCourseTypes,
@@ -309,6 +338,9 @@ const GestionCours = () => {
         {
           totalFiles: importStats.files,
           yieldEvery: 6,
+          saveStages,
+          getFilesByCourseTitle,
+          updateFileAsync,
           onProgress: ({ processed, total, currentPath }) => {
             setProgressThrottled({
               open: true,
@@ -320,11 +352,17 @@ const GestionCours = () => {
           }
         }
       );
+
+      const importedCount = report.files.imported;
       
       toast({ 
-        title: 'Import réussi', 
-        description: `${importedCount} fichiers ont été importés avec succès` 
+        title: importedCount > 0 ? 'Import réussi' : 'Import terminé',
+        description: `${importedCount} fichiers importés • ${report.files.replaced} remplacés • ${report.files.errors} erreurs`,
+        variant: importedCount > 0 ? 'default' : 'destructive'
       });
+
+      setImportReport(report);
+      setShowImportReport(true);
       loadData();
       setShowImportTree(false);
       setImportTree([]);
@@ -333,7 +371,7 @@ const GestionCours = () => {
       toast({ title: 'Erreur', description: 'Erreur lors de l\'import', variant: 'destructive' });
     } finally {
       setIsImporting(false);
-      setImportProgress((p) => ({ ...p, open: false }));
+      closeImportProgress();
     }
   };
 
@@ -369,6 +407,7 @@ const GestionCours = () => {
     <Layout backgroundImage={bgImage}>
       <div className="max-w-7xl mx-auto">
         <ImportProgressOverlay {...importProgress} />
+        <ImportReportDialog open={showImportReport} onOpenChange={setShowImportReport} report={importReport} />
         {/* Hidden folder input */}
         <input
           type="file"
@@ -564,7 +603,9 @@ const GestionCours = () => {
                             <div className="p-3 bg-muted/30 flex items-center justify-between">
                               <div className="flex items-center gap-2">
                                 <GraduationCap className="w-4 h-4 text-blue-400" />
-                                <span className="font-medium">P.{typeName.toUpperCase()}</span>
+                                <span className="font-medium">
+                                  {typeName === 'Non classé' ? typeName : formatCourseTypeLabel(typeName)}
+                                </span>
                               </div>
                               <span className="text-xs text-muted-foreground">{courses.length} leçons</span>
                             </div>
