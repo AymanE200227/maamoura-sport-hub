@@ -10,6 +10,7 @@ import {
 } from '@/lib/storage';
 import { Stage, CourseType } from '@/types';
 import { getSportImage } from '@/assets/sports';
+import { formatCourseTypeLabel } from '@/lib/courseTypeFormat';
 import { useClickSound } from '@/hooks/useClickSound';
 import bgImage from '@/assets/bg3.jpg';
 
@@ -51,7 +52,7 @@ const CourseTypeCard = memo(({ type, courseCount, imageSrc, onClick }: {
           </div>
         </div>
         <h2 className="text-xl font-bold text-white mb-1">
-          {`P.${type.name.toUpperCase().replace(/^(P\.)+/, '')}`}
+          {formatCourseTypeLabel(type.name)}
         </h2>
         <p className="text-sm text-white/70 line-clamp-2">
           {type.description || `Programme ${type.name.toLowerCase()}`}
