@@ -14,6 +14,7 @@ import { canAccessStage, canAccess } from '@/lib/permissions';
 import { StudentAccount, Promo, DocumentModel, ModelFile, CourseType, UserRole } from '@/types';
 import { useClickSound } from '@/hooks/useClickSound';
 import { useToast } from '@/hooks/use-toast';
+import { logPageView, logFileView } from '@/lib/activityLog';
 import bgImage from '@/assets/bg2.jpg';
 import logoOfficial from '@/assets/logo-official.png';
 
@@ -71,6 +72,8 @@ const StudentDashboard = () => {
       navigate('/');
       return;
     }
+    // Log page view
+    logPageView('/dashboard', 'Tableau de bord Stagiaire');
   }, [userMode, navigate]);
 
   const handleSelectModel = useCallback((model: DocumentModel) => {
@@ -88,6 +91,10 @@ const StudentDashboard = () => {
         toast({ title: 'Fichier non disponible', variant: 'destructive' });
         return;
       }
+      
+      // Log file download
+      logFileView(file.id, file.fileName, file.type, 'Modèle Document', 'download');
+      
       const link = document.createElement('a');
       link.href = fileData;
       link.download = file.fileName;

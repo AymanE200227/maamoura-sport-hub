@@ -15,6 +15,7 @@ import { CourseType, Stage, SportCourse, UserRole } from '@/types';
 import { getSportImage, imageCategories, categoryLabels } from '@/assets/sports';
 import { useClickSound } from '@/hooks/useClickSound';
 import { useToast } from '@/hooks/use-toast';
+import { logPageView } from '@/lib/activityLog';
 import bgImage from '@/assets/bg3.jpg';
 import { formatCourseTypeLabel } from '@/lib/courseTypeFormat';
 
@@ -107,6 +108,9 @@ const TypeDetail = () => {
       
       setStage(foundStage);
       setCourseType(foundType);
+      
+      // Log page view
+      logPageView(`/stage/${stageId}/type/${typeId}`, `${foundStage.name} - ${formatCourseTypeLabel(foundType.name)}`);
       
       // Filter courses by permissions (but show locked for admin)
       const allCourses = getSportCoursesByTypeAndStage(typeId!, stageId!);

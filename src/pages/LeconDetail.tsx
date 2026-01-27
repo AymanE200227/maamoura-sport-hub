@@ -22,6 +22,7 @@ import { SportCourse, Stage, CourseType, CourseTitle, CourseFile, UserRole } fro
 import { getSportImage } from '@/assets/sports';
 import { useToast } from '@/hooks/use-toast';
 import { useClickSound } from '@/hooks/useClickSound';
+import { logPageView, logFileView } from '@/lib/activityLog';
 import bgImage from '@/assets/bg3.jpg';
 import { formatCourseTypeLabel } from '@/lib/courseTypeFormat';
 
@@ -103,6 +104,12 @@ const LeconDetail = () => {
       setStage(foundStage);
       setCourseType(foundType);
       setCourse(foundCourse);
+      
+      // Log page view
+      logPageView(
+        `/stage/${stageId}/type/${typeId}/lecon/${leconId}`,
+        `${foundStage.name} > ${formatCourseTypeLabel(foundType.name)} > ${foundCourse.title}`
+      );
       
       // Filter titles by permissions
       const allTitles = getCourseTitlesBySportCourse(leconId!);
@@ -349,6 +356,10 @@ const LeconDetail = () => {
         return;
       }
 
+      // Log file view
+      const coursePath = `${stage?.name || ''} > ${courseType ? formatCourseTypeLabel(courseType.name) : ''} > ${course?.title || ''}`;
+      logFileView(file.id, file.fileName || file.title, file.type, coursePath, 'view');
+
       if (file.type === 'pdf') {
         const base64Data = fileData.split(',')[1];
         const binaryString = atob(base64Data);
@@ -385,6 +396,10 @@ const LeconDetail = () => {
         toast({ title: 'Fichier non disponible', variant: 'destructive' });
         return;
       }
+
+      // Log file download
+      const coursePath = `${stage?.name || ''} > ${courseType ? formatCourseTypeLabel(courseType.name) : ''} > ${course?.title || ''}`;
+      logFileView(file.id, file.fileName || file.title, file.type, coursePath, 'download');
 
       const link = document.createElement('a');
       link.href = fileData;

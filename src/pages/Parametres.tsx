@@ -68,6 +68,7 @@ import {
 } from '@/hooks/useClickSound';
 import { useToast } from '@/hooks/use-toast';
 import { useClickSound } from '@/hooks/useClickSound';
+import { logPageView } from '@/lib/activityLog';
 import { StudentAccount, Stage, AppSettings, Promo, DocumentModel, ModelFile } from '@/types';
 import * as XLSX from 'xlsx';
 
@@ -389,6 +390,8 @@ const Parametres = () => {
     if (userMode !== 'admin') {
       navigate('/accueil');
     }
+    // Log page view
+    logPageView('/parametres', 'Paramètres');
     loadData();
   }, [userMode, navigate]);
 

@@ -13,6 +13,7 @@ import {
 import { canAccessStage } from '@/lib/permissions';
 import { Stage, UserRole } from '@/types';
 import { useClickSound } from '@/hooks/useClickSound';
+import { logPageView } from '@/lib/activityLog';
 import bgImage from '@/assets/bg2.jpg';
 import logoOfficial from '@/assets/logo-official.png';
 
@@ -141,6 +142,9 @@ const Accueil = () => {
       navigate('/');
       return;
     }
+    
+    // Log page view
+    logPageView('/accueil', 'Accueil');
     
     // Get enabled stages and filter by permissions
     const enabledStages = getEnabledStages();

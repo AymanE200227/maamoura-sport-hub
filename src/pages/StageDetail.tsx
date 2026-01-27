@@ -12,6 +12,7 @@ import { Stage, CourseType } from '@/types';
 import { getSportImage } from '@/assets/sports';
 import { formatCourseTypeLabel } from '@/lib/courseTypeFormat';
 import { useClickSound } from '@/hooks/useClickSound';
+import { logPageView } from '@/lib/activityLog';
 import bgImage from '@/assets/bg3.jpg';
 
 // Memoized course type card for performance
@@ -92,6 +93,8 @@ const StageDetail = () => {
     if (foundStage) {
       setStage(foundStage);
       setCourseTypes(getCourseTypes());
+      // Log page view
+      logPageView(`/stage/${stageId}`, `Stage ${foundStage.name}`);
     }
   };
 
