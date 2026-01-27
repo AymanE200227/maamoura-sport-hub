@@ -1,8 +1,10 @@
-import { memo, useCallback, useMemo } from 'react';
+import { memo, useCallback, useMemo, useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { LogOut } from 'lucide-react';
+import { LogOut, Search } from 'lucide-react';
 import { clearUserMode, getUserMode, getAppSettings } from '@/lib/storage';
 import { useClickSound } from '@/hooks/useClickSound';
+import { endSession } from '@/lib/activityLog';
+import GlobalSearch from '@/components/GlobalSearch';
 import logoImage from '@/assets/logo-official.png';
 
 // Play logout sound
@@ -23,12 +25,14 @@ const Navbar = memo(() => {
   const { playClick } = useClickSound();
   const appSettings = useMemo(() => getAppSettings(), []);
   const currentLogo = appSettings.customLogo || logoImage;
+  const [searchOpen, setSearchOpen] = useState(false);
 
   const isActive = (path: string) => location.pathname === path;
 
   const handleLogout = useCallback(() => {
     playClick();
     playLogoutSound();
+    endSession(); // End activity tracking session
     clearUserMode();
     navigate('/');
   }, [navigate, playClick]);
@@ -37,79 +41,106 @@ const Navbar = memo(() => {
     playClick();
   }, [playClick]);
 
+  // Keyboard shortcut for search
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+        e.preventDefault();
+        setSearchOpen(true);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
   return (
-    <nav className="glass-panel px-4 lg:px-6 py-3 flex items-center justify-between mb-6 shadow-xl relative overflow-hidden">
-      {/* Moroccan FAR Diagonal Stripes - thin lines on right side */}
-      <div className="absolute top-0 right-0 h-full w-16 pointer-events-none overflow-hidden">
-        <div 
-          className="absolute inset-0"
-          style={{
-            background: 'linear-gradient(135deg, transparent 0%, transparent 40%, #c1272d 40%, #c1272d 48%, transparent 48%, transparent 52%, #165b33 52%, #165b33 60%, transparent 60%, transparent 100%)',
-          }}
-        />
-      </div>
-      
-      <div className="flex items-center gap-3 lg:gap-6 relative z-10">
-        {/* Logo */}
-        <Link to="/accueil" className="flex items-center gap-3 group" onClick={handleNavClick}>
-          <div className="w-11 h-11 flex items-center justify-center">
-            <img src={currentLogo} alt="CSM Logo" className="w-9 h-9 object-contain drop-shadow-lg" loading="lazy" />
-          </div>
-          <div className="hidden md:block">
-            <span className="font-bold text-foreground block leading-tight">Centre Sportif</span>
-            <span className="text-xs text-muted-foreground">FAR Maâmoura</span>
-          </div>
-        </Link>
-
-        {/* Navigation Links */}
-        <div className="flex items-center gap-3 lg:gap-5">
-          <Link 
-            to="/accueil" 
-            className={`nav-link ${isActive('/accueil') ? 'nav-link-active' : ''}`}
-            onClick={handleNavClick}
-          >
-            Accueil
-          </Link>
-          {userMode === 'eleve' && (
-            <Link 
-              to="/dashboard" 
-              className={`nav-link ${isActive('/dashboard') ? 'nav-link-active' : ''}`}
-              onClick={handleNavClick}
-            >
-              Mon Espace
-            </Link>
-          )}
-          {userMode === 'admin' && (
-            <Link 
-              to="/gestion-cours" 
-              className={`nav-link ${isActive('/gestion-cours') ? 'nav-link-active' : ''}`}
-              onClick={handleNavClick}
-            >
-              Gestion
-            </Link>
-          )}
-          {userMode === 'admin' && (
-            <Link 
-              to="/parametres" 
-              className={`nav-link ${isActive('/parametres') ? 'nav-link-active' : ''}`}
-              onClick={handleNavClick}
-            >
-              Paramètres
-            </Link>
-          )}
+    <>
+      <nav className="glass-panel px-4 lg:px-6 py-3 flex items-center justify-between mb-6 shadow-xl relative overflow-hidden">
+        {/* Moroccan FAR Diagonal Stripes - thin lines on right side */}
+        <div className="absolute top-0 right-0 h-full w-16 pointer-events-none overflow-hidden">
+          <div 
+            className="absolute inset-0"
+            style={{
+              background: 'linear-gradient(135deg, transparent 0%, transparent 40%, #c1272d 40%, #c1272d 48%, transparent 48%, transparent 52%, #165b33 52%, #165b33 60%, transparent 60%, transparent 100%)',
+            }}
+          />
         </div>
-      </div>
+        
+        <div className="flex items-center gap-3 lg:gap-6 relative z-10">
+          {/* Logo */}
+          <Link to="/accueil" className="flex items-center gap-3 group" onClick={handleNavClick}>
+            <div className="w-11 h-11 flex items-center justify-center">
+              <img src={currentLogo} alt="CSM Logo" className="w-9 h-9 object-contain drop-shadow-lg" loading="lazy" />
+            </div>
+            <div className="hidden md:block">
+              <span className="font-bold text-foreground block leading-tight">Centre Sportif</span>
+              <span className="text-xs text-muted-foreground">FAR Maâmoura</span>
+            </div>
+          </Link>
 
-      <div className="flex items-center gap-2 lg:gap-3 relative z-10">
-        <button 
-          onClick={handleLogout}
-          className="p-2 hover:bg-destructive/20 rounded-lg transition-colors"
-          title="Déconnexion"
-        >
-          <LogOut className="w-5 h-5 text-muted-foreground hover:text-destructive" />
-        </button>
-      </div>
-    </nav>
+          {/* Navigation Links */}
+          <div className="flex items-center gap-3 lg:gap-5">
+            <Link 
+              to="/accueil" 
+              className={`nav-link ${isActive('/accueil') ? 'nav-link-active' : ''}`}
+              onClick={handleNavClick}
+            >
+              Accueil
+            </Link>
+            {userMode === 'eleve' && (
+              <Link 
+                to="/dashboard" 
+                className={`nav-link ${isActive('/dashboard') ? 'nav-link-active' : ''}`}
+                onClick={handleNavClick}
+              >
+                Mon Espace
+              </Link>
+            )}
+            {userMode === 'admin' && (
+              <Link 
+                to="/gestion-cours" 
+                className={`nav-link ${isActive('/gestion-cours') ? 'nav-link-active' : ''}`}
+                onClick={handleNavClick}
+              >
+                Gestion
+              </Link>
+            )}
+            {userMode === 'admin' && (
+              <Link 
+                to="/parametres" 
+                className={`nav-link ${isActive('/parametres') ? 'nav-link-active' : ''}`}
+                onClick={handleNavClick}
+              >
+                Paramètres
+              </Link>
+            )}
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2 lg:gap-3 relative z-10">
+          {/* Global Search Button */}
+          <button 
+            onClick={() => { playClick(); setSearchOpen(true); }}
+            className="p-2 hover:bg-muted rounded-lg transition-colors flex items-center gap-2"
+            title="Recherche globale (Ctrl+K)"
+          >
+            <Search className="w-5 h-5 text-muted-foreground" />
+            <span className="hidden lg:inline text-xs text-muted-foreground">Ctrl+K</span>
+          </button>
+          
+          <button 
+            onClick={handleLogout}
+            className="p-2 hover:bg-destructive/20 rounded-lg transition-colors"
+            title="Déconnexion"
+          >
+            <LogOut className="w-5 h-5 text-muted-foreground hover:text-destructive" />
+          </button>
+        </div>
+      </nav>
+      
+      {/* Global Search Dialog */}
+      <GlobalSearch open={searchOpen} onOpenChange={setSearchOpen} />
+    </>
   );
 });
 

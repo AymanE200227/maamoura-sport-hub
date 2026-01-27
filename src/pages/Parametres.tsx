@@ -14,6 +14,7 @@ import { CSS } from '@dnd-kit/utilities';
 import TablePagination from '@/components/TablePagination';
 import Layout from '@/components/Layout';
 import PermissionsManager from '@/components/PermissionsManager';
+import ActivityLogSection from '@/components/ActivityLogSection';
 import { 
   getAdminPassword, 
   setAdminPassword, 
@@ -229,7 +230,7 @@ const Parametres = () => {
   const [isExporting, setIsExporting] = useState(false);
   
   // Active section - default to guide for first-time users
-  const [activeSection, setActiveSection] = useState<'security' | 'accounts' | 'promos' | 'models' | 'stages' | 'permissions' | 'appearance' | 'data' | 'guide'>('guide');
+  const [activeSection, setActiveSection] = useState<'security' | 'accounts' | 'promos' | 'models' | 'stages' | 'permissions' | 'appearance' | 'data' | 'guide' | 'activity'>('guide');
   
   // Search state for assign modal
   const [assignSearchTerm, setAssignSearchTerm] = useState('');
@@ -932,6 +933,7 @@ const Parametres = () => {
     { id: 'permissions' as const, label: 'Permissions', icon: Shield },
     { id: 'appearance' as const, label: 'Apparence', icon: Palette },
     { id: 'data' as const, label: 'Données', icon: FolderArchive },
+    { id: 'activity' as const, label: 'Activité', icon: Database },
   ];
 
   return (
@@ -2213,6 +2215,26 @@ const Parametres = () => {
                       Vous pouvez aussi filtrer par nom ou matricule avant de sélectionner.
                     </p>
                   </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Activity Log Section */}
+          {activeSection === 'activity' && (
+            <div className="space-y-6">
+              <div className="glass-card overflow-hidden">
+                <div className="p-4 bg-gradient-gold border-b border-primary/20">
+                  <h2 className="text-lg font-bold flex items-center gap-2 text-primary-foreground">
+                    <Database className="w-5 h-5" />
+                    Journal d'Activité
+                  </h2>
+                  <p className="text-sm text-primary-foreground/80 mt-1">
+                    Suivi des connexions et consultations
+                  </p>
+                </div>
+                <div className="p-6">
+                  <ActivityLogSection />
                 </div>
               </div>
             </div>

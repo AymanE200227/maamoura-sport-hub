@@ -12,6 +12,7 @@ import ImportProgressOverlay, { type ImportProgressState } from '@/components/Im
 import { parseFolderStructure, importTreeToStorage } from '@/lib/folderParser';
 import type { ImportReport } from '@/lib/folderParser';
 import ImportReportDialog from '@/components/ImportReportDialog';
+import ImportModeDialog, { type ImportMode } from '@/components/ImportModeDialog';
 import { 
   getCourseTypes, 
   addCourseType, 
@@ -82,6 +83,8 @@ const GestionCours = () => {
 
   const [importReport, setImportReport] = useState<ImportReport | null>(null);
   const [showImportReport, setShowImportReport] = useState(false);
+  const [showImportModeDialog, setShowImportModeDialog] = useState(false);
+  const [selectedImportMode, setSelectedImportMode] = useState<ImportMode>('merge');
 
   const [importProgress, setImportProgress] = useState<ImportProgressState>({
     open: false,
@@ -311,7 +314,8 @@ const GestionCours = () => {
       });
       setImportTree(result.tree);
       setImportStats(result.stats);
-      setShowImportTree(true);
+      // Show mode selection dialog first
+      setShowImportModeDialog(true);
     } catch (error) {
       console.error('Error parsing folder:', error);
       toast({ title: 'Erreur', description: 'Impossible d\'analyser le dossier', variant: 'destructive' });
@@ -1065,6 +1069,22 @@ const GestionCours = () => {
             </div>
           </div>
         )}
+
+        {/* Import Mode Selection Dialog */}
+        <ImportModeDialog
+          open={showImportModeDialog}
+          onOpenChange={setShowImportModeDialog}
+          onSelect={(mode) => {
+            setSelectedImportMode(mode);
+            if (mode === 'preview') {
+              setShowImportTree(true);
+            } else {
+              // For merge/replace, show tree for confirmation
+              setShowImportTree(true);
+            }
+          }}
+          stats={importStats}
+        />
 
         {/* Folder Import Tree Modal */}
         {showImportTree && (
