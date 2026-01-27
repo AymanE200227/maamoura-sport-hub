@@ -16,6 +16,7 @@ import { getSportImage, imageCategories, categoryLabels } from '@/assets/sports'
 import { useClickSound } from '@/hooks/useClickSound';
 import { useToast } from '@/hooks/use-toast';
 import bgImage from '@/assets/bg3.jpg';
+import { formatCourseTypeLabel } from '@/lib/courseTypeFormat';
 
 // Memoized course card for performance
 const CourseCard = memo(({ course, onClick, locked }: { 
@@ -186,7 +187,7 @@ const TypeDetail = () => {
           <ArrowLeft className="w-6 h-6" />
         </button>
         <div>
-          <h1 className="text-3xl font-bold">{stage.name} - P.{courseType.name.toUpperCase()}</h1>
+          <h1 className="text-3xl font-bold">{stage.name} - {formatCourseTypeLabel(courseType.name)}</h1>
           <p className="text-muted-foreground">
             Sélectionnez une leçon
           </p>
@@ -203,7 +204,7 @@ const TypeDetail = () => {
           {stage.name}
         </button>
         <ChevronRight className="w-4 h-4" />
-        <span className="text-foreground font-medium">P.{courseType.name.toUpperCase()}</span>
+        <span className="text-foreground font-medium">{formatCourseTypeLabel(courseType.name)}</span>
       </div>
 
       {/* Sport Courses (Leçons) as Cards */}

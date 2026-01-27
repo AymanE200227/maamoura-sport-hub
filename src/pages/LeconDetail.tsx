@@ -23,6 +23,7 @@ import { getSportImage } from '@/assets/sports';
 import { useToast } from '@/hooks/use-toast';
 import { useClickSound } from '@/hooks/useClickSound';
 import bgImage from '@/assets/bg3.jpg';
+import { formatCourseTypeLabel } from '@/lib/courseTypeFormat';
 
 const LeconDetail = () => {
   const { stageId, typeId, leconId } = useParams<{ stageId: string; typeId: string; leconId: string }>();
@@ -444,7 +445,7 @@ const LeconDetail = () => {
   if (!course || !stage || !courseType) return null;
 
   // Build path for display
-  const pathDisplay = `${stage.name}\\P.${courseType.name.toUpperCase()}\\${course.title}`;
+  const pathDisplay = `${stage.name}\\${formatCourseTypeLabel(courseType.name)}\\${course.title}`;
 
   return (
     <Layout backgroundImage={bgImage}>
@@ -481,7 +482,7 @@ const LeconDetail = () => {
         </button>
         <ChevronRight className="w-4 h-4" />
         <button onClick={handleBack} className="hover:text-primary transition-colors">
-          P.{courseType.name.toUpperCase()}
+          {formatCourseTypeLabel(courseType.name)}
         </button>
         <ChevronRight className="w-4 h-4" />
         {selectedTitle ? (

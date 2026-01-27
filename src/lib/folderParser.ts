@@ -1,4 +1,5 @@
 import { ImportTreeNode, ImportFile } from '@/components/FolderImportTree';
+import { normalizeCourseTypeBaseName, normalizeCourseTypeNameForStorage } from '@/lib/courseTypeFormat';
 
 // Generate unique ID
 const generateId = (): string => Math.random().toString(36).substring(2, 11);
@@ -82,7 +83,13 @@ const readFileAsDataURL = (file: File): Promise<string> => {
 // Expected structure: RootFolder/Stage/Type/Leçon/Heading/file.pdf
 // Example: CAT1/P.SPORTIF/BASKET/1.HISTORIQUE/test.ppt
 // NO NORMALIZATION OF TYPE NAMES - preserve exactly as folder is named
-export const parseFolderStructure = async (files: FileList): Promise<{
+export const parseFolderStructure = async (
+  files: FileList,
+  options?: {
+    onProgress?: (info: { processed: number; total: number; currentPath?: string }) => void;
+    progressEvery?: number;
+  }
+): Promise<{
   tree: ImportTreeNode[];
   stats: { stages: number; types: number; lecons: number; headings: number; files: number };
 }> => {
@@ -104,6 +111,10 @@ export const parseFolderStructure = async (files: FileList): Promise<{
   const filesArray = Array.from(files)
     .filter(f => !f.name.startsWith('.') && isValidFile(f.name))
     .sort((a, b) => a.webkitRelativePath.localeCompare(b.webkitRelativePath));
+
+  const total = filesArray.length;
+  let processed = 0;
+  const progressEvery = options?.progressEvery ?? 10;
   
   // Larger batches + yielding keeps the UI responsive, while avoiding too-frequent yields.
   const batchSize = 40;
@@ -117,6 +128,10 @@ export const parseFolderStructure = async (files: FileList): Promise<{
     }
     
     for (const file of batch) {
+        processed++;
+        if (options?.onProgress && (processed % progressEvery === 0 || processed === total)) {
+          options.onProgress({ processed, total, currentPath: file.webkitRelativePath });
+        }
       // Get path parts (folder structure)
       const pathParts = file.webkitRelativePath.split('/').filter(p => p);
       
@@ -289,6 +304,16 @@ export const parseFolderStructure = async (files: FileList): Promise<{
   };
 };
 
+export interface ImportReport {
+  durationMs: number;
+  stages: { created: number; matched: number };
+  types: { created: number; matched: number };
+  lecons: { created: number; matched: number };
+  headings: { created: number; matched: number };
+  files: { created: number; replaced: number; imported: number; errors: number };
+  warnings: string[];
+}
+
 // Import tree to storage - preserves original type names
 // Also handles conclusion files directly (no separate heading needed)
 export const importTreeToStorage = async (
@@ -305,13 +330,32 @@ export const importTreeToStorage = async (
     totalFiles?: number;
     onProgress?: (info: { processed: number; total: number; currentPath?: string }) => void;
     yieldEvery?: number;
+
+    /** Required to support importing into an empty app after a full wipe. */
+    saveStages?: (stages: any[]) => void;
+
+    /** Optional file upsert support (replace instead of duplicating). */
+    getFilesByCourseTitle?: (courseTitleId: string) => any[];
+    updateFileAsync?: (id: string, updates: any) => Promise<void>;
   }
-): Promise<number> => {
+): Promise<ImportReport> => {
+  const startedAt = performance.now();
+
+  const report: ImportReport = {
+    durationMs: 0,
+    stages: { created: 0, matched: 0 },
+    types: { created: 0, matched: 0 },
+    lecons: { created: 0, matched: 0 },
+    headings: { created: 0, matched: 0 },
+    files: { created: 0, replaced: 0, imported: 0, errors: 0 },
+    warnings: [],
+  };
+
   let importedFiles = 0;
   const totalFiles = options?.totalFiles ?? 0;
   const yieldEvery = options?.yieldEvery ?? 8;
   
-  const existingStages = getStages();
+  let existingStages = getStages();
   let existingTypes = getCourseTypes();
   let existingCourses = getSportCourses();
   let existingTitles = getCourseTitles();
@@ -320,34 +364,54 @@ export const importTreeToStorage = async (
   for (const stageNode of tree) {
     // Find matching stage
     const stageId = getStageId(stageNode.name);
-    const stage = existingStages.find(s => 
+    let stage = existingStages.find(s => 
       s.id === stageId ||
       s.name.toLowerCase() === stageNode.name.toLowerCase()
     );
     
     if (!stage) {
-      console.warn(`Stage not found: ${stageNode.name}`);
-      continue;
+      // After "Supprimer tout", there are no stages left. We must create them.
+      if (!options?.saveStages) {
+        throw new Error('importTreeToStorage: saveStages option is required to import stages into an empty app');
+      }
+
+      stage = {
+        id: stageId,
+        name: stageNode.name,
+        description: stageNode.name,
+        enabled: true,
+        order: existingStages.length,
+      };
+      existingStages = [...existingStages, stage];
+      options.saveStages(existingStages);
+      report.stages.created++;
+      report.warnings.push(`Stage créé: ${stageNode.name}`);
+    } else {
+      report.stages.matched++;
     }
     
     for (const typeNode of stageNode.children) {
       if (typeNode.type !== 'courseType') continue;
       
-      // Use ORIGINAL type name from folder - no normalization!
-      const originalTypeName = typeNode.name;
-      
-      // Find existing course type with EXACT match
-      let courseType = existingTypes.find(t => 
-        t.name.toUpperCase() === originalTypeName.toUpperCase()
+      // Normalize for matching to avoid duplicates like Sportif vs P.SPORTIF or P.P.SPORTIF
+      const incomingTypeBase = normalizeCourseTypeBaseName(typeNode.name);
+
+      // Find existing course type by base name
+      let courseType = existingTypes.find(t =>
+        normalizeCourseTypeBaseName(t.name) === incomingTypeBase
       );
       
       // Only create if doesn't exist
       if (!courseType) {
+        const normalizedName = normalizeCourseTypeNameForStorage(typeNode.name);
         courseType = addCourseType({ 
-          name: originalTypeName, 
-          description: `Cours ${originalTypeName}` 
+          name: normalizedName,
+          description: `Cours ${normalizedName}` 
         });
         existingTypes = [...existingTypes, courseType];
+        report.types.created++;
+      } else {
+        report.types.matched++;
       }
       
       for (const leconNode of typeNode.children) {
@@ -369,12 +433,22 @@ export const importTreeToStorage = async (
             image: 'basketball' // Default image
           });
           existingCourses = [...existingCourses, sportCourse];
+          report.lecons.created++;
+        } else {
+          report.lecons.matched++;
         }
         
         // Process children in order
         for (const child of leconNode.children) {
           if (child.type === 'file' && child.file) {
-            const fileData = child.file.data || (child.file.blob ? await readFileAsDataURL(child.file.blob) : '');
+            let fileData = '';
+            try {
+              fileData = child.file.data || (child.file.blob ? await readFileAsDataURL(child.file.blob) : '');
+            } catch (e) {
+              report.files.errors++;
+              report.warnings.push(`Erreur lecture fichier: ${child.file.path}`);
+              continue;
+            }
             // Check if it's a conclusion file - import directly with its name
             const isConclusion = isConclusionFile(child.file.name);
             
@@ -391,17 +465,36 @@ export const importTreeToStorage = async (
                   title: 'Conclusion'
                 });
                 existingTitles = [...existingTitles, conclusionTitle];
+                report.headings.created++;
+              } else {
+                report.headings.matched++;
               }
-              
-              await addFileAsync({
-                courseTitleId: conclusionTitle.id,
-                title: child.name, // Use original file name
-                description: '',
-                type: child.file.type,
-                fileName: child.file.name,
-                fileData
-              });
+
+              // Upsert file by filename within the same heading
+              const existingFiles = options?.getFilesByCourseTitle?.(conclusionTitle.id) ?? [];
+              const match = existingFiles.find((f: any) => (f.fileName || '').toLowerCase() === child.file!.name.toLowerCase());
+              if (match && options?.updateFileAsync) {
+                await options.updateFileAsync(match.id, {
+                  title: child.name,
+                  description: '',
+                  type: child.file.type,
+                  fileName: child.file.name,
+                  fileData,
+                });
+                report.files.replaced++;
+              } else {
+                await addFileAsync({
+                  courseTitleId: conclusionTitle.id,
+                  title: child.name,
+                  description: '',
+                  type: child.file.type,
+                  fileName: child.file.name,
+                  fileData
+                });
+                report.files.created++;
+              }
               importedFiles++;
+              report.files.imported = importedFiles;
               options?.onProgress?.({ processed: importedFiles, total: totalFiles, currentPath: child.file.path });
             } else {
               // Direct file under lecon - create "Général" heading if not exists
@@ -416,17 +509,35 @@ export const importTreeToStorage = async (
                   title: 'Général'
                 });
                 existingTitles = [...existingTitles, generalTitle];
+                report.headings.created++;
+              } else {
+                report.headings.matched++;
               }
-              
-              await addFileAsync({
-                courseTitleId: generalTitle.id,
-                title: child.name,
-                description: '',
-                type: child.file.type,
-                fileName: child.file.name,
-                fileData
-              });
+
+              const existingFiles = options?.getFilesByCourseTitle?.(generalTitle.id) ?? [];
+              const match = existingFiles.find((f: any) => (f.fileName || '').toLowerCase() === child.file!.name.toLowerCase());
+              if (match && options?.updateFileAsync) {
+                await options.updateFileAsync(match.id, {
+                  title: child.name,
+                  description: '',
+                  type: child.file.type,
+                  fileName: child.file.name,
+                  fileData,
+                });
+                report.files.replaced++;
+              } else {
+                await addFileAsync({
+                  courseTitleId: generalTitle.id,
+                  title: child.name,
+                  description: '',
+                  type: child.file.type,
+                  fileName: child.file.name,
+                  fileData
+                });
+                report.files.created++;
+              }
               importedFiles++;
+              report.files.imported = importedFiles;
               options?.onProgress?.({ processed: importedFiles, total: totalFiles, currentPath: child.file.path });
             }
 
@@ -447,21 +558,47 @@ export const importTreeToStorage = async (
                 title: child.name
               });
               existingTitles = [...existingTitles, courseTitle];
+              report.headings.created++;
+            } else {
+              report.headings.matched++;
             }
             
             // Add files to heading in order
             for (const fileNode of child.children) {
               if (fileNode.type === 'file' && fileNode.file) {
-                const fileData = fileNode.file.data || (fileNode.file.blob ? await readFileAsDataURL(fileNode.file.blob) : '');
-                await addFileAsync({
-                  courseTitleId: courseTitle.id,
-                  title: fileNode.name,
-                  description: '',
-                  type: fileNode.file.type,
-                  fileName: fileNode.file.name,
-                  fileData
-                });
+                let fileData = '';
+                try {
+                  fileData = fileNode.file.data || (fileNode.file.blob ? await readFileAsDataURL(fileNode.file.blob) : '');
+                } catch (e) {
+                  report.files.errors++;
+                  report.warnings.push(`Erreur lecture fichier: ${fileNode.file.path}`);
+                  continue;
+                }
+
+                const existingFiles = options?.getFilesByCourseTitle?.(courseTitle.id) ?? [];
+                const match = existingFiles.find((f: any) => (f.fileName || '').toLowerCase() === fileNode.file!.name.toLowerCase());
+                if (match && options?.updateFileAsync) {
+                  await options.updateFileAsync(match.id, {
+                    title: fileNode.name,
+                    description: '',
+                    type: fileNode.file.type,
+                    fileName: fileNode.file.name,
+                    fileData,
+                  });
+                  report.files.replaced++;
+                } else {
+                  await addFileAsync({
+                    courseTitleId: courseTitle.id,
+                    title: fileNode.name,
+                    description: '',
+                    type: fileNode.file.type,
+                    fileName: fileNode.file.name,
+                    fileData
+                  });
+                  report.files.created++;
+                }
                 importedFiles++;
+                report.files.imported = importedFiles;
                 options?.onProgress?.({ processed: importedFiles, total: totalFiles, currentPath: fileNode.file.path });
 
                 if (importedFiles % yieldEvery === 0) {
@@ -477,6 +614,7 @@ export const importTreeToStorage = async (
       }
     }
   }
-  
-  return importedFiles;
+
+  report.durationMs = Math.round(performance.now() - startedAt);
+  return report;
 };
