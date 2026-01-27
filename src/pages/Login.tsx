@@ -4,9 +4,9 @@ import { Lock, User, Settings, GraduationCap, Shield, Users, Eye, EyeOff } from 
 import { verifyAdminPassword, verifyUserPassword, verifyStudentCredentials, setUserMode, isBackgroundEnabled, getBackgroundImage, getAppSettings } from '@/lib/storage';
 import { useToast } from '@/hooks/use-toast';
 import { useClickSound } from '@/hooks/useClickSound';
+import { startSession, endSession } from '@/lib/activityLog';
 import bgImage from '@/assets/bg.jpg';
 import logoImage from '@/assets/logo-official.png';
-
 // Play auth sound
 const playAuthSound = () => {
   try {
@@ -42,7 +42,9 @@ const Login = () => {
     e.preventDefault();
     playClick();
     if (verifyAdminPassword(adminPassword)) {
+      endSession(); // End any previous session
       setUserMode('admin');
+      startSession('admin', 'admin', 'Administrateur');
       playAuthSound();
       toast({
         title: 'Connexion réussie',
@@ -62,7 +64,9 @@ const Login = () => {
     e.preventDefault();
     playClick();
     if (verifyUserPassword(userPassword)) {
+      endSession();
       setUserMode('user');
+      startSession('instructeur', 'instructeur', 'Instructeur');
       playAuthSound();
       toast({
         title: 'Connexion réussie',
@@ -84,7 +88,9 @@ const Login = () => {
     
     const student = verifyStudentCredentials(eleveMatricule, eleveCin);
     if (student) {
+      endSession();
       setUserMode('eleve');
+      startSession(student.matricule, 'eleve', student.prenom || student.nom || 'Élève');
       playAuthSound();
       toast({
         title: 'Connexion réussie',
