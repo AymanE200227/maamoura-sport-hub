@@ -35,6 +35,7 @@ import { CourseType, SportCourse, Stage } from '@/types';
 import { getSportImage, imageCategories, categoryLabels } from '@/assets/sports';
 import { useToast } from '@/hooks/use-toast';
 import { useClickSound } from '@/hooks/useClickSound';
+import { logPageView } from '@/lib/activityLog';
 import bgImage from '@/assets/bg4.jpg';
 import { formatCourseTypeLabel } from '@/lib/courseTypeFormat';
 
@@ -127,6 +128,8 @@ const GestionCours = () => {
       navigate('/accueil');
       return;
     }
+    // Log page view
+    logPageView('/gestion-cours', 'Gestion des Cours');
     loadData();
   }, [userMode, navigate]);
 
