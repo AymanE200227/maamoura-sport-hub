@@ -21,6 +21,16 @@ const STORAGE_KEYS = {
   MODEL_FILES: 'csm_model_files',
 };
 
+// When true, getters must NOT auto-seed demo/default data.
+// This is set by "Supprimer tout" to keep the app truly empty until an import.
+const SEED_LOCK_KEY = 'csm_seed_lock';
+
+const isSeedLocked = (): boolean => localStorage.getItem(SEED_LOCK_KEY) === '1';
+
+const ensureArrayKey = (key: string): void => {
+  if (localStorage.getItem(key) == null) localStorage.setItem(key, JSON.stringify([]));
+};
+
 const DEFAULT_ADMIN_PASSWORD = 'admin123';
 const DEFAULT_USER_PASSWORD = 'user123';
 
@@ -62,6 +72,10 @@ export const setBackgroundEnabled = (enabled: boolean): void => {
 export const getStages = (): Stage[] => {
   const data = localStorage.getItem(STORAGE_KEYS.STAGES);
   if (!data) {
+    if (isSeedLocked()) {
+      ensureArrayKey(STORAGE_KEYS.STAGES);
+      return [];
+    }
     localStorage.setItem(STORAGE_KEYS.STAGES, JSON.stringify(DEFAULT_STAGES));
     return DEFAULT_STAGES;
   }
@@ -105,6 +119,10 @@ export const getEnabledStages = (): Stage[] => {
 export const getCourseTypes = (): CourseType[] => {
   const data = localStorage.getItem(STORAGE_KEYS.COURSE_TYPES);
   if (!data) {
+    if (isSeedLocked()) {
+      ensureArrayKey(STORAGE_KEYS.COURSE_TYPES);
+      return [];
+    }
     const defaults: CourseType[] = [
       { id: '1', name: 'Sportif', description: 'Cours sportifs variés' },
       { id: '2', name: 'Militaire', description: 'Entraînement militaire' },
@@ -148,6 +166,10 @@ export const deleteCourseType = (id: string): void => {
 export const getSportCourses = (): SportCourse[] => {
   const data = localStorage.getItem(STORAGE_KEYS.SPORT_COURSES);
   if (!data) {
+    if (isSeedLocked()) {
+      ensureArrayKey(STORAGE_KEYS.SPORT_COURSES);
+      return [];
+    }
     const defaults: SportCourse[] = [
       { id: '1', courseTypeId: '1', stageId: 'cat2', title: 'Basketball', description: 'Entraînement basketball tactique et technique', image: 'basketball' },
       { id: '2', courseTypeId: '1', stageId: 'cat2', title: 'Volleyball', description: 'Cours de volleyball pour tous niveaux', image: 'volleyball' },
@@ -207,6 +229,10 @@ export const deleteSportCourse = (id: string): void => {
 export const getCourseTitles = (): CourseTitle[] => {
   const data = localStorage.getItem(STORAGE_KEYS.COURSE_TITLES);
   if (!data) {
+    if (isSeedLocked()) {
+      ensureArrayKey(STORAGE_KEYS.COURSE_TITLES);
+      return [];
+    }
     const defaults: CourseTitle[] = [
       { id: '1', sportCourseId: '1', title: 'Initiation au Basketball' },
       { id: '2', sportCourseId: '1', title: 'Basketball – Techniques de Base' },
@@ -273,6 +299,10 @@ export const deleteCourseTitle = (id: string): void => {
 export const getFiles = (): CourseFile[] => {
   const data = localStorage.getItem(STORAGE_KEYS.FILES);
   if (!data) {
+    if (isSeedLocked()) {
+      ensureArrayKey(STORAGE_KEYS.FILES);
+      return [];
+    }
     const defaults: CourseFile[] = [
       { id: '1', courseTitleId: '1', title: 'PPT: Techniques de Base', description: 'Les bases du basketball', type: 'ppt', fileName: 'techniques_base.pptx', fileData: '' },
       { id: '2', courseTitleId: '1', title: 'WORD: Exercices et Drills', description: 'Exercices pratiques', type: 'word', fileName: 'exercices.docx', fileData: '' },
@@ -829,4 +859,13 @@ export const clearAllData = (): void => {
   localStorage.setItem(STORAGE_KEYS.SPORT_COURSES, JSON.stringify([]));
   localStorage.setItem(STORAGE_KEYS.COURSE_TITLES, JSON.stringify([]));
   localStorage.setItem(STORAGE_KEYS.FILES, JSON.stringify([]));
+
+  // Also clear other seeded/related collections.
+  localStorage.setItem(STORAGE_KEYS.DOCUMENT_MODELS, JSON.stringify([]));
+  localStorage.setItem(STORAGE_KEYS.MODEL_FILES, JSON.stringify([]));
+  localStorage.setItem(STORAGE_KEYS.STUDENT_ACCOUNTS, JSON.stringify([]));
+  localStorage.setItem(STORAGE_KEYS.PROMOS, JSON.stringify([]));
+
+  // Lock seeding so missing keys never re-create demo/default data after wipe.
+  localStorage.setItem(SEED_LOCK_KEY, '1');
 };
