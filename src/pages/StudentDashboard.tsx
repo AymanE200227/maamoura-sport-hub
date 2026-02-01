@@ -2,13 +2,14 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   GraduationCap, BookOpen, FileText, Download, ChevronRight,
-  Calendar, User, Award, Layers, File, Shield, Loader2, Lock
+  Calendar, User, Award, Layers, File, Shield, Loader2, Lock, Eye
 } from 'lucide-react';
 import Layout from '@/components/Layout';
+import LightweightFileViewer from '@/components/LightweightFileViewer';
 import { 
   getUserMode, getStudentAccounts, getPromos, getCourseTypes,
   getSportCourses, getDocumentModels, getModelFilesByModel, getStages,
-  getModelFileDataAsync
+  getModelFileDataAsync, isDownloadEnabled
 } from '@/lib/storage';
 import { canAccessStage, canAccess } from '@/lib/permissions';
 import { StudentAccount, Promo, DocumentModel, ModelFile, CourseType, UserRole } from '@/types';
@@ -26,6 +27,12 @@ const StudentDashboard = () => {
   const [selectedModelId, setSelectedModelId] = useState<string | null>(null);
   const [modelFiles, setModelFiles] = useState<ModelFile[]>([]);
   const [isDownloading, setIsDownloading] = useState<string | null>(null);
+  
+  // File viewer state
+  const [viewerOpen, setViewerOpen] = useState(false);
+  const [viewerFile, setViewerFile] = useState<{ data: string | null; name: string; type: 'pdf' | 'ppt' | 'word' | 'video' } | null>(null);
+  const [currentViewingFile, setCurrentViewingFile] = useState<ModelFile | null>(null);
+  const downloadAllowed = isDownloadEnabled();
 
   // Map user mode to role for permissions
   const userRole: UserRole = useMemo(() => {
@@ -82,7 +89,46 @@ const StudentDashboard = () => {
     setModelFiles(getModelFilesByModel(model.id));
   }, [playClick]);
 
+  const handleOpenFile = useCallback(async (file: ModelFile) => {
+    playClick();
+    setIsDownloading(file.id);
+    try {
+      const fileData = await getModelFileDataAsync(file.id);
+      
+      // Log file view
+      logFileView(file.id, file.fileName, file.type, 'Modèle Document', 'view');
+
+      // For PDF, convert to blob URL for better performance
+      let viewData = fileData;
+      if (fileData && file.type === 'pdf') {
+        const base64Data = fileData.split(',')[1];
+        const binaryString = atob(base64Data);
+        const bytes = new Uint8Array(binaryString.length);
+        for (let i = 0; i < binaryString.length; i++) {
+          bytes[i] = binaryString.charCodeAt(i);
+        }
+        const blob = new Blob([bytes], { type: 'application/pdf' });
+        viewData = URL.createObjectURL(blob);
+      }
+
+      // Open in lightweight viewer
+      setViewerFile({
+        data: viewData,
+        name: file.fileName,
+        type: file.type
+      });
+      setCurrentViewingFile(file);
+      setViewerOpen(true);
+    } catch (error) {
+      console.error('Error opening file:', error);
+      toast({ title: 'Erreur', variant: 'destructive' });
+    } finally {
+      setIsDownloading(null);
+    }
+  }, [playClick, toast]);
+
   const handleDownloadFile = useCallback(async (file: ModelFile) => {
+    if (!downloadAllowed) return;
     playClick();
     setIsDownloading(file.id);
     try {
@@ -108,7 +154,7 @@ const StudentDashboard = () => {
     } finally {
       setIsDownloading(null);
     }
-  }, [playClick, toast]);
+  }, [playClick, toast, downloadAllowed]);
 
   const handleCourseClick = useCallback((typeId: string) => {
     playClick();
@@ -131,6 +177,19 @@ const StudentDashboard = () => {
 
   return (
     <Layout backgroundImage={bgImage}>
+      {/* File Viewer Modal */}
+      <LightweightFileViewer
+        isOpen={viewerOpen}
+        onClose={() => {
+          setViewerOpen(false);
+          setViewerFile(null);
+          setCurrentViewingFile(null);
+        }}
+        fileData={viewerFile?.data || null}
+        fileName={viewerFile?.name || ''}
+        fileType={viewerFile?.type || 'pdf'}
+        onDownload={currentViewingFile && downloadAllowed ? () => handleDownloadFile(currentViewingFile) : undefined}
+      />
       <div className="max-w-6xl mx-auto space-y-6">
         {/* Welcome Header */}
         <div className="glass-panel p-6 animate-fade-in">
@@ -300,7 +359,6 @@ const StudentDashboard = () => {
                 <div
                   key={file.id}
                   className={`file-item group ${isDownloading === file.id ? 'opacity-70' : ''}`}
-                  onClick={() => !isDownloading && handleDownloadFile(file)}
                 >
                   <div className={`file-icon ${getFileIcon(file.type)}`}>
                     <File className="w-6 h-6" />
@@ -309,11 +367,28 @@ const StudentDashboard = () => {
                     <p className="font-medium truncate">{file.title}</p>
                     <p className="text-xs text-muted-foreground truncate">{file.fileName}</p>
                   </div>
-                  {isDownloading === file.id ? (
-                    <Loader2 className="w-5 h-5 text-primary animate-spin" />
-                  ) : (
-                    <Download className="w-5 h-5 text-muted-foreground group-hover:text-primary transition-colors" />
-                  )}
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => !isDownloading && handleOpenFile(file)}
+                      className="p-2 rounded-lg bg-success/20 text-success hover:bg-success/30 transition-colors"
+                      title="Ouvrir"
+                    >
+                      {isDownloading === file.id ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <Eye className="w-4 h-4" />
+                      )}
+                    </button>
+                    {downloadAllowed && (
+                      <button
+                        onClick={() => !isDownloading && handleDownloadFile(file)}
+                        className="p-2 rounded-lg bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground transition-colors"
+                        title="Télécharger"
+                      >
+                        <Download className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>

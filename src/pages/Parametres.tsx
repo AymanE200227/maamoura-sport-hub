@@ -29,6 +29,8 @@ import {
   resetBackgroundImage,
   isBackgroundEnabled,
   setBackgroundEnabled,
+  isDownloadEnabled,
+  setDownloadEnabled,
   getStudentAccounts,
   addStudentAccount,
   updateStudentAccount,
@@ -257,6 +259,9 @@ const Parametres = () => {
 
   // Sound state
   const [soundEnabled, setSoundEnabled] = useState(isClickSoundEnabled());
+  
+  // Download state
+  const [downloadEnabled, setDownloadEnabledState] = useState(isDownloadEnabled());
 
   // Student accounts state
   const [studentAccounts, setStudentAccounts] = useState<StudentAccount[]>([]);
@@ -1902,6 +1907,37 @@ const Parametres = () => {
                     </button>
                     <button onClick={handleResetSound} className="btn-ghost py-3 px-6 border border-border">
                       <RotateCcw className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Download Toggle */}
+              <div className="glass-card overflow-hidden">
+                <div className="p-4 bg-blue-500/20 border-b border-blue-500/20">
+                  <h2 className="text-lg font-bold flex items-center gap-2">
+                    <Download className="w-5 h-5 text-blue-400" />
+                    Téléchargement de Fichiers
+                  </h2>
+                </div>
+                <div className="p-6">
+                  <div className="flex items-center justify-between p-4 bg-muted/30 rounded-xl">
+                    <div>
+                      <span className="font-medium">Autoriser le téléchargement</span>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        Permet aux utilisateurs de télécharger les fichiers PDF, PPT, Word et vidéos
+                      </p>
+                    </div>
+                    <button 
+                      onClick={() => {
+                        const newValue = !downloadEnabled;
+                        setDownloadEnabledState(newValue);
+                        setDownloadEnabled(newValue);
+                        toast({ title: newValue ? 'Téléchargement activé' : 'Téléchargement désactivé' });
+                      }} 
+                      className={`w-14 h-8 rounded-full transition-colors relative ${downloadEnabled ? 'bg-gradient-gold' : 'bg-muted'}`}
+                    >
+                      <div className={`w-6 h-6 bg-foreground rounded-full absolute top-1 transition-transform ${downloadEnabled ? 'right-1' : 'left-1'}`} />
                     </button>
                   </div>
                 </div>

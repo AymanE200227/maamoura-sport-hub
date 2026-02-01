@@ -19,6 +19,7 @@ const STORAGE_KEYS = {
   PROMOS: 'csm_promos',
   DOCUMENT_MODELS: 'csm_document_models',
   MODEL_FILES: 'csm_model_files',
+  DOWNLOAD_ENABLED: 'csm_download_enabled',
 };
 
 // When true, getters must NOT auto-seed demo/default data.
@@ -68,7 +69,16 @@ export const setBackgroundEnabled = (enabled: boolean): void => {
   localStorage.setItem(STORAGE_KEYS.BACKGROUND_ENABLED, String(enabled));
 };
 
-// Stages
+// Download enabled setting
+export const isDownloadEnabled = (): boolean => {
+  const value = localStorage.getItem(STORAGE_KEYS.DOWNLOAD_ENABLED);
+  return value === null ? true : value === 'true';
+};
+
+export const setDownloadEnabled = (enabled: boolean): void => {
+  localStorage.setItem(STORAGE_KEYS.DOWNLOAD_ENABLED, String(enabled));
+};
+
 export const getStages = (): Stage[] => {
   const data = localStorage.getItem(STORAGE_KEYS.STAGES);
   if (!data) {
