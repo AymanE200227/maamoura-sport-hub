@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Plus, FileText, Edit, Trash2, Eye, Upload, X, Download, Loader2, Video, FolderUp, ChevronRight, FileCheck, Lock } from 'lucide-react';
 import Layout from '@/components/Layout';
+import LightweightFileViewer from '@/components/LightweightFileViewer';
 import {
   getSportCourses,
   getStages,
@@ -15,7 +16,8 @@ import {
   updateFileAsync,
   deleteFileAsync,
   getFileDataAsync,
-  getUserMode
+  getUserMode,
+  isDownloadEnabled
 } from '@/lib/storage';
 import { canAccess, canAccessStage } from '@/lib/permissions';
 import { SportCourse, Stage, CourseType, CourseTitle, CourseFile, UserRole } from '@/types';
@@ -58,10 +60,16 @@ const LeconDetail = () => {
   // Conclusion file state
   const [showConclusionUpload, setShowConclusionUpload] = useState(false);
   
+  // File viewer state
+  const [viewerOpen, setViewerOpen] = useState(false);
+  const [viewerFile, setViewerFile] = useState<{ data: string | null; name: string; type: 'pdf' | 'ppt' | 'word' | 'video' } | null>(null);
+  const [currentViewingFile, setCurrentViewingFile] = useState<CourseFile | null>(null);
+  
   const folderInputRef = useRef<HTMLInputElement>(null);
   const [isLoading, setIsLoading] = useState(false);
   
   const userMode = getUserMode();
+  const downloadAllowed = isDownloadEnabled();
   
   // Map user mode to role for permissions
   const userRole: UserRole = useMemo(() => {
@@ -351,16 +359,14 @@ const LeconDetail = () => {
     setIsLoading(true);
     try {
       const fileData = await getFileDataAsync(file.id);
-      if (!fileData) {
-        toast({ title: 'Fichier non disponible', description: "Ce fichier n'a pas de contenu", variant: 'destructive' });
-        return;
-      }
-
+      
       // Log file view
       const coursePath = `${stage?.name || ''} > ${courseType ? formatCourseTypeLabel(courseType.name) : ''} > ${course?.title || ''}`;
       logFileView(file.id, file.fileName || file.title, file.type, coursePath, 'view');
 
-      if (file.type === 'pdf') {
+      // For PDF and video, convert to blob URL for better performance
+      let viewData = fileData;
+      if (fileData && file.type === 'pdf') {
         const base64Data = fileData.split(',')[1];
         const binaryString = atob(base64Data);
         const bytes = new Uint8Array(binaryString.length);
@@ -368,18 +374,17 @@ const LeconDetail = () => {
           bytes[i] = binaryString.charCodeAt(i);
         }
         const blob = new Blob([bytes], { type: 'application/pdf' });
-        const blobUrl = URL.createObjectURL(blob);
-        window.open(blobUrl, '_blank');
-      } else {
-        // Download for non-PDF files
-        const link = document.createElement('a');
-        link.href = fileData;
-        link.download = file.fileName || `${file.title}.${file.type}`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        toast({ title: 'Téléchargement lancé' });
+        viewData = URL.createObjectURL(blob);
       }
+
+      // Open in lightweight viewer
+      setViewerFile({
+        data: viewData,
+        name: file.fileName || file.title,
+        type: file.type
+      });
+      setCurrentViewingFile(file);
+      setViewerOpen(true);
     } catch (error) {
       console.error('Error opening file:', error);
       toast({ title: 'Erreur', description: 'Impossible d\'ouvrir le fichier', variant: 'destructive' });
@@ -464,6 +469,19 @@ const LeconDetail = () => {
 
   return (
     <Layout backgroundImage={bgImage}>
+      {/* File Viewer Modal */}
+      <LightweightFileViewer
+        isOpen={viewerOpen}
+        onClose={() => {
+          setViewerOpen(false);
+          setViewerFile(null);
+          setCurrentViewingFile(null);
+        }}
+        fileData={viewerFile?.data || null}
+        fileName={viewerFile?.name || ''}
+        fileType={viewerFile?.type || 'pdf'}
+        onDownload={currentViewingFile && downloadAllowed ? () => handleDownloadFile(currentViewingFile) : undefined}
+      />
       {/* Header */}
       <div className="flex items-center gap-4 mb-6">
         <button onClick={selectedTitle ? handleBackToTitles : handleBack} className="p-2 bg-card/80 rounded-full hover:bg-card transition-colors">
@@ -653,10 +671,12 @@ const LeconDetail = () => {
                     <Eye className="w-4 h-4" />
                     Ouvrir
                   </button>
-                  <button onClick={() => handleDownloadFile(file)} className="btn-ghost flex items-center gap-1 text-sm border border-border">
-                    <Download className="w-4 h-4" />
-                    Télécharger
-                  </button>
+                  {downloadAllowed && (
+                    <button onClick={() => handleDownloadFile(file)} className="btn-ghost flex items-center gap-1 text-sm border border-border">
+                      <Download className="w-4 h-4" />
+                      Télécharger
+                    </button>
+                  )}
                   {userMode === 'admin' && (
                     <>
                       <button onClick={() => handleEditFile(file)} className="btn-ghost flex items-center gap-1 text-sm border border-border">
