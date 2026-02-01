@@ -1,9 +1,10 @@
 import { useState, useMemo } from 'react';
 import { 
   Activity, Clock, User, FileText, Download, Trash2, 
-  Calendar, Filter, ChevronDown, ChevronRight, Eye
+  Calendar, Filter, ChevronDown, ChevronRight, Eye, BarChart3, List
 } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   getActivitySessions,
   getActivityStats,
@@ -13,6 +14,7 @@ import {
   ActivitySession
 } from '@/lib/activityLog';
 import { useToast } from '@/hooks/use-toast';
+import LiveActivityDashboard from './LiveActivityDashboard';
 
 interface SessionItemProps {
   session: ActivitySession;
@@ -190,107 +192,124 @@ export default function ActivityLogSection() {
   };
   
   return (
-    <div className="space-y-4">
-      {/* Stats Overview */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <div className="glass-card p-3">
-          <div className="flex items-center gap-2 text-muted-foreground mb-1">
-            <User className="w-4 h-4" />
-            <span className="text-xs">Sessions totales</span>
-          </div>
-          <p className="text-2xl font-bold">{stats.totalSessions}</p>
-        </div>
-        <div className="glass-card p-3">
-          <div className="flex items-center gap-2 text-muted-foreground mb-1">
-            <Activity className="w-4 h-4" />
-            <span className="text-xs">Aujourd'hui</span>
-          </div>
-          <p className="text-2xl font-bold">{stats.todaySessions}</p>
-        </div>
-        <div className="glass-card p-3">
-          <div className="flex items-center gap-2 text-muted-foreground mb-1">
-            <Clock className="w-4 h-4" />
-            <span className="text-xs">Durée moyenne</span>
-          </div>
-          <p className="text-2xl font-bold">{formatDuration(stats.avgSessionDuration)}</p>
-        </div>
-        <div className="glass-card p-3">
-          <div className="flex items-center gap-2 text-muted-foreground mb-1">
-            <FileText className="w-4 h-4" />
-            <span className="text-xs">Fichiers vus</span>
-          </div>
-          <p className="text-2xl font-bold">{stats.totalFileViews}</p>
-        </div>
-      </div>
+    <Tabs defaultValue="dashboard" className="space-y-4">
+      <TabsList className="grid w-full max-w-md grid-cols-2">
+        <TabsTrigger value="dashboard" className="flex items-center gap-2">
+          <BarChart3 className="w-4 h-4" />
+          Dashboard
+        </TabsTrigger>
+        <TabsTrigger value="history" className="flex items-center gap-2">
+          <List className="w-4 h-4" />
+          Historique
+        </TabsTrigger>
+      </TabsList>
       
-      {/* Filters & Actions */}
-      <div className="flex items-center justify-between gap-4 flex-wrap">
-        <div className="flex items-center gap-2">
-          <Filter className="w-4 h-4 text-muted-foreground" />
-          
-          {/* User Type Filter */}
-          <select
-            value={filterType}
-            onChange={e => setFilterType(e.target.value as any)}
-            className="text-sm bg-muted border border-border rounded-lg px-3 py-1.5"
-          >
-            <option value="all">Tous les utilisateurs</option>
-            <option value="admin">Admins</option>
-            <option value="instructeur">Instructeurs</option>
-            <option value="eleve">Élèves</option>
-          </select>
-          
-          {/* Date Filter */}
-          <select
-            value={dateRange}
-            onChange={e => setDateRange(e.target.value as any)}
-            className="text-sm bg-muted border border-border rounded-lg px-3 py-1.5"
-          >
-            <option value="today">Aujourd'hui</option>
-            <option value="week">7 derniers jours</option>
-            <option value="month">30 derniers jours</option>
-            <option value="all">Tout l'historique</option>
-          </select>
+      <TabsContent value="dashboard">
+        <LiveActivityDashboard />
+      </TabsContent>
+      
+      <TabsContent value="history" className="space-y-4">
+        {/* Stats Overview */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div className="glass-card p-3">
+            <div className="flex items-center gap-2 text-muted-foreground mb-1">
+              <User className="w-4 h-4" />
+              <span className="text-xs">Sessions totales</span>
+            </div>
+            <p className="text-2xl font-bold">{stats.totalSessions}</p>
+          </div>
+          <div className="glass-card p-3">
+            <div className="flex items-center gap-2 text-muted-foreground mb-1">
+              <Activity className="w-4 h-4" />
+              <span className="text-xs">Aujourd'hui</span>
+            </div>
+            <p className="text-2xl font-bold">{stats.todaySessions}</p>
+          </div>
+          <div className="glass-card p-3">
+            <div className="flex items-center gap-2 text-muted-foreground mb-1">
+              <Clock className="w-4 h-4" />
+              <span className="text-xs">Durée moyenne</span>
+            </div>
+            <p className="text-2xl font-bold">{formatDuration(stats.avgSessionDuration)}</p>
+          </div>
+          <div className="glass-card p-3">
+            <div className="flex items-center gap-2 text-muted-foreground mb-1">
+              <FileText className="w-4 h-4" />
+              <span className="text-xs">Fichiers vus</span>
+            </div>
+            <p className="text-2xl font-bold">{stats.totalFileViews}</p>
+          </div>
         </div>
         
-        <div className="flex items-center gap-2">
-          <button
-            onClick={handleExport}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-muted hover:bg-muted/80 rounded-lg transition-colors"
-          >
-            <Download className="w-4 h-4" />
-            Exporter
-          </button>
-          <button
-            onClick={handleClear}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-destructive/10 text-destructive hover:bg-destructive/20 rounded-lg transition-colors"
-          >
-            <Trash2 className="w-4 h-4" />
-            Effacer
-          </button>
+        {/* Filters & Actions */}
+        <div className="flex items-center justify-between gap-4 flex-wrap">
+          <div className="flex items-center gap-2">
+            <Filter className="w-4 h-4 text-muted-foreground" />
+            
+            {/* User Type Filter */}
+            <select
+              value={filterType}
+              onChange={e => setFilterType(e.target.value as any)}
+              className="text-sm bg-muted border border-border rounded-lg px-3 py-1.5"
+            >
+              <option value="all">Tous les utilisateurs</option>
+              <option value="admin">Admins</option>
+              <option value="instructeur">Instructeurs</option>
+              <option value="eleve">Élèves</option>
+            </select>
+            
+            {/* Date Filter */}
+            <select
+              value={dateRange}
+              onChange={e => setDateRange(e.target.value as any)}
+              className="text-sm bg-muted border border-border rounded-lg px-3 py-1.5"
+            >
+              <option value="today">Aujourd'hui</option>
+              <option value="week">7 derniers jours</option>
+              <option value="month">30 derniers jours</option>
+              <option value="all">Tout l'historique</option>
+            </select>
+          </div>
+          
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleExport}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-muted hover:bg-muted/80 rounded-lg transition-colors"
+            >
+              <Download className="w-4 h-4" />
+              Exporter
+            </button>
+            <button
+              onClick={handleClear}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-destructive/10 text-destructive hover:bg-destructive/20 rounded-lg transition-colors"
+            >
+              <Trash2 className="w-4 h-4" />
+              Effacer
+            </button>
+          </div>
         </div>
-      </div>
-      
-      {/* Sessions List */}
-      <ScrollArea className="h-[400px] pr-2">
-        {sessions.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
-            <Activity className="w-12 h-12 mb-4 opacity-50" />
-            <p className="text-sm">Aucune session enregistrée</p>
-          </div>
-        ) : (
-          <div className="space-y-2">
-            {sessions.map(session => (
-              <SessionItem
-                key={session.id}
-                session={session}
-                expanded={expandedId === session.id}
-                onToggle={() => setExpandedId(expandedId === session.id ? null : session.id)}
-              />
-            ))}
-          </div>
-        )}
-      </ScrollArea>
-    </div>
+        
+        {/* Sessions List */}
+        <ScrollArea className="h-[400px] pr-2">
+          {sessions.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+              <Activity className="w-12 h-12 mb-4 opacity-50" />
+              <p className="text-sm">Aucune session enregistrée</p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {sessions.map(session => (
+                <SessionItem
+                  key={session.id}
+                  session={session}
+                  expanded={expandedId === session.id}
+                  onToggle={() => setExpandedId(expandedId === session.id ? null : session.id)}
+                />
+              ))}
+            </div>
+          )}
+        </ScrollArea>
+      </TabsContent>
+    </Tabs>
   );
 }
