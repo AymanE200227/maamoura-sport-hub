@@ -13,6 +13,7 @@ import { getSportImage } from '@/assets/sports';
 import { formatCourseTypeLabel } from '@/lib/courseTypeFormat';
 import { useClickSound } from '@/hooks/useClickSound';
 import { logPageView } from '@/lib/activityLog';
+import { CardSkeleton } from '@/components/SkeletonLoader';
 import bgImage from '@/assets/bg3.jpg';
 
 // Memoized course type card for performance
@@ -76,6 +77,7 @@ const StageDetail = () => {
   
   const [stage, setStage] = useState<Stage | null>(null);
   const [courseTypes, setCourseTypes] = useState<CourseType[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   
   const userMode = getUserMode();
 
@@ -87,16 +89,17 @@ const StageDetail = () => {
     loadData();
   }, [stageId, userMode, navigate]);
 
-  const loadData = () => {
+  const loadData = useCallback(() => {
+    setIsLoading(true);
     const stages = getStages();
     const foundStage = stages.find(s => s.id === stageId);
     if (foundStage) {
       setStage(foundStage);
       setCourseTypes(getCourseTypes());
-      // Log page view
       logPageView(`/stage/${stageId}`, `Stage ${foundStage.name}`);
     }
-  };
+    setTimeout(() => setIsLoading(false), 200);
+  }, [stageId]);
 
   // Course counts by type for this stage
   const courseCounts = useMemo(() => {
@@ -150,22 +153,30 @@ const StageDetail = () => {
       </div>
 
       {/* Course Type Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 animate-fade-in">
-        {courseTypes.map((type) => {
-          const defaultImageKey = type.name.toLowerCase().includes('milit') ? 'militaire' : 'sportif';
-          const imageSrc = type.image || getSportImage(defaultImageKey);
-          
-          return (
-            <CourseTypeCard
-              key={type.id}
-              type={type}
-              courseCount={courseCounts[type.id] || 0}
-              imageSrc={imageSrc}
-              onClick={() => handleTypeClick(type)}
-            />
-          );
-        })}
-      </div>
+      {isLoading ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 animate-fade-in">
+          {Array.from({ length: 2 }).map((_, i) => (
+            <CardSkeleton key={i} />
+          ))}
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 animate-fade-in">
+          {courseTypes.map((type) => {
+            const defaultImageKey = type.name.toLowerCase().includes('milit') ? 'militaire' : 'sportif';
+            const imageSrc = type.image || getSportImage(defaultImageKey);
+            
+            return (
+              <CourseTypeCard
+                key={type.id}
+                type={type}
+                courseCount={courseCounts[type.id] || 0}
+                imageSrc={imageSrc}
+                onClick={() => handleTypeClick(type)}
+              />
+            );
+          })}
+        </div>
+      )}
 
       {courseTypes.length === 0 && (
         <div className="glass-card p-8 text-center">
