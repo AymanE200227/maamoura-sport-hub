@@ -40,20 +40,37 @@ const AuthInput = memo(({
   onToggle?: () => void;
 }) => (
   <div className="relative group">
-    <Icon className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground transition-colors group-focus-within:text-primary" />
+    <Icon 
+      className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 transition-colors" 
+      style={{ color: 'hsl(0 0% 50%)' }}
+    />
     <input
       type={type}
       placeholder={placeholder}
       value={value}
       onChange={(e) => onChange(e.target.value)}
-      className="w-full h-14 pl-12 pr-12 rounded-xl border-2 border-border/50 bg-card/50 text-foreground placeholder:text-muted-foreground focus:border-primary focus:bg-card/80 transition-all duration-300 text-base outline-none"
+      className="w-full h-14 pl-12 pr-12 rounded-xl text-base outline-none transition-all duration-300"
+      style={{
+        background: 'hsl(0 0% 12%)',
+        border: '2px solid hsl(0 0% 25%)',
+        color: 'hsl(45 20% 95%)'
+      }}
+      onFocus={(e) => {
+        e.target.style.borderColor = 'hsl(42 75% 55%)';
+        e.target.style.boxShadow = '0 0 0 3px hsl(42 75% 55% / 0.15)';
+      }}
+      onBlur={(e) => {
+        e.target.style.borderColor = 'hsl(0 0% 25%)';
+        e.target.style.boxShadow = 'none';
+      }}
       autoComplete={isPassword ? 'current-password' : 'username'}
     />
     {showToggle && (
       <button
         type="button"
         onClick={onToggle}
-        className="absolute right-4 top-1/2 -translate-y-1/2 p-1 text-muted-foreground hover:text-foreground transition-colors"
+        className="absolute right-4 top-1/2 -translate-y-1/2 p-1 transition-colors"
+        style={{ color: 'hsl(0 0% 50%)' }}
       >
         {isPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
       </button>
@@ -147,24 +164,36 @@ const Login = () => {
         backgroundPosition: 'center',
       }}
     >
-      {/* Overlay for better contrast */}
-      <div className="absolute inset-0 bg-gradient-to-br from-background/90 via-background/80 to-background/90" />
+      {/* Dark overlay for visibility on old screens */}
+      <div className="absolute inset-0 bg-black/80" />
       
-      {/* Decorative elements - optimized */}
-      <div className="absolute top-0 left-0 w-96 h-96 rounded-full opacity-10 blur-3xl" style={{ background: 'hsl(var(--primary))' }} />
-      <div className="absolute bottom-0 right-0 w-96 h-96 rounded-full opacity-10 blur-3xl" style={{ background: 'hsl(var(--accent))' }} />
+      {/* Subtle gold glow effects */}
+      <div 
+        className="absolute top-1/4 left-1/4 w-64 h-64 rounded-full opacity-20 blur-3xl pointer-events-none" 
+        style={{ background: 'hsl(42 75% 50%)' }} 
+      />
+      <div 
+        className="absolute bottom-1/4 right-1/4 w-64 h-64 rounded-full opacity-15 blur-3xl pointer-events-none" 
+        style={{ background: 'hsl(38 85% 45%)' }} 
+      />
 
-      <div className="w-full max-w-md relative z-10">
+      <div className="w-full max-w-md relative z-10 animate-fade-in">
         {/* Logo & Header */}
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center mb-6">
             <div className="relative">
-              {/* Glow effect */}
+              {/* Gold glow behind logo */}
               <div 
-                className="absolute inset-0 rounded-2xl blur-xl opacity-50"
-                style={{ background: 'hsl(var(--primary))' }}
+                className="absolute -inset-2 rounded-2xl blur-xl opacity-40"
+                style={{ background: 'linear-gradient(135deg, hsl(42 75% 55%), hsl(38 85% 50%))' }}
               />
-              <div className="relative w-24 h-24 rounded-2xl border-2 border-primary/40 p-2 bg-card/80 backdrop-blur-sm shadow-2xl">
+              <div 
+                className="relative w-24 h-24 rounded-2xl p-2 shadow-2xl"
+                style={{
+                  background: 'hsl(0 0% 8%)',
+                  border: '2px solid hsl(42 75% 45% / 0.5)'
+                }}
+              >
                 <img 
                   src={currentLogo} 
                   alt="Logo" 
@@ -175,21 +204,37 @@ const Login = () => {
             </div>
           </div>
           
-          <h1 className="text-2xl md:text-3xl font-bold text-foreground mb-2">
+          <h1 
+            className="text-2xl md:text-3xl font-bold mb-2"
+            style={{ color: 'hsl(45 20% 95%)' }}
+          >
             Base de Données
           </h1>
-          <p className="text-primary font-semibold text-lg">
+          <p 
+            className="font-semibold text-lg"
+            style={{ color: 'hsl(42 75% 55%)', textShadow: '0 0 20px hsl(42 75% 55% / 0.5)' }}
+          >
             Centre Sportif des FAR
           </p>
-          <p className="text-muted-foreground text-sm mt-1">Maâmoura</p>
+          <p className="text-sm mt-1" style={{ color: 'hsl(0 0% 55%)' }}>Maâmoura</p>
         </div>
 
-        {/* Login Form */}
-        <div className="bg-card/60 backdrop-blur-md border border-border/50 rounded-2xl p-6 md:p-8 shadow-2xl">
+        {/* Login Form - Dark glass card */}
+        <div 
+          className="rounded-2xl p-6 md:p-8 shadow-2xl"
+          style={{
+            background: 'hsl(0 0% 9% / 0.95)',
+            border: '1px solid hsl(42 50% 30% / 0.4)',
+            backdropFilter: 'blur(20px)'
+          }}
+        >
           <form onSubmit={handleLogin} className="space-y-5">
             {/* Identifier Input */}
             <div>
-              <label className="block text-sm font-medium text-muted-foreground mb-2">
+              <label 
+                className="block text-sm font-medium mb-2"
+                style={{ color: 'hsl(0 0% 65%)' }}
+              >
                 Email / Matricule
               </label>
               <AuthInput
@@ -203,7 +248,10 @@ const Login = () => {
 
             {/* Password Input */}
             <div>
-              <label className="block text-sm font-medium text-muted-foreground mb-2">
+              <label 
+                className="block text-sm font-medium mb-2"
+                style={{ color: 'hsl(0 0% 65%)' }}
+              >
                 Mot de passe / CIN
               </label>
               <AuthInput
@@ -218,19 +266,22 @@ const Login = () => {
               />
             </div>
 
-            {/* Submit Button */}
+            {/* Submit Button - Gold gradient */}
             <button 
               type="submit" 
               disabled={isLoading || !password}
-              className="w-full h-14 rounded-xl font-semibold text-base flex items-center justify-center gap-3 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed group"
+              className="w-full h-14 rounded-xl font-semibold text-base flex items-center justify-center gap-3 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed group hover:translate-y-[-2px]"
               style={{
-                background: 'linear-gradient(135deg, hsl(var(--primary)), hsl(var(--accent)))',
-                color: 'hsl(var(--primary-foreground))',
-                boxShadow: '0 4px 20px hsl(var(--primary) / 0.4)'
+                background: 'linear-gradient(135deg, hsl(42 75% 55%), hsl(38 85% 50%))',
+                color: 'hsl(0 0% 5%)',
+                boxShadow: '0 4px 20px hsl(42 75% 55% / 0.4), inset 0 1px 0 hsl(45 80% 70% / 0.3)'
               }}
             >
               {isLoading ? (
-                <div className="w-6 h-6 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin" />
+                <div 
+                  className="w-6 h-6 border-2 rounded-full animate-spin"
+                  style={{ borderColor: 'hsl(0 0% 5% / 0.3)', borderTopColor: 'hsl(0 0% 5%)' }}
+                />
               ) : (
                 <>
                   <span>Se connecter</span>
@@ -241,17 +292,20 @@ const Login = () => {
           </form>
 
           {/* Helper text */}
-          <div className="mt-6 pt-6 border-t border-border/50">
-            <div className="text-center text-xs text-muted-foreground space-y-1">
-              <p><strong>Admin:</strong> laissez vide + mot de passe admin</p>
-              <p><strong>Instructeur:</strong> laissez vide + mot de passe instructeur</p>
-              <p><strong>Élève:</strong> Matricule + CIN</p>
+          <div 
+            className="mt-6 pt-6"
+            style={{ borderTop: '1px solid hsl(0 0% 20%)' }}
+          >
+            <div className="text-center text-xs space-y-1" style={{ color: 'hsl(0 0% 50%)' }}>
+              <p><strong style={{ color: 'hsl(42 75% 55%)' }}>Admin:</strong> laissez vide + mot de passe admin</p>
+              <p><strong style={{ color: 'hsl(42 75% 55%)' }}>Instructeur:</strong> laissez vide + mot de passe instructeur</p>
+              <p><strong style={{ color: 'hsl(42 75% 55%)' }}>Élève:</strong> Matricule + CIN</p>
             </div>
           </div>
         </div>
 
         {/* Footer */}
-        <p className="text-center text-xs text-foreground/50 mt-6">
+        <p className="text-center text-xs mt-6" style={{ color: 'hsl(0 0% 40%)' }}>
           Forces Armées Royales • Centre Sportif Maâmoura
         </p>
       </div>

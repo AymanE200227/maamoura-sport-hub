@@ -29,8 +29,10 @@ import {
   addCourseTitle,
   addFileAsync,
   getFilesByCourseTitle,
-  updateFileAsync
+  updateFileAsync,
+  clearAllData
 } from '@/lib/storage';
+import { clearAllFiles } from '@/lib/fileStorage';
 import { CourseType, SportCourse, Stage } from '@/types';
 import { getSportImage, imageCategories, categoryLabels } from '@/assets/sports';
 import { useToast } from '@/hooks/use-toast';
@@ -337,6 +339,14 @@ const GestionCours = () => {
     let report: ImportReport | null = null;
     
     try {
+      // If replace mode, clear all data first
+      if (selectedImportMode === 'replace') {
+        clearAllData();
+        await clearAllFiles();
+        // Re-fetch empty data after clearing
+        loadData();
+      }
+      
       report = await importTreeToStorage(
         importTree,
         getStages,
