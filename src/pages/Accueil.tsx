@@ -14,6 +14,7 @@ import { canAccessStage } from '@/lib/permissions';
 import { Stage, UserRole } from '@/types';
 import { useClickSound } from '@/hooks/useClickSound';
 import { logPageView } from '@/lib/activityLog';
+import { StageCardSkeleton, StatCardSkeleton } from '@/components/SkeletonLoader';
 import bgImage from '@/assets/bg2.jpg';
 import logoOfficial from '@/assets/logo-official.png';
 
@@ -95,6 +96,7 @@ StatCard.displayName = 'StatCard';
 
 const Accueil = () => {
   const [stages, setStages] = useState<Stage[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const navigate = useNavigate();
   const userMode = getUserMode();
   const { playClick } = useClickSound();
@@ -143,6 +145,8 @@ const Accueil = () => {
       return;
     }
     
+    setIsLoading(true);
+    
     // Log page view
     logPageView('/accueil', 'Accueil');
     
@@ -153,6 +157,9 @@ const Accueil = () => {
     );
     
     setStages(accessibleStages);
+    
+    // Small delay for skeleton effect
+    setTimeout(() => setIsLoading(false), 300);
   }, [userMode, userRole, navigate]);
 
   const handleStageClick = useCallback((stage: Stage) => {
@@ -208,32 +215,40 @@ const Accueil = () => {
         </div>
 
         {/* Statistics Grid */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <StatCard 
-            icon={Layers} 
-            label="Stages" 
-            value={stats.activeStages} 
-            color="primary"
-          />
-          <StatCard 
-            icon={BookOpen} 
-            label="Leçons" 
-            value={stats.totalCourses} 
-            color="success"
-          />
-          <StatCard 
-            icon={GraduationCap} 
-            label="Cours" 
-            value={stats.totalTitles} 
-            color="accent"
-          />
-          <StatCard 
-            icon={Users} 
-            label="Élèves" 
-            value={stats.totalStudents} 
-            color="primary"
-          />
-        </div>
+        {isLoading ? (
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <StatCardSkeleton key={i} />
+            ))}
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <StatCard 
+              icon={Layers} 
+              label="Stages" 
+              value={stats.activeStages} 
+              color="primary"
+            />
+            <StatCard 
+              icon={BookOpen} 
+              label="Leçons" 
+              value={stats.totalCourses} 
+              color="success"
+            />
+            <StatCard 
+              icon={GraduationCap} 
+              label="Cours" 
+              value={stats.totalTitles} 
+              color="accent"
+            />
+            <StatCard 
+              icon={Users} 
+              label="Élèves" 
+              value={stats.totalStudents} 
+              color="primary"
+            />
+          </div>
+        )}
 
         {/* Quick Stats Bar */}
         <div className="glass-card p-4">

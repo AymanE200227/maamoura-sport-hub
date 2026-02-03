@@ -30,44 +30,85 @@ const isConclusionFile = (fileName: string): boolean => {
 };
 
 // Stage name mappings - normalize stage names to match default stages
+// Include ALL possible variations to ensure no stages are missed
 const stageNameMappings: Record<string, string> = {
+  // AIDE MONITEUR variants
   'a.moniteur': 'AIDE MONITEUR',
+  'a moniteur': 'AIDE MONITEUR',
   'aide moniteur': 'AIDE MONITEUR',
   'aide_moniteur': 'AIDE MONITEUR',
+  'aidemoniteur': 'AIDE MONITEUR',
+  'aide-moniteur': 'AIDE MONITEUR',
+  // APP variants
   'app': 'APP',
+  // CAT1 variants
   'cat1': 'CAT1',
   'cat 1': 'CAT1',
+  'cat-1': 'CAT1',
+  'cat_1': 'CAT1',
+  // CAT2 variants
   'cat2': 'CAT2', 
   'cat 2': 'CAT2',
+  'cat-2': 'CAT2',
+  'cat_2': 'CAT2',
+  // BE variants
   'be': 'BE',
+  'b.e': 'BE',
+  'b e': 'BE',
+  // BS variants
   'bs': 'BS',
+  'b.s': 'BS',
+  'b s': 'BS',
+  // MONITEUR variants
   'moniteur': 'MONITEUR',
+  // OFF variants
   'off': 'OFF',
+  'officier': 'OFF',
 };
 
-// Get stage ID from name
+// Get stage ID from name - comprehensive mapping
 const getStageId = (name: string): string => {
-  const lower = name.toLowerCase().trim();
+  const lower = name.toLowerCase().trim().replace(/[.\-_]/g, ' ').replace(/\s+/g, ' ');
   const stageIdMap: Record<string, string> = {
     'aide moniteur': 'aide_moniteur',
-    'a.moniteur': 'aide_moniteur',
+    'a moniteur': 'aide_moniteur',
+    'aidemoniteur': 'aide_moniteur',
     'app': 'app',
     'cat1': 'cat1',
     'cat 1': 'cat1',
     'cat2': 'cat2',
     'cat 2': 'cat2',
     'be': 'be',
+    'b e': 'be',
     'bs': 'bs',
+    'b s': 'bs',
     'moniteur': 'moniteur',
     'off': 'off',
+    'officier': 'off',
   };
-  return stageIdMap[lower] || lower.replace(/\s+/g, '_');
+  // Try exact match first
+  if (stageIdMap[lower]) return stageIdMap[lower];
+  // Try without spaces
+  const noSpaces = lower.replace(/\s/g, '');
+  if (stageIdMap[noSpaces]) return stageIdMap[noSpaces];
+  // Fallback
+  return lower.replace(/\s+/g, '_');
 };
 
 // Normalize stage name - but preserve custom stage names
 const normalizeStageName = (name: string): string => {
-  const lower = name.toLowerCase().trim();
-  return stageNameMappings[lower] || name.toUpperCase();
+  // Normalize input by replacing dots/dashes with spaces and collapsing
+  const lower = name.toLowerCase().trim().replace(/[.\-_]/g, ' ').replace(/\s+/g, ' ');
+  // Check direct mapping
+  if (stageNameMappings[lower]) return stageNameMappings[lower];
+  // Check without spaces
+  const noSpaces = lower.replace(/\s/g, '');
+  if (stageNameMappings[noSpaces]) return stageNameMappings[noSpaces];
+  // Check original lowercase
+  const origLower = name.toLowerCase().trim();
+  if (stageNameMappings[origLower]) return stageNameMappings[origLower];
+  // Fallback to uppercase
+  return name.toUpperCase();
 };
 
 const readFileAsDataURL = (file: File): Promise<string> => {
