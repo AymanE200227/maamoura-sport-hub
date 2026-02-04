@@ -1,7 +1,9 @@
 import { memo, useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { X, Download, ZoomIn, ZoomOut, RotateCw, Maximize2, FileText, Video, AlertCircle, Image, File, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
 import { isDownloadEnabled } from '@/lib/storage';
-import mammoth from 'mammoth';
+import { parsePPTX, type ParsedPresentation } from '@/lib/pptxParser';
+import { parseDOCX, type ParsedDocument } from '@/lib/docxParser';
+import SlideRenderer from '@/components/SlideRenderer';
 
 interface LightweightFileViewerProps {
   isOpen: boolean;
@@ -124,8 +126,8 @@ const LightweightFileViewer = memo(({
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [textContent, setTextContent] = useState<string | null>(null);
-  const [wordHtml, setWordHtml] = useState<string | null>(null);
-  const [pptSlides, setPptSlides] = useState<string[]>([]);
+  const [parsedDoc, setParsedDoc] = useState<ParsedDocument | null>(null);
+  const [parsedPpt, setParsedPpt] = useState<ParsedPresentation | null>(null);
   const [currentSlide, setCurrentSlide] = useState(0);
   const [parseError, setParseError] = useState<string | null>(null);
   const downloadAllowed = isDownloadEnabled();
@@ -145,7 +147,7 @@ const LightweightFileViewer = memo(({
     };
   }, [blobUrl]);
 
-  // Parse Word documents with mammoth.js
+  // Parse Word documents with high-fidelity parser
   useEffect(() => {
     if (!isOpen || !fileData || !isWordFile(fileName)) return;
     
@@ -155,28 +157,8 @@ const LightweightFileViewer = memo(({
     const parseWord = async () => {
       try {
         const arrayBuffer = base64ToArrayBuffer(fileData);
-        const result = await mammoth.convertToHtml({ arrayBuffer });
-        
-        // Enhanced HTML with styling
-        const styledHtml = `
-          <style>
-            .word-content { font-family: 'Segoe UI', Tahoma, sans-serif; line-height: 1.8; color: inherit; }
-            .word-content h1 { font-size: 2em; font-weight: bold; margin: 1em 0 0.5em; color: hsl(45 70% 60%); }
-            .word-content h2 { font-size: 1.5em; font-weight: bold; margin: 1em 0 0.5em; color: hsl(45 60% 55%); }
-            .word-content h3 { font-size: 1.25em; font-weight: bold; margin: 1em 0 0.5em; }
-            .word-content p { margin: 0.5em 0; }
-            .word-content ul, .word-content ol { margin: 0.5em 0; padding-left: 2em; }
-            .word-content li { margin: 0.25em 0; }
-            .word-content table { border-collapse: collapse; width: 100%; margin: 1em 0; }
-            .word-content th, .word-content td { border: 1px solid hsl(0 0% 30%); padding: 0.5em; }
-            .word-content th { background: hsl(0 0% 15%); font-weight: bold; }
-            .word-content img { max-width: 100%; height: auto; margin: 1em 0; border-radius: 8px; }
-            .word-content strong { font-weight: bold; color: hsl(45 50% 70%); }
-            .word-content em { font-style: italic; }
-          </style>
-          <div class="word-content">${result.value}</div>
-        `;
-        setWordHtml(styledHtml);
+        const result = await parseDOCX(arrayBuffer);
+        setParsedDoc(result);
         setIsLoading(false);
       } catch (e) {
         console.error('Error parsing Word document:', e);
@@ -188,7 +170,7 @@ const LightweightFileViewer = memo(({
     parseWord();
   }, [isOpen, fileData, fileName]);
 
-  // Parse PowerPoint - Extract slides as images or content
+  // Parse PowerPoint with high-fidelity parser
   useEffect(() => {
     if (!isOpen || !fileData || !isPptFile(fileName)) return;
     
@@ -198,39 +180,8 @@ const LightweightFileViewer = memo(({
     const parsePpt = async () => {
       try {
         const arrayBuffer = base64ToArrayBuffer(fileData);
-        
-        // Use JSZip to extract PPTX content
-        const JSZip = (await import('jszip')).default;
-        const zip = await JSZip.loadAsync(arrayBuffer);
-        
-        const slides: string[] = [];
-        const slideFiles = Object.keys(zip.files)
-          .filter(name => name.startsWith('ppt/slides/slide') && name.endsWith('.xml'))
-          .sort((a, b) => {
-            const numA = parseInt(a.match(/slide(\d+)/)?.[1] || '0');
-            const numB = parseInt(b.match(/slide(\d+)/)?.[1] || '0');
-            return numA - numB;
-          });
-        
-        for (const slideFile of slideFiles) {
-          const content = await zip.files[slideFile].async('text');
-          // Extract text from XML - simplified approach
-          const textMatches = content.match(/<a:t>([^<]*)<\/a:t>/g) || [];
-          const texts = textMatches.map(m => m.replace(/<[^>]+>/g, '').trim()).filter(t => t);
-          
-          if (texts.length > 0) {
-            slides.push(texts.join('\n'));
-          } else {
-            slides.push(`Slide ${slides.length + 1}`);
-          }
-        }
-        
-        if (slides.length === 0) {
-          // Fallback - show file info
-          slides.push('Présentation PowerPoint\n\nLe contenu textuel n\'a pas pu être extrait.\nCe fichier contient probablement des images ou des éléments graphiques.');
-        }
-        
-        setPptSlides(slides);
+        const result = await parsePPTX(arrayBuffer);
+        setParsedPpt(result);
         setCurrentSlide(0);
         setIsLoading(false);
       } catch (e) {
@@ -264,8 +215,8 @@ const LightweightFileViewer = memo(({
       setIsLoading(true);
       setZoom(100);
       setParseError(null);
-      setWordHtml(null);
-      setPptSlides([]);
+      setParsedDoc(null);
+      setParsedPpt(null);
       setCurrentSlide(0);
     }
   }, [isOpen, fileData]);
@@ -276,8 +227,10 @@ const LightweightFileViewer = memo(({
   const toggleFullscreen = useCallback(() => setIsFullscreen(prev => !prev), []);
   
   const nextSlide = useCallback(() => {
-    setCurrentSlide(prev => Math.min(prev + 1, pptSlides.length - 1));
-  }, [pptSlides.length]);
+    if (parsedPpt) {
+      setCurrentSlide(prev => Math.min(prev + 1, parsedPpt.slides.length - 1));
+    }
+  }, [parsedPpt]);
   
   const prevSlide = useCallback(() => {
     setCurrentSlide(prev => Math.max(prev - 1, 0));
@@ -288,11 +241,11 @@ const LightweightFileViewer = memo(({
       if (isFullscreen) setIsFullscreen(false);
       else onClose();
     }
-    if (pptSlides.length > 0) {
+    if (parsedPpt && parsedPpt.slides.length > 0) {
       if (e.key === 'ArrowRight' || e.key === ' ') nextSlide();
       if (e.key === 'ArrowLeft') prevSlide();
     }
-  }, [isFullscreen, onClose, pptSlides.length, nextSlide, prevSlide]);
+  }, [isFullscreen, onClose, parsedPpt, nextSlide, prevSlide]);
 
   useEffect(() => {
     if (isOpen) {
@@ -415,54 +368,90 @@ const LightweightFileViewer = memo(({
       );
     }
 
-    // Word document viewer
-    if (isWord && wordHtml) {
+    // Word document viewer - Light theme for readability
+    if (isWord && parsedDoc) {
       return (
         <div 
           ref={contentRef}
-          className="h-full overflow-auto p-6 bg-gradient-to-b from-card to-background"
+          className="h-full overflow-auto"
+          style={{ backgroundColor: '#f8f9fa' }}
         >
           <div 
-            className="max-w-4xl mx-auto bg-card/50 p-8 rounded-xl border border-border shadow-lg"
-            style={{ fontSize: `${zoom / 100}rem` }}
-            dangerouslySetInnerHTML={{ __html: wordHtml }}
+            className="max-w-4xl mx-auto my-8 bg-white p-12 rounded-lg shadow-lg border border-gray-200"
+            style={{ 
+              fontSize: `${zoom / 100}rem`,
+              minHeight: 'calc(100% - 4rem)'
+            }}
+            dangerouslySetInnerHTML={{ __html: parsedDoc.html }}
           />
         </div>
       );
     }
 
-    // PowerPoint viewer
-    if (isPpt && pptSlides.length > 0) {
+    // PowerPoint viewer - Professional slide rendering
+    if (isPpt && parsedPpt && parsedPpt.slides.length > 0) {
+      const currentSlideData = parsedPpt.slides[currentSlide];
+      
       return (
-        <div className="flex flex-col h-full">
-          {/* Slide content */}
-          <div className="flex-1 flex items-center justify-center p-8 bg-gradient-to-br from-background via-card to-muted/30">
+        <div className="flex flex-col h-full" style={{ backgroundColor: '#2d2d2d' }}>
+          {/* Main slide area */}
+          <div className="flex-1 flex items-center justify-center p-8 overflow-hidden">
             <div 
-              className="w-full max-w-4xl aspect-video bg-card rounded-xl border-2 border-border shadow-2xl p-8 flex items-center justify-center overflow-auto"
-              style={{ fontSize: `${zoom / 100}rem` }}
+              className="w-full max-w-5xl"
+              style={{ transform: `scale(${zoom / 100})`, transformOrigin: 'center center' }}
             >
-              <pre className="text-center whitespace-pre-wrap font-sans text-lg leading-relaxed">
-                {pptSlides[currentSlide]}
-              </pre>
+              <SlideRenderer
+                slide={currentSlideData}
+                slideWidth={parsedPpt.slideWidth}
+                slideHeight={parsedPpt.slideHeight}
+                scale={zoom / 100}
+              />
             </div>
           </div>
           
-          {/* Navigation */}
-          <div className="flex items-center justify-center gap-4 p-4 bg-muted/30 border-t border-border">
+          {/* Slide navigation */}
+          <div 
+            className="flex items-center justify-center gap-4 p-4 border-t"
+            style={{ backgroundColor: '#1a1a1a', borderColor: '#333' }}
+          >
             <button
               onClick={prevSlide}
               disabled={currentSlide === 0}
-              className="p-2 rounded-lg hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+              className="p-2 rounded-lg hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed transition-colors text-white"
             >
               <ChevronLeft className="w-6 h-6" />
             </button>
-            <span className="text-sm font-medium min-w-[100px] text-center">
-              Slide {currentSlide + 1} / {pptSlides.length}
+            
+            {/* Slide thumbnails */}
+            <div className="flex items-center gap-2 overflow-x-auto max-w-lg px-2">
+              {parsedPpt.slides.map((slide, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => setCurrentSlide(idx)}
+                  className={`flex-shrink-0 w-16 h-9 rounded border-2 transition-all overflow-hidden ${
+                    idx === currentSlide 
+                      ? 'border-blue-500 ring-2 ring-blue-500/30' 
+                      : 'border-gray-600 hover:border-gray-400'
+                  }`}
+                  style={{ 
+                    backgroundColor: slide.background?.color || '#fff'
+                  }}
+                >
+                  <div className="w-full h-full flex items-center justify-center text-[6px] text-gray-600 font-medium">
+                    {idx + 1}
+                  </div>
+                </button>
+              ))}
+            </div>
+            
+            <span className="text-sm font-medium min-w-[100px] text-center text-white">
+              Slide {currentSlide + 1} / {parsedPpt.slides.length}
             </span>
+            
             <button
               onClick={nextSlide}
-              disabled={currentSlide === pptSlides.length - 1}
-              className="p-2 rounded-lg hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+              disabled={currentSlide === parsedPpt.slides.length - 1}
+              className="p-2 rounded-lg hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed transition-colors text-white"
             >
               <ChevronRight className="w-6 h-6" />
             </button>
@@ -548,9 +537,9 @@ const LightweightFileViewer = memo(({
               {getFileIcon()}
             </div>
             <span className="font-medium truncate" style={{ color: 'hsl(45 20% 95%)' }}>{fileName}</span>
-            {isPpt && pptSlides.length > 0 && (
+            {isPpt && parsedPpt && parsedPpt.slides.length > 0 && (
               <span className="text-xs px-2 py-0.5 rounded bg-orange-500/20 text-orange-400">
-                {pptSlides.length} slides
+                {parsedPpt.slides.length} slides
               </span>
             )}
           </div>
